@@ -1,0 +1,337 @@
+<?php
+
+namespace Swisseph;
+
+final class Coordinates
+{
+    public static function eclipticToEquatorialRad(float $lon, float $lat, float $dist, float $epsilonRad): array
+    {
+        $cl = cos($lon);
+        $sl = sin($lon);
+        $cb = cos($lat);
+        $sb = sin($lat);
+        $ce = cos($epsilonRad);
+        $se = sin($epsilonRad);
+
+        $x_eq = $cb * $cl;
+        $y_eq = $cb * $sl * $ce - $sb * $se;
+        $z_eq = $cb * $sl * $se + $sb * $ce;
+
+        $ra = atan2($y_eq, $x_eq);
+        if ($ra < 0) {
+            $ra += Math::TWO_PI;
+        }
+        $r_xy = sqrt($x_eq * $x_eq + $y_eq * $y_eq);
+        $dec = atan2($z_eq, $r_xy);
+        return [$ra, $dec, $dist];
+    }
+
+    public static function equatorialToEclipticRad(float $ra, float $dec, float $dist, float $epsilonRad): array
+    {
+        $ca = cos($ra);
+        $sa = sin($ra);
+        $cd = cos($dec);
+        $sd = sin($dec);
+        $ce = cos($epsilonRad);
+        $se = sin($epsilonRad);
+
+        $x_ecl = $cd * $ca;
+        $y_ecl = $cd * $sa * $ce + $sd * $se;
+        $z_ecl = -$cd * $sa * $se + $sd * $ce;
+
+        $lon = atan2($y_ecl, $x_ecl);
+        if ($lon < 0) {
+            $lon += Math::TWO_PI;
+        }
+        $r_xy = sqrt($x_ecl * $x_ecl + $y_ecl * $y_ecl);
+        $lat = atan2($z_ecl, $r_xy);
+        return [$lon, $lat, $dist];
+    }
+
+    public static function equatorialToEcliptic(float $x, float $y, float $z, float $epsilonRad): array
+    {
+        $ce = cos($epsilonRad);
+        $se = sin($epsilonRad);
+        return [$x, $y * $ce + $z * $se, -$y * $se + $z * $ce];
+    }
+
+    public static function coortrf2(array $xpo, array &$xpn, float $sineps, float $coseps): void
+    {
+        $xpn = [
+            $xpo[0],
+            $xpo[1] * $coseps + $xpo[2] * $sineps,
+            -$xpo[1] * $sineps + $xpo[2] * $coseps,
+        ];
+    }
+
+    public static function cartPol(array $x, array &$l): void
+    {
+        if ($x[0] === 0.0 && $x[1] === 0.0 && $x[2] === 0.0) {
+            $l = [0.0, 0.0, 0.0];
+            return;
+        }
+        $rxy = $x[0] * $x[0] + $x[1] * $x[1];
+        $rad = sqrt($rxy + $x[2] * $x[2]);
+        $rxy = sqrt($rxy);
+        $lon = atan2($x[1], $x[0]);
+        if ($lon < 0.0) {
+            $lon += Math::TWO_PI;
+        }
+        $lat = $rxy === 0.0 ? (($x[2] >= 0) ? M_PI / 2 : -M_PI / 2) : atan($x[2] / $rxy);
+        $l = [$lon, $lat, $rad];
+    }
+
+    public static function polCart(array $l, array &$x): void
+    {
+        $cosl1 = cos($l[1]);
+        $x = [
+            $l[2] * $cosl1 * cos($l[0]),
+            $l[2] * $cosl1 * sin($l[0]),
+            $l[2] * sin($l[1]),
+        ];
+    }
+
+    public static function polCartSp(array $l, array &$x): void
+    {
+        $lon = $l[0];
+        $lat = $l[1];
+        $r = $l[2];
+        $dlon = $l[3] ?? 0.0;
+        $dlat = $l[4] ?? 0.0;
+        $dr = $l[5] ?? 0.0;
+
+        $cl = cos($lon);
+        $sl = sin($lon);
+        $cb = cos($lat);
+        $sb = sin($lat);
+
+        $x0 = $r * $cb * $cl;
+        $y0 = $r * $cb * $sl;
+        $z0 = $r * $sb;
+
+        $dx = $dr * $cb * $cl - $r * $sb * $dlat * $cl - $r * $cb * $sl * $dlon;
+        $dy = $dr * $cb * $sl - $r * $sb * $dlat * $sl + $r * $cb * $cl * $dlon;
+        $dz = $dr * $sb + $r * $cb * $dlat;
+
+        $x = [$x0, $y0, $z0, $dx, $dy, $dz];
+    }
+
+    /**
+     * Convert from cartesian to polar coordinates with speed
+     * Port of swi_cartpol_sp() from swephlib.c
+     *
+     * @param array $x Cartesian coordinates [x, y, z, dx, dy, dz]
+     * @param array $l Output polar coordinates [lon, lat, r, dlon, dlat, dr] in radians
+     */
+    public static function cartPolSp(array $x, array &$l): void
+    {
+        // Handle zero position
+        if ($x[0] === 0.0 && $x[1] === 0.0 && $x[2] === 0.0) {
+            $l = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+            $l[5] = sqrt($x[3] * $x[3] + $x[4] * $x[4] + $x[5] * $x[5]);
+            $speed = [$x[3], $x[4], $x[5]];
+            $lSpeed = [];
+            self::cartPol($speed, $lSpeed);
+            $l[0] = $lSpeed[0];
+            $l[1] = $lSpeed[1];
+            return;
+        }
+
+        // Handle zero speed
+        if ($x[3] === 0.0 && $x[4] === 0.0 && $x[5] === 0.0) {
+            $l = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+            $pos = [$x[0], $x[1], $x[2]];
+            $lPos = [];
+            self::cartPol($pos, $lPos);
+            $l[0] = $lPos[0];
+            $l[1] = $lPos[1];
+            $l[2] = $lPos[2];
+            return;
+        }
+
+        // Position
+        $rxy = $x[0] * $x[0] + $x[1] * $x[1];
+        $r = sqrt($rxy + $x[2] * $x[2]);
+        $rxy = sqrt($rxy);
+        $lon = atan2($x[1], $x[0]);
+        if ($lon < 0.0) {
+            $lon += Math::TWO_PI;
+        }
+        $lat = atan($x[2] / $rxy);
+
+        // Speed
+        $coslon = $x[0] / $rxy;
+        $sinlon = $x[1] / $rxy;
+        $coslat = $rxy / $r;
+        $sinlat = $x[2] / $r;
+
+        $xx3 = $x[3] * $coslon + $x[4] * $sinlon;
+        $xx4 = -$x[3] * $sinlon + $x[4] * $coslon;
+        $dlon = $xx4 / $rxy;
+
+        $xx4 = -$sinlat * $xx3 + $coslat * $x[5];
+        $xx5 = $coslat * $xx3 + $sinlat * $x[5];
+        $dlat = $xx4 / $r;
+        $dr = $xx5;
+
+        $l = [$lon, $lat, $r, $dlon, $dlat, $dr];
+    }
+
+    /**
+     * Apply nutation transformation to coordinates
+     * Port of swi_nutate() from sweph.c:3591
+     *
+     * Transforms coordinates by applying nutation rotation matrix.
+     * If backward is true, applies inverse transformation.
+     *
+     * @param array $xx Input/output coordinates [x, y, z, dx, dy, dz]
+     * @param array $nutMatrix Nutation matrix (3x3 as flat array [9])
+     * @param array $nutMatrixVelocity Nutation velocity matrix (3x3 as flat array [9]) for speed correction
+     * @param int $iflag Flags (SEFLG_SPEED)
+     * @param bool $backward If true, transpose matrix (inverse transformation)
+     */
+    public static function nutate(
+        array &$xx,
+        array $nutMatrix,
+        array $nutMatrixVelocity,
+        int $iflag,
+        bool $backward = false
+    ): void {
+        $x = [0.0, 0.0, 0.0];
+        $xv = [0.0, 0.0, 0.0];
+
+        // Apply nutation matrix to position
+        for ($i = 0; $i <= 2; $i++) {
+            if ($backward) {
+                // Transpose: matrix[i][j] → matrix[j][i]
+                // Flat array: matrix[row*3 + col] → matrix[col*3 + row]
+                $x[$i] = $xx[0] * $nutMatrix[$i * 3 + 0] +
+                         $xx[1] * $nutMatrix[$i * 3 + 1] +
+                         $xx[2] * $nutMatrix[$i * 3 + 2];
+            } else {
+                // Normal: matrix[0][i], matrix[1][i], matrix[2][i]
+                // Flat array: matrix[0*3 + i], matrix[1*3 + i], matrix[2*3 + i]
+                $x[$i] = $xx[0] * $nutMatrix[0 * 3 + $i] +
+                         $xx[1] * $nutMatrix[1 * 3 + $i] +
+                         $xx[2] * $nutMatrix[2 * 3 + $i];
+            }
+        }
+
+        if ($iflag & Constants::SEFLG_SPEED) {
+            // Apply nutation matrix to speed
+            for ($i = 0; $i <= 2; $i++) {
+                if ($backward) {
+                    $x[$i + 3] = $xx[3] * $nutMatrix[$i * 3 + 0] +
+                                 $xx[4] * $nutMatrix[$i * 3 + 1] +
+                                 $xx[5] * $nutMatrix[$i * 3 + 2];
+                } else {
+                    $x[$i + 3] = $xx[3] * $nutMatrix[0 * 3 + $i] +
+                                 $xx[4] * $nutMatrix[1 * 3 + $i] +
+                                 $xx[5] * $nutMatrix[2 * 3 + $i];
+                }
+            }
+
+            // Apparent motion due to change of nutation during day (makes 0.01" difference)
+            // NUT_SPEED_INTV = 0.0001 (from C code)
+            $nutSpeedIntv = 0.0001;
+            for ($i = 0; $i <= 2; $i++) {
+                if ($backward) {
+                    $xv[$i] = $xx[0] * $nutMatrixVelocity[$i * 3 + 0] +
+                              $xx[1] * $nutMatrixVelocity[$i * 3 + 1] +
+                              $xx[2] * $nutMatrixVelocity[$i * 3 + 2];
+                } else {
+                    $xv[$i] = $xx[0] * $nutMatrixVelocity[0 * 3 + $i] +
+                              $xx[1] * $nutMatrixVelocity[1 * 3 + $i] +
+                              $xx[2] * $nutMatrixVelocity[2 * 3 + $i];
+                }
+                // New speed = rotated speed + change in position due to nutation velocity
+                $xx[3 + $i] = $x[3 + $i] + ($x[$i] - $xv[$i]) / $nutSpeedIntv;
+            }
+        }
+
+        // Update position
+        for ($i = 0; $i <= 2; $i++) {
+            $xx[$i] = $x[$i];
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

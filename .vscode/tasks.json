@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run PHPUnit",
+			"type": "shell",
+			"command": "pwsh -NoLogo -NoProfile -Command \"if (Test-Path .\\vendor\\bin\\phpunit) { .\\vendor\\bin\\phpunit } elseif (Get-Command phpunit -ErrorAction SilentlyContinue) { phpunit } else { php -d detect_unicode=0 .\\vendor\\phpunit\\phpunit\\phpunit }\"",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$phpcs"
+			],
+			"group": "build"
+		}
+	]
+}

@@ -1,0 +1,97 @@
+    /**
+     * Complete preparation of planet position for osculating element calculation
+     * Full port of swi_plan_for_osc_elem() from sweph.c
+     */
+    private static function planForOscElem(int $iflag, float $tjd, array &$xx): void
+    {
+        // ICRS to J2000 (frame bias for DE403+)
+        if (!($iflag & Constants::SEFLG_ICRS)) {
+            $xx = \Swisseph\Bias::apply(
+                $xx,
+                $tjd,
+                $iflag,
+                \Swisseph\Bias::MODEL_IAU_2006,
+                false,
+                \Swisseph\JplHorizonsApprox::SEMOD_JPLHORA_DEFAULT
+            );
+        }
+
+        // Precession: equator 2000 -> equator of date
+        // Note: speed vector must be rotated, but daily precession must not be added!
+        $useJ2000 = ($iflag & Constants::SEFLG_J2000) !== 0;
+
+        if (!$useJ2000) {
+            \Swisseph\Precession::precess($xx, $tjd, $iflag, -1, null);
+            if (count($xx) >= 6) {
+                $vel = [$xx[3], $xx[4], $xx[5]];
+                \Swisseph\Precession::precess($vel, $tjd, $iflag, -1, null);
+                $xx[3] = $vel[0];
+                $xx[4] = $vel[1];
+                $xx[5] = $vel[2];
+            }
+        }
+
+        // Calculate obliquity
+        $useEpoch = $useJ2000 ? self::J2000 : $tjd;
+        $eps = \Swisseph\Obliquity::calc($useEpoch, $iflag, 0, null);
+        $seps = sin($eps);
+        $ceps = cos($eps);
+
+        $snut = 0.0;
+        $cnut = 0.0;
+
+        // Nutation
+        // Note: speed vector must be rotated, but not added 'speed' of nutation
+        if (!($iflag & Constants::SEFLG_NONUT)) {
+            $nutModel = \Swisseph\Nutation::selectModelFromFlags($iflag);
+            [$dpsi, $deps] = \Swisseph\Nutation::calc($tjd, $nutModel, false);
+
+            $snut = sin($deps);
+            $cnut = cos($deps);
+            $nutMatrix = \Swisseph\NutationMatrix::build($dpsi, $deps, $eps, $seps, $ceps);
+
+            $xTemp = \Swisseph\NutationMatrix::apply($nutMatrix, $xx);
+            $xx[0] = $xTemp[0];
+            $xx[1] = $xTemp[1];
+            $xx[2] = $xTemp[2];
+
+            if (count($xx) >= 6) {
+                $velTemp = \Swisseph\NutationMatrix::apply($nutMatrix, [$xx[3], $xx[4], $xx[5]]);
+                $xx[3] = $velTemp[0];
+                $xx[4] = $velTemp[1];
+                $xx[5] = $velTemp[2];
+            }
+        }
+
+        // Transformation to ecliptic (ALWAYS performed)
+        $xOut = [];
+        \Swisseph\Coordinates::coortrf2($xx, $xOut, $seps, $ceps);
+        $xx[0] = $xOut[0];
+        $xx[1] = $xOut[1];
+        $xx[2] = $xOut[2];
+
+        if (count($xx) >= 6) {
+            $velOut = [];
+            \Swisseph\Coordinates::coortrf2([$xx[3], $xx[4], $xx[5]], $velOut, $seps, $ceps);
+            $xx[3] = $velOut[0];
+            $xx[4] = $velOut[1];
+            $xx[5] = $velOut[2];
+        }
+
+        // Additional transformation if nutation was applied
+        if (!($iflag & Constants::SEFLG_NONUT)) {
+            $xOut = [];
+            \Swisseph\Coordinates::coortrf2($xx, $xOut, $snut, $cnut);
+            $xx[0] = $xOut[0];
+            $xx[1] = $xOut[1];
+            $xx[2] = $xOut[2];
+
+            if (count($xx) >= 6) {
+                $velOut = [];
+                \Swisseph\Coordinates::coortrf2([$xx[3], $xx[4], $xx[5]], $velOut, $snut, $cnut);
+                $xx[3] = $velOut[0];
+                $xx[4] = $velOut[1];
+                $xx[5] = $velOut[2];
+            }
+        }
+    }
