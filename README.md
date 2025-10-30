@@ -44,59 +44,97 @@ cd php-swisseph
 composer install  # Only needed for development/testing
 ```
 
-## Status
+## 📖 Status
 
 **Production Ready** ✅ - Fully tested and verified against C reference implementation.
 
-Установка
-- Локально для скриптовых тестов Composer не нужен: достаточно `php` CLI (>=7.4 для скриптов; PHPUnit требует PHP >=8.1).
-- Для PHPUnit: PHP >=8.1 + Composer.
+## 💻 Requirements
 
-Запуск
-- Скриптовые проверки:
-  ```powershell
-  php .\tests\UtcJdTest.php
-  php .\tests\ErrorContractTest.php
-  php .\tests\SweCalcSkeletonTest.php
-  php .\tests\CoordinatesRoundtripTest.php
-  ```
-- PHPUnit (в CI или локально при PHP >= 8.1):
-  ```powershell
-  composer install -n
-  vendor\bin\phpunit -c phpunit.xml.dist --colors=always
-  ```
-- Бенчмарк (наглядно, без строгих метрик):
-  ```powershell
-  php .\scripts\bench.php
-  ```
+- **For script-based tests**: PHP CLI >=7.4 (Composer not required)
+- **For PHPUnit tests**: PHP >=8.1 + Composer
 
-API-заметки
-- `swe_utc_to_jd/swe_jd_to_utc` поддерживают `$serr` и валидацию `gregflag`.
-- `swe_calc/_ut`: форма `xx` — `[a, b, r, da, db, dr]` (углы и их скорости; по умолчанию градусы/день). Флаги `SEFLG_RADIANS`, `SEFLG_EQUATORIAL`, `SEFLG_XYZ` меняют единицы/систему координат.
-- Сидерика: `swe_set_sid_mode()` устанавливает режим аянамши (Fagan/Bradley, Lahiri и др.), `swe_get_ayanamsa_ex()` возвращает значение.
-- Пока `swe_calc/_ut` возвращают `SE_ERR` и `$serr=UNSUPPORTED` (в разработке).
+## 🏃 Usage
 
-Пример использования сидерики
+### Quick Start
+
+```php
+<?php
+require_once 'vendor/autoload.php';
+
+use Swisseph\Constants;
+
+// Set ephemeris path
+swe_set_ephe_path(__DIR__ . '/ephe');
+
+// Calculate planetary positions
+$jd_ut = 2451545.0; // J2000.0
+$flags = Constants::SEFLG_SWIEPH | Constants::SEFLG_SPEED;
+$xx = [];
+$serr = '';
+
+$result = swe_calc_ut($jd_ut, Constants::SE_SUN, $flags, $xx, $serr);
+if ($result >= 0) {
+    echo "Sun longitude: " . sprintf("%.6f°", $xx[0]) . PHP_EOL;
+    echo "Sun latitude:  " . sprintf("%.6f°", $xx[1]) . PHP_EOL;
+    echo "Sun distance:  " . sprintf("%.6f AU", $xx[2]) . PHP_EOL;
+}
+```
+
+### Running Tests
+
+#### Script-based Tests
+```bash
+php tests/UtcJdTest.php
+php tests/ErrorContractTest.php
+php tests/SweCalcSkeletonTest.php
+php tests/CoordinatesRoundtripTest.php
+```
+
+#### PHPUnit Tests (CI or PHP >= 8.1)
+```bash
+composer install
+vendor/bin/phpunit -c phpunit.xml.dist --colors=always
+```
+
+#### Benchmarks
+```bash
+php scripts/bench.php
+```
+
+## 📚 API Notes
+
+- **Time conversions**: `swe_utc_to_jd()`/`swe_jd_to_utc()` support `$serr` and `gregflag` validation
+- **Planetary calculations**: `swe_calc()`/`swe_calc_ut()` return coordinates in `xx` array:
+  - Default: `[longitude, latitude, distance, lon_speed, lat_speed, dist_speed]` (degrees/AU, degrees/day)
+  - Flags modify format: `SEFLG_RADIANS`, `SEFLG_EQUATORIAL`, `SEFLG_XYZ`
+- **Sidereal astrology**:
+  - `swe_set_sid_mode()` sets ayanamsha mode (Fagan/Bradley, Lahiri, etc.)
+  - `swe_get_ayanamsa_ex()` returns current ayanamsha value
+- **Note**: `swe_calc/_ut` currently return `SE_ERR` with `$serr=UNSUPPORTED` (in development)
+
+## 🌙 Examples
+
+### Sidereal Calculations
 
 ```php
 <?php
 use Swisseph\Constants;
 
-// Установить режим Lahiri
+// Set Lahiri ayanamsha mode
 swe_set_sid_mode(Constants::SE_SIDM_LAHIRI, 0, 0);
 
-// Получить аянамшу для J2000.0
+// Get ayanamsha value for J2000.0
 $jd_tt = 2451545.0;
 $daya = null;
 $serr = null;
 swe_get_ayanamsa_ex($jd_tt, 0, $daya, $serr);
 echo "Ayanamsha (Lahiri, J2000.0): " . sprintf("%.6f°", $daya) . PHP_EOL;
 
-// Получить имя режима
+// Get mode name
 echo "Mode name: " . swe_get_ayanamsa_name(Constants::SE_SIDM_LAHIRI) . PHP_EOL;
 ```
 
-Пример использования домов
+### House Systems
 
 ```php
 <?php
@@ -107,80 +145,112 @@ use Swisseph\Houses;
 use Swisseph\Math;
 
 $jd_ut = 2460680.5;           // 2025-10-01 00:00 UT
-$geolat = 48.8566;            // Париж
+$geolat = 48.8566;            // Paris
 $geolon = 2.3522;
 
-// swe_houses (обёртка)
+// swe_houses (basic wrapper)
 $cusp = $ascmc = [];
 HousesFunctions::houses($jd_ut, $geolat, $geolon, 'J', $cusp, $ascmc);
 echo 'Asc=' . $ascmc[0] . '  MC=' . $ascmc[1] . PHP_EOL;
 
-// swe_houses_ex2: вернёт также ARMC в ascmc[2], а для Sunshine — dec☉ в ascmc[9]
+// swe_houses_ex2: returns ARMC in ascmc[2], for Sunshine system — Sun declination in ascmc[9]
 $cusp2 = $ascmc2 = $cspSpd = $amcSpd = [];
 HousesFunctions::housesEx2($jd_ut, 0, $geolat, $geolon, 'I', $cusp2, $ascmc2, $cspSpd, $amcSpd);
 echo 'ARMC=' . $ascmc2[2] . '  SunDec=' . $ascmc2[9] . PHP_EOL;
 
-// swe_house_pos: позиция объекта (долгота/широта на эклиптике) в домах системы 'J'
+// swe_house_pos: object position (ecliptic lon/lat) in house system 'J'
 $jd_tt = $jd_ut + DeltaT::deltaTSecondsFromJd($jd_ut) / 86400.0;
 $eps_deg = Math::radToDeg(Obliquity::meanObliquityRadFromJdTT($jd_tt));
 $armc_deg = Math::radToDeg(Houses::armcFromSidereal($jd_ut, $geolon));
-$lon_obj = 123.45;            // пример долготы
-$lat_obj = 0.0;               // эклиптическая широта
+$lon_obj = 123.45;            // example longitude
+$lat_obj = 0.0;               // ecliptic latitude
 $pos = HousesFunctions::housePos($armc_deg, $geolat, $eps_deg, 'J', [$lon_obj, $lat_obj]);
 echo 'HousePos(J)=' . $pos . PHP_EOL;
 ```
 
-## Parity-тесты со swetest
+## 🧪 Parity Tests with swetest
 
-Для проверки соответствия C-реализации Swiss Ephemeris доступны скрипты и PHPUnit-тесты.
+Scripts and PHPUnit tests are available to verify compatibility with the C implementation of Swiss Ephemeris.
 
-### Требования
-- Скомпилированный `swetest` (Windows: `swetest64.exe` в `с-swisseph\swisseph\windows\programs\`)
-- Эфемериды Swiss Ephemeris в папке `с-swisseph\swisseph\ephe\`
+### Requirements
+- Compiled `swetest` (Windows: `swetest64.exe` in `с-swisseph\swisseph\windows\programs\`)
+- Swiss Ephemeris ephemerides in `с-swisseph\swisseph\ephe\` folder
 
-### Настройка путей (опционально)
+### Path Configuration (optional)
 
-Установите переменные окружения, если пути отличаются от дефолтных:
+Set environment variables if paths differ from defaults:
 
-```powershell
+```bash
+# Linux/Mac
+export SWETEST_PATH='/path/to/swetest'
+export SWEPH_EPHE_DIR='/path/to/ephe'
+
+# Windows PowerShell
 $env:SWETEST_PATH = 'C:\path\to\swetest64.exe'
 $env:SWEPH_EPHE_DIR = 'C:\path\to\ephe'
 ```
 
-Дефолтные пути (Windows):
+Default paths (Windows):
 - `SWETEST_PATH` = `C:\Users\serge\OneDrive\Documents\Fractal\Projects\Component\Swisseph\с-swisseph\swisseph\windows\programs\swetest64.exe`
 - `SWEPH_EPHE_DIR` = `C:\Users\serge\OneDrive\Documents\Fractal\Projects\Component\Swisseph\с-swisseph\swisseph\ephe`
 
-### Запуск parity-скриптов
+### Running Parity Scripts
 
-```powershell
-# Проверка всех систем домов
-php .\scripts\parity_all_houses.php
+```bash
+# Verify all house systems
+php scripts/parity_all_houses.php
 
-# Проверка конкретной системы (Savard-A)
-php .\scripts\parity_j_vs_swetest.php
+# Verify specific system (Savard-A)
+php scripts/parity_j_vs_swetest.php
 
-# Проверка аянамши
-php .\scripts\parity_ayanamsha_swetest.php
+# Verify ayanamsha calculations
+php scripts/parity_ayanamsha_swetest.php
 
-# Проверка узлов и апсид
-php .\scripts\parity_nod_aps_swetest.php
+# Verify nodes and apsides
+php scripts/parity_nod_aps_swetest.php
 ```
 
-### Guarded PHPUnit-тесты
+### Guarded PHPUnit Tests
 
-Для запуска паритет-тестов через PHPUnit установите переменную окружения `RUN_SWETEST_PARITY`:
+To run parity tests via PHPUnit, set the `RUN_SWETEST_PARITY` environment variable:
 
-```powershell
+```bash
+# Linux/Mac
+export RUN_SWETEST_PARITY=1
+vendor/bin/phpunit -c phpunit.xml.dist --colors=always
+
+# Windows PowerShell
 $env:RUN_SWETEST_PARITY = '1'
-vendor\bin\phpunit -c phpunit.xml.dist --colors=always
+vendor/bin/phpunit -c phpunit.xml.dist --colors=always
 ```
 
-Без этой переменной паритет-тесты будут пропущены (skip).
+Without this variable, parity tests will be skipped.
 
-Лицензия
-- AGPL-3.0-or-later (подробности см. `docs/LICENSE-NOTES.md`).
+## 📄 License
 
-Дорожная карта
-- См. `docs/ROADMAP.md`.
+**AGPL-3.0-or-later** - See [LICENSE](LICENSE) for details.
+
+This project is a PHP port of [Swiss Ephemeris](https://www.astro.com/swisseph/) by Astrodienst AG, which is dual-licensed under AGPL-3.0 and a commercial license. The PHP port follows the same licensing terms.
+
+## 🗺️ Roadmap
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for planned features and development progress.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please see [CONTRACT.md](CONTRACT.md) for API compatibility guidelines.
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/gutsergut/php-swisseph/issues)
+- **Original Library**: [Swiss Ephemeris Documentation](https://www.astro.com/swisseph/swephinfo_e.htm)
+
+## 🙏 Credits
+
+- **Original Swiss Ephemeris**: Astrodienst AG, Dieter Koch, Alois Treindl
+- **PHP Port**: Sergey Gut (2025)
+
+---
+
+Made with ❤️ for the astronomical and astrological community.
 ```

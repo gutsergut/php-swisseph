@@ -24,10 +24,10 @@ desktop.ini
 tests/_output/
 build/
 
-# Debug files
-debug_*.php
-debug_*.txt
-trace_*.php
-get_reference*.php
-test_*.php
-!tests/test_*.php
+# All test files (exclude from git)
+/tests/
+/test_*.php
+/debug_*.php
+/debug_*.txt
+/trace_*.php
+/get_reference*.php
