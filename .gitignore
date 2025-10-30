@@ -1,0 +1,33 @@
+# Dependencies
+/vendor/
+composer.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.log
+*.cache
+
+# Test output
+.phpunit.result.cache
+tests/_output/
+build/
+
+# Debug files
+debug_*.php
+debug_*.txt
+trace_*.php
+get_reference*.php
+test_*.php
+!tests/test_*.php
