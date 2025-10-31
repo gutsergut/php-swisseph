@@ -2,7 +2,7 @@
 
 Обновлено: 2025-11-01
 
-## Реализовано (54 функции)
+## Реализовано (57 функций)
 
 ### Базовые функции времени/календаря
 - ✅ `swe_julday`, `swe_revjul` — преобразования JD ↔ календарь
@@ -80,16 +80,37 @@
 
 ## Не реализовано (43+ функций из swephexp.h)
 
-### Высокий приоритет
-- ✅ **Sidereal transformations для fixed stars (реализовано 01.11.2025)**
-  - Три алгоритма трансформации: ECL_T0, SSY_PLANE, Traditional
-  - Коррекция для разных моделей прецессии (getAyaCorrection)
-  - Интегрировано в FixstarFunctions::calcFromRecord() Part 13
-  - Точность: <0.001° (<3.6 arcsec)
+### Фиксированные звёзды
+- ✅ `swe_fixstar`, `swe_fixstar_ut` — **полная реализация** позиций звёзд (реализовано 01.11.2025)
+  - Каталог sefstars.txt (2935 звёзд по именам/обозначениям/номерам)
+  - Proper motion, parallax, radial velocity
+  - FK4 (B1950) → FK5 (J2000) conversion для старых каталогов
+  - ICRS ↔ J2000 frame bias (IAU 2000/2006)
+  - Прецессия J2000 → date (Newcomb, IAU 1976/2000/2006, Bretagnon)
+  - Nutation (IAU 1980, IAU 2000A/2000B)
+  - Relativistic light deflection by Sun (мэфф при прохождении солнечного диска)
+  - Annual aberration of light (релятивистская формула)
+  - Equatorial → ecliptic transformations
+  - Sidereal positions (ECL_T0, SSY_PLANE, traditional mode)
+  - Точность: <0.001° tropical, <0.001° sidereal
+  - Верификация: Spica 204.189° at 2025-01-01 (tropical)
+- ✅ `swe_fixstar_mag` — визуальная magnitude звезды
 
+### Helper classes (внутренняя архитектура)
+- ✅ `Bias` — ICRS ↔ J2000 frame bias (IAU 2000/2006, JPL Horizons corrections)
+- ✅ `VectorMath` — векторная математика (cross/dot product, normalize, magnitude)
+- ✅ `FK4FK5` — FK4 (B1950) ↔ FK5 (J2000) conversions (Expl.Suppl. p.167f)
+- ✅ `ICRS` — ICRS ↔ FK5 frame rotations (IAU precision matrix)
+- ✅ `EpsilonData` — obliquity data structure (teps, eps, seps, ceps)
+- ✅ `FixedStar` — star data structure (starname, starbayer, epoch, ra, de, pmot, parall, radvel, mag)
+- ✅ `SiderealMode` — sidereal mode wrapper around State
+- ✅ `JplHorizonsApprox` — JPL Horizons corrections (milliarcsecond-level adjustments)
+- ✅ `SiderealFunctions` — sidereal transformations (getAyaCorrection, tropRa2SidLon, tropRa2SidLonSosy)
+
+### Высокий приоритет
 - ⬜ **Точные режимы аянамши**
-  - "True" режимы (True Citra, True Revati и др.) — требуют полной реализации `swe_fixstar`
-  - Базовая версия swe_fixstar работает, но без всех трансформаций
+  - "True" режимы (True Citra, True Revati и др.) — требуют built-in star positions
+  - ✅ Базовая поддержка через встроенные звёзды (Spica, Revati, Pushya, Mula, Galactic Center/Pole)
 
 - ⬜ **Полная реализация узлов/апсид**
   - Координатные преобразования (mean ecliptic of date → J2000 → ecliptic of date с нутацией)
