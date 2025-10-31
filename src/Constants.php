@@ -178,6 +178,7 @@ final class Constants
     public const HELGRAVCONST = 1.32712440017987e+20; // G * M(sun), m^3/sec^2 (AA 2006 K6)
     public const GEOGCONST = 3.98600448e+14;        // G * M(earth), m^3/sec^2 (AA 1996 K6)
     public const NODE_CALC_INTV = 0.0001;           // Interval for node calculation
+    public const KM_S_TO_AU_CTY = 21.095;           // km/s to AU/century conversion factor
 
     // Ephemeris coverage limits (from sweph.h)
     public const MOSHNDEPH_START = -3100015.5; // 15 Aug -13200 (ET jul)

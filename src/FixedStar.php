@@ -1,6 +1,6 @@
 <?php
 
-namespace Swe;
+namespace Swisseph;
 
 /**
  * Fixed star data structure.

@@ -89,22 +89,27 @@ if (!function_exists('swe_set_tid_acc')) {
 
 if (!function_exists('swe_deltat_ex')) {
     /**
-     * Delta T wrapper: returns TT-UT in seconds for JD(UT).
-     * @param float $jdut
-     * @param int $ephe_flag ignored in this pure-PHP port for now
+     * Delta T wrapper: returns TT-UT in days for JD(UT).
+     * @param float $jdut Julian Day (UT)
+     * @param int $ephe_flag Ephemeris flags
      * @param string|null $serr (by-ref) error text if any
+     * @return float Delta T in days
      */
     function swe_deltat_ex(float $jdut, int $ephe_flag = 0, ?string &$serr = null): float
     {
-        $serr = null;
-        return DeltaT::deltaTSecondsFromJd($jdut);
+        return TimeFunctions::deltatEx($jdut, $ephe_flag, $serr);
     }
 }
 
 if (!function_exists('swe_deltat')) {
+    /**
+     * Delta T wrapper (simplified): returns TT-UT in days for JD(UT).
+     * @param float $jdut Julian Day (UT)
+     * @return float Delta T in days
+     */
     function swe_deltat(float $jdut): float
     {
-        return DeltaT::deltaTSecondsFromJd($jdut);
+        return TimeFunctions::deltat($jdut);
     }
 }
 

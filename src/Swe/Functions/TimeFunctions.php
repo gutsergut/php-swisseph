@@ -88,4 +88,46 @@ final class TimeFunctions
 
         return Constants::SE_OK;
     }
+
+    /**
+     * Calculate Delta T (TT-UT1) in days for a given Julian Day (UT).
+     * Port of swe_deltat_ex() from swephlib.c:2701-2710
+     *
+     * @param float $tjd Julian Day Number (UT)
+     * @param int $iflag Calculation flags (currently unused, for future ephemeris-specific adjustments)
+     * @param string|null &$serr Error message
+     * @return float Delta T in days
+     */
+    public static function deltatEx(float $tjd, int $iflag, ?string &$serr): float
+    {
+        // TODO: Check for user-defined delta T override (swed.delta_t_userdef_is_set)
+        // TODO: Adjust for ephemeris-specific tidal acceleration
+
+        if ($serr !== null) {
+            $serr = '';
+        }
+
+        // Use existing DeltaT class to calculate delta T in seconds
+        $deltatSeconds = DeltaT::deltaTSecondsFromJd($tjd);
+
+        // Convert seconds to days
+        $deltatDays = $deltatSeconds / 86400.0;
+
+        return $deltatDays;
+    }
+
+    /**
+     * Calculate Delta T (TT-UT1) in days for a given Julian Day (UT).
+     * Simplified version without iflag parameter.
+     * Port of swe_deltat() from swephlib.c:2713-2716
+     *
+     * @param float $tjd Julian Day Number (UT)
+     * @return float Delta T in days
+     */
+    public static function deltat(float $tjd): float
+    {
+        // Use SEFLG_SWIEPH as default
+        $serr = null;
+        return self::deltatEx($tjd, Constants::SEFLG_SWIEPH, $serr);
+    }
 }

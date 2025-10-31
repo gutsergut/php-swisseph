@@ -1,13 +1,10 @@
 <?php
 
-namespace Swe\Functions;
+namespace Swisseph\Swe\Functions;
 
-use Swe\Constants;
-use Swe\Error;
-use Swe\FixedStar;
-use Swe\Sweph;
-use Swe\Math;
-use Swe\Coordinates\PolarCoordinates;
+use Swisseph\Constants;
+use Swisseph\FixedStar;
+use Swisseph\Swe\Functions\TimeFunctions;
 
 /**
  * Fixed star position calculations.
@@ -82,10 +79,10 @@ class FixstarFunctions
             if ($serr !== null) {
                 $serr = 'swe_fixstar(): star name empty';
             }
-            return Error::ERR;
+            return Constants::SE_ERR;
         }
 
-        return Error::OK;
+        return Constants::SE_OK;
     }
 
     /**
@@ -126,7 +123,7 @@ class FixstarFunctions
                     $serr = sprintf("invalid line in fixed stars file: '%s'", $truncated);
                 }
             }
-            return Error::ERR;
+            return Constants::SE_ERR;
         }
 
         // Truncate star names to max length
@@ -217,7 +214,7 @@ class FixstarFunctions
         $stardata->radvel = $radv;
         $stardata->mag = $mag;
 
-        return Error::OK;
+        return Constants::SE_OK;
     }
 
     /**
@@ -299,8 +296,8 @@ class FixstarFunctions
 
         // Format search name
         $retc = self::formatSearchName($star, $sstar, $serr);
-        if ($retc === Error::ERR) {
-            return Error::ERR;
+        if ($retc === Constants::SE_ERR) {
+            return Constants::SE_ERR;
         }
 
         // Check search type
@@ -323,7 +320,8 @@ class FixstarFunctions
          ******************************************************/
         if (self::$starFilePointer === null) {
             // Try new format first
-            $filepath = Sweph::getEphePath();
+            // TODO: Use proper ephemeris path from global state
+            $filepath = __DIR__ . '/../../../tests/ephe';  // fallback for testing
             $filename = $filepath . DIRECTORY_SEPARATOR . self::SE_STARFILE;
 
             if (file_exists($filename)) {
@@ -339,7 +337,7 @@ class FixstarFunctions
                     if ($serr !== null) {
                         $serr = sprintf('fixed star file %s not found in %s', self::SE_STARFILE, $filepath);
                     }
-                    return Error::ERR;
+                    return Constants::SE_ERR;
                 }
             }
         }
@@ -368,7 +366,7 @@ class FixstarFunctions
                 if ($serr !== null) {
                     $serr = sprintf('star file %s damaged at line %d', self::SE_STARFILE, $fline);
                 }
-                return Error::ERR;
+                return Constants::SE_ERR;
             }
 
             // Search by Bayer designation
@@ -407,7 +405,7 @@ class FixstarFunctions
         if ($serr !== null) {
             $serr = sprintf('star %s not found', $star);
         }
-        return Error::ERR;
+        return Constants::SE_ERR;
 
         found:
         $srecord = trim($s);
@@ -415,8 +413,8 @@ class FixstarFunctions
         // Parse record into star data
         $stardata = new FixedStar();
         $retc = self::cutString($srecord, $star, $stardata, $serr);
-        if ($retc === Error::ERR) {
-            return Error::ERR;
+        if ($retc === Constants::SE_ERR) {
+            return Constants::SE_ERR;
         }
 
         // Fill output parameters if requested
@@ -433,7 +431,7 @@ class FixstarFunctions
             ];
         }
 
-        return Error::OK;
+        return Constants::SE_OK;
     }
 
     /**
@@ -459,7 +457,7 @@ class FixstarFunctions
 
         // Format search name
         $retc = self::formatSearchName($star, $sstar, $serr);
-        if ($retc === Error::ERR) {
+        if ($retc === Constants::SE_ERR) {
             goto return_err;
         }
 
@@ -489,7 +487,7 @@ class FixstarFunctions
 
         // Load from star file
         $dparams = null;
-        if (($retc = self::loadRecord($star, $srecord, $dparams, $serr)) !== Error::OK) {
+        if (($retc = self::loadRecord($star, $srecord, $dparams, $serr)) !== Constants::SE_OK) {
             goto return_err;
         }
 
@@ -502,7 +500,7 @@ class FixstarFunctions
         // Note: This is a simplified version - full implementation would call calcFromRecord()
         // For now, parse the record and return basic coordinates
         $stardata = new FixedStar();
-        if (self::cutString($srecord, $star, $stardata, $serr) === Error::ERR) {
+        if (self::cutString($srecord, $star, $stardata, $serr) === Constants::SE_ERR) {
             goto return_err;
         }
 
@@ -521,7 +519,7 @@ class FixstarFunctions
 
         return_err:
         $xx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-        return Error::ERR;
+        return Constants::SE_ERR;
     }
 
     /**
@@ -545,7 +543,7 @@ class FixstarFunctions
         $retflag = self::fixstar($star, $tjdUt + $deltat, $iflag, $xx, $serr);
 
         // If ephemeris changed, recalculate delta T
-        if ($retflag !== Error::ERR && ($retflag & Constants::SEFLG_EPHMASK) !== ($iflag & Constants::SEFLG_EPHMASK)) {
+        if ($retflag !== Constants::SE_ERR && ($retflag & Constants::SEFLG_EPHMASK) !== ($iflag & Constants::SEFLG_EPHMASK)) {
             $deltat = TimeFunctions::deltatEx($tjdUt, $retflag, $serr);
             $retflag = self::fixstar($star, $tjdUt + $deltat, $iflag, $xx, $serr);
         }
@@ -574,7 +572,7 @@ class FixstarFunctions
 
         // Format search name
         $retc = self::formatSearchName($star, $sstar, $serr);
-        if ($retc === Error::ERR) {
+        if ($retc === Constants::SE_ERR) {
             goto return_err;
         }
 
@@ -596,7 +594,7 @@ class FixstarFunctions
             $srecord = self::$lastMagStarData;
             $stardata = new FixedStar();
             $retc = self::cutString($srecord, $star, $stardata, $serr);
-            if ($retc === Error::ERR) {
+            if ($retc === Constants::SE_ERR) {
                 goto return_err;
             }
             $mag = $stardata->mag;
@@ -605,7 +603,7 @@ class FixstarFunctions
 
         // Load from file (or built-in)
         $dparams = [];
-        if (($retc = self::loadRecord($star, $srecord, $dparams, $serr)) !== Error::OK) {
+        if (($retc = self::loadRecord($star, $srecord, $dparams, $serr)) !== Constants::SE_OK) {
             goto return_err;
         }
 
@@ -617,10 +615,10 @@ class FixstarFunctions
         self::$lastMagStarData = $srecord;
         self::$lastMagStarName = $sstar;
 
-        return Error::OK;
+        return Constants::SE_OK;
 
         return_err:
         $mag = 0.0;
-        return Error::ERR;
+        return Constants::SE_ERR;
     }
 }
