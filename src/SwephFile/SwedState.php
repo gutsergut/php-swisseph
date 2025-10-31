@@ -52,6 +52,9 @@ final class SwedState
     /** Obliquity of ecliptic for J2000 */
     public \Swisseph\EpsilonData $oec2000;
 
+    /** Precession model (for ayanamsa calculations) */
+    private int $precessionModel = 0;
+
     private function __construct()
     {
         // Initialize file data array (7 files)
@@ -92,5 +95,21 @@ final class SwedState
     public function setEphePath(string $path): void
     {
         $this->ephepath = $path;
+    }
+
+    /**
+     * Get current precession model
+     */
+    public function getPrecessionModel(): int
+    {
+        return $this->precessionModel;
+    }
+
+    /**
+     * Set precession model
+     */
+    public function setPrecessionModel(int $model): void
+    {
+        $this->precessionModel = $model;
     }
 }

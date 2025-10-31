@@ -13,6 +13,7 @@ use Swisseph\Bias;
 use Swisseph\VectorMath;
 use Swisseph\Swe\Functions\TimeFunctions;
 use Swisseph\Swe\Functions\PlanetsFunctions;
+use Swisseph\Swe\Functions\SiderealFunctions;
 
 /**
  * Fixed star position calculations.
@@ -941,10 +942,59 @@ class FixstarFunctions
         }
 
         // Part 13: Sidereal positions
-        // TODO: Requires sidereal mode infrastructure - will implement when needed
-        // if ($iflag & Constants::SEFLG_SIDEREAL) {
-        //     // Three modes: ECL_T0, SSY_PLANE, traditional ayanamsa
-        // }
+        if ($iflag & Constants::SEFLG_SIDEREAL) {
+            [$sidMode, $sidOpts, $t0User, $ayan0User] = SiderealMode::get();
+
+            // Rigorous algorithm: sidereal longitude on ecliptic of t0
+            if ($sidOpts & Constants::SE_SIDBIT_ECL_T0) {
+                $xoutTmp = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+                $retc = SiderealFunctions::tropRa2SidLon($xxsv, $x, $xoutTmp, $iflag);
+                if ($retc !== Constants::SE_OK) {
+                    $serr = 'sidereal transformation ECL_T0 failed';
+                    return Constants::SE_ERR;
+                }
+                // If equatorial output requested, use equatorial sidereal position
+                if ($iflag & Constants::SEFLG_EQUATORIAL) {
+                    for ($i = 0; $i <= 5; $i++) {
+                        $x[$i] = $xoutTmp[$i];
+                    }
+                }
+            }
+            // Project onto solar system equator plane
+            elseif ($sidOpts & Constants::SE_SIDBIT_SSY_PLANE) {
+                $retc = SiderealFunctions::tropRa2SidLonSosy($xxsv, $x, $iflag);
+                if ($retc !== Constants::SE_OK) {
+                    $serr = 'sidereal transformation SSY_PLANE failed';
+                    return Constants::SE_ERR;
+                }
+                // If equatorial output requested, use saved J2000 position
+                if ($iflag & Constants::SEFLG_EQUATORIAL) {
+                    for ($i = 0; $i <= 5; $i++) {
+                        $x[$i] = $xxsv[$i];
+                    }
+                }
+            }
+            // Traditional algorithm: subtract ayanamsa from longitude
+            else {
+                // Convert to polar
+                Coordinates::cartPolSp($x, $x);
+
+                // Get ayanamsa
+                $daya = 0.0;
+                $retc = \Swisseph\Sidereal::ayanamshaDegFromJdTT($tjd);
+                if ($retc === false) {
+                    $serr = 'ayanamsa calculation failed';
+                    return Constants::SE_ERR;
+                }
+                $daya = $retc;
+
+                // Subtract ayanamsa from longitude
+                $x[0] -= $daya * Constants::DEGTORAD;
+
+                // Convert back to cartesian
+                Coordinates::polCartSp($x, $x);
+            }
+        }
 
         // Part 14: Final conversions
         // Transform to polar coordinates if not XYZ
