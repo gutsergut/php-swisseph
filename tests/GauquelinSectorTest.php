@@ -12,12 +12,16 @@ echo "Ephemeris path set to: $ephePath\n\n";
 echo "=== Gauquelin Sector Test ===\n\n";
 
 // Test data
-$jd_ut = 2460676.0; // 2025-01-01 12:00 UT
+$jd_ut = 2460677.0; // 2025-01-01 12:00 UT (CORRECTED: JD starts at noon, not midnight!)
 $geopos = [13.4, 52.5, 0.0]; // Berlin: lon, lat, height
 $atpress = 1013.25; // Default atmospheric pressure
 $attemp = 15.0; // Temperature in Celsius
 
-echo "Test date: JD $jd_ut (2025-01-01 12:00 UT)\n";
+// Verify JD is correct
+$date_check = swe_revjul($jd_ut, 1);
+printf("Test date: JD %.1f = %04d-%02d-%02d %02d:%02d UT\n",
+    $jd_ut, $date_check['y'], $date_check['m'], $date_check['d'],
+    (int)$date_check['ut'], (int)(($date_check['ut'] - (int)$date_check['ut']) * 60));
 echo "Location: Berlin (lon=13.4°, lat=52.5°)\n\n";
 
 // Test 1: Sun with method 0 (geometric with latitude)

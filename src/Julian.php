@@ -45,23 +45,31 @@ final class Julian
      */
     public static function fromJulianDay(float $jd, int $gregflag = 1): array
     {
-        $Z = (int) floor($jd + 0.5);
-        $F = ($jd + 0.5) - $Z;
-        $A = $Z;
-        if ($gregflag === 1) {
-            $alpha = (int) floor(($Z - 1867216.25) / 36524.25);
-            $A = $Z + 1 + $alpha - (int) floor($alpha / 4);
+        // Full port from swedate.c:200-218 (swe_revjul)
+        $u0 = $jd + 32082.5;
+
+        if ($gregflag === 1) { // SE_GREG_CAL
+            $u1 = $u0 + floor($u0 / 36525.0) - floor($u0 / 146100.0) - 38.0;
+            if ($jd >= 1830691.5) {
+                $u1 += 1;
+            }
+            $u0 = $u0 + floor($u1 / 36525.0) - floor($u1 / 146100.0) - 38.0;
         }
-        $B = $A + 1524;
-        $C = (int) floor(($B - 122.1) / 365.25);
-        $D = (int) floor(365.25 * $C);
-        $E = (int) floor(($B - $D) / 30.6001);
-        $day = $B - $D - (int) floor(30.6001 * $E) + $F;
-        $month = ($E < 14) ? ($E - 1) : ($E - 13);
-        $year = ($month > 2) ? ($C - 4716) : ($C - 4715);
-        $ut = ($day - floor($day)) * 24.0;
-        $d = (int) floor($day);
-        return ['y' => $year, 'm' => $month, 'd' => $d, 'ut' => $ut];
+
+        $u2 = floor($u0 + 123.0);
+        $u3 = floor(($u2 - 122.2) / 365.25);
+        $u4 = floor(($u2 - floor(365.25 * $u3)) / 30.6001);
+
+        $month = (int)($u4 - 1.0);
+        if ($month > 12) {
+            $month -= 12;
+        }
+
+        $day = (int)($u2 - floor(365.25 * $u3) - floor(30.6001 * $u4));
+        $year = (int)($u3 + floor(($u4 - 2.0) / 12.0) - 4800);
+        $ut = ($jd - floor($jd + 0.5) + 0.5) * 24.0;
+
+        return ['y' => $year, 'm' => $month, 'd' => $day, 'ut' => $ut];
     }
 
     /**
