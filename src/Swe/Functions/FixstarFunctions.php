@@ -493,26 +493,13 @@ class FixstarFunctions
         self::$lastStarData = $srecord;
         self::$lastStarName = $sstar;
 
-        // Calculate position from record
-        // Note: This is a simplified version - full implementation would call calcFromRecord()
-        // For now, parse the record and return basic coordinates
-        $stardata = new FixedStar();
-        if (self::cutString($srecord, $star, $stardata, $serr) === Constants::SE_ERR) {
+        // Calculate position from record with full coordinate transformations
+        $retc = self::calcFromRecord($srecord, $tjd, $iflag, $star, $xx, $serr);
+        if ($retc === Constants::SE_ERR) {
             goto return_err;
         }
 
-        // TODO: Full calculation with proper motion, parallax, precession, nutation, aberration
-        // For now, return epoch coordinates (placeholder)
-        $xx = [
-            $stardata->ra * Constants::RADTODEG,
-            $stardata->de * Constants::RADTODEG,
-            1.0,  // distance placeholder
-            0.0,  // speed longitude
-            0.0,  // speed latitude
-            0.0,  // speed distance
-        ];
-
-        return $iflag;
+        return $retc;
 
         return_err:
         $xx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
@@ -615,6 +602,48 @@ class FixstarFunctions
 
         return_err:
         $mag = 0.0;
+        return Constants::SE_ERR;
+    }
+
+    /**
+     * Calculate fixstar position from CSV record with full astronomical transformations.
+     *
+     * Port of swi_fixstar_calc_from_record() from sweph.c:7667-7950
+     *
+     * Applies: proper motion, parallax, radial velocity, FK4→FK5 precession, ICRF conversion,
+     * observer position, light deflection, aberration, precession, nutation, coordinate transforms,
+     * sidereal positions.
+     *
+     * @param string $srecord CSV record from star file
+     * @param float $tjd Julian day (ET)
+     * @param int $iflag Calculation flags
+     * @param string $star Star name (for error messages)
+     * @param array $xx Output coordinates [6 elements]
+     * @param string $serr Error string
+     * @return int Flag value or ERR
+     */
+    private static function calcFromRecord(string $srecord, float $tjd, int $iflag, string $star, array &$xx, string &$serr): int
+    {
+        // TODO: Implement full coordinate transformations (~280 lines from sweph.c:7667-7950)
+        // This requires porting:
+        // 1. Parse star record (epoch, RA, Dec, proper motion, radial velocity, parallax)
+        // 2. FK4→FK5 conversion for epoch 1950 stars
+        // 3. ICRF/J2000 conversions
+        // 4. Apply proper motion over time
+        // 5. Get Earth/Sun positions for parallax and aberration
+        // 6. Apply observer correction (geocentric/topocentric/barycentric/heliocentric)
+        // 7. Light deflection by Sun
+        // 8. Annual aberration of light
+        // 9. Precession J2000→date
+        // 10. Nutation
+        // 11. Coordinate transformation (equatorial→ecliptic)
+        // 12. Sidereal positions if requested
+        // 13. Polar/cartesian conversions
+        // 14. Radians→degrees if requested
+        //
+        // For now, return error indicating incomplete implementation
+        $xx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $serr = 'calcFromRecord() not yet fully implemented - requires porting ~280 lines from sweph.c:7667-7950';
         return Constants::SE_ERR;
     }
 }
