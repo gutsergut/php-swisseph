@@ -112,6 +112,19 @@ final class Obliquity
     }
 
     /**
+     * Calculate true obliquity of the ecliptic (mean + nutation)
+     *
+     * @param float $jd_tt Julian day (TT)
+     * @return float True obliquity in radians
+     */
+    public static function trueObliquityRadFromJdTT(float $jd_tt): float
+    {
+        $eps_mean = self::calc($jd_tt);
+        [$nutLon, $nutObl] = \Swisseph\Nutation::calcIau1980($jd_tt);
+        return $eps_mean + $nutObl;
+    }
+
+    /**
      * IAU 1976 model (Lieske et al. 1977)
      * Valid for ±200 years from J2000
      */

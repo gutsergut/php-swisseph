@@ -55,6 +55,9 @@ final class SwedState
     /** Precession model (for ayanamsa calculations) */
     private int $precessionModel = 0;
 
+    /** Astronomical models configuration (precession, nutation, sidereal time, etc.) */
+    public array $astroModels = [];
+
     private function __construct()
     {
         // Initialize file data array (7 files)
@@ -79,6 +82,14 @@ final class SwedState
         $this->oec2000 = new \Swisseph\EpsilonData();
         // Pre-calculate J2000 obliquity
         $this->oec2000->calculate(2451545.0); // J2000.0
+
+        // Initialize astronomical models array with defaults (NSE_MODELS = 8)
+        $this->astroModels = array_fill(0, \Swisseph\Constants::NSE_MODELS, 0);
+        // Set default models
+        $this->astroModels[\Swisseph\Constants::SE_MODEL_PREC_SHORTTERM] = \Swisseph\Constants::SEMOD_PREC_DEFAULT_SHORT;
+        $this->astroModels[\Swisseph\Constants::SE_MODEL_NUT] = \Swisseph\Constants::SEMOD_NUT_DEFAULT;
+        $this->astroModels[\Swisseph\Constants::SE_MODEL_SIDT] = \Swisseph\Constants::SEMOD_SIDT_DEFAULT;
+        $this->astroModels[\Swisseph\Constants::SE_MODEL_BIAS] = \Swisseph\Constants::SEMOD_BIAS_DEFAULT;
     }
 
     public static function getInstance(): self

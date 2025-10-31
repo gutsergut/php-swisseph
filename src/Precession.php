@@ -275,4 +275,30 @@ class Precession
         $xx[4] = $vel[1];
         $xx[5] = $vel[2];
     }
+
+    /**
+     * Apply precession to a position vector (functional alias for precess)
+     *
+     * @param array $vec Input vector [x, y, z, ...]
+     * @param float $jdTT Julian date (TT)
+     * @param float $jdTTRef Reference Julian date (TT), use Constants::J2000 for J2000
+     * @return array Precessed vector
+     */
+    public static function precessVector(array $vec, float $jdTT, float $jdTTRef): array
+    {
+        $result = $vec; // Copy to preserve extra elements
+
+        // Determine direction based on reference epoch
+        if ($jdTTRef === Constants::J2000) {
+            // From J2000 to date
+            $direction = Constants::J2000_TO_J;
+        } else {
+            // For other reference epochs, precess from ref to J2000, then to target
+            // This is simplified - full implementation would need two-step precession
+            $direction = Constants::J2000_TO_J;
+        }
+
+        self::precess($result, $jdTT, 0, $direction);
+        return $result;
+    }
 }

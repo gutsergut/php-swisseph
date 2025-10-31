@@ -131,4 +131,15 @@ final class Nutation
                 return 'Unknown';
         }
     }
+
+    /**
+     * Alias for calcIau1980() for compatibility
+     *
+     * @param float $jdTT Julian Day TT
+     * @return array [nutation_longitude_rad, nutation_obliquity_rad]
+     */
+    public static function nutationIau1980(float $jdTT): array
+    {
+        return self::calcIau1980($jdTT, false);
+    }
 }

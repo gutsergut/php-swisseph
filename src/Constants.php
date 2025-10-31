@@ -193,4 +193,54 @@ final class Constants
     public const MOSHNDEPH_END   = 8000016.5;  // 15 Mar 17191 (ET greg)
     public const JPL_DE431_START = -3027215.5;
     public const JPL_DE431_END   = 7930192.5;
+
+    // Astronomical model indices (for astro_models array in SwedState)
+    public const SE_MODEL_PREC_LONGTERM = 1;
+    public const SE_MODEL_PREC_SHORTTERM = 2;
+    public const SE_MODEL_NUT = 3;
+    public const SE_MODEL_BIAS = 4;
+    public const SE_MODEL_JPLHOR_MODE = 5;
+    public const SE_MODEL_JPLHORA_MODE = 6;
+    public const SE_MODEL_SIDT = 7;
+    public const NSE_MODELS = 8;
+
+    // Precession models
+    public const SEMOD_NPREC = 11;
+    public const SEMOD_PREC_IAU_1976 = 1;
+    public const SEMOD_PREC_LASKAR_1986 = 2;
+    public const SEMOD_PREC_WILL_EPS_LASK = 3;
+    public const SEMOD_PREC_WILLIAMS_1994 = 4;
+    public const SEMOD_PREC_SIMON_1994 = 5;
+    public const SEMOD_PREC_IAU_2000 = 6;
+    public const SEMOD_PREC_BRETAGNON_2003 = 7;
+    public const SEMOD_PREC_IAU_2006 = 8;
+    public const SEMOD_PREC_VONDRAK_2011 = 9;
+    public const SEMOD_PREC_OWEN_1990 = 10;
+    public const SEMOD_PREC_NEWCOMB = 11;
+    public const SEMOD_PREC_DEFAULT = self::SEMOD_PREC_VONDRAK_2011;
+    public const SEMOD_PREC_DEFAULT_SHORT = self::SEMOD_PREC_VONDRAK_2011;
+
+    // Nutation models
+    public const SEMOD_NNUT = 5;
+    public const SEMOD_NUT_IAU_1980 = 1;
+    public const SEMOD_NUT_IAU_CORR_1987 = 2; // Herring's corrections to IAU 1980
+    public const SEMOD_NUT_IAU_2000A = 3;     // very time consuming
+    public const SEMOD_NUT_IAU_2000B = 4;     // fast, but precision of milli-arcsec
+    public const SEMOD_NUT_WOOLARD = 5;
+    public const SEMOD_NUT_DEFAULT = self::SEMOD_NUT_IAU_2000B;
+
+    // Sidereal time models
+    public const SEMOD_NSIDT = 4;
+    public const SEMOD_SIDT_IAU_1976 = 1;
+    public const SEMOD_SIDT_IAU_2006 = 2;
+    public const SEMOD_SIDT_IERS_CONV_2010 = 3;
+    public const SEMOD_SIDT_LONGTERM = 4;
+    public const SEMOD_SIDT_DEFAULT = self::SEMOD_SIDT_LONGTERM;
+
+    // Frame bias methods
+    public const SEMOD_NBIAS = 3;
+    public const SEMOD_BIAS_NONE = 1;           // ignore frame bias
+    public const SEMOD_BIAS_IAU2000 = 2;        // IAU 2000 frame bias
+    public const SEMOD_BIAS_IAU2006 = 3;        // IAU 2006 frame bias
+    public const SEMOD_BIAS_DEFAULT = self::SEMOD_BIAS_IAU2006;
 }

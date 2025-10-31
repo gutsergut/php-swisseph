@@ -261,6 +261,67 @@ final class Coordinates
             $xx[$i] = $x[$i];
         }
     }
+
+    /**
+     * Convert polar coordinates to cartesian (functional alias for polCart)
+     *
+     * @param array $polar [longitude_rad, latitude_rad, radius, ...]
+     * @return array [x, y, z, ...]
+     */
+    public static function polarToCartesian(array $polar): array
+    {
+        $result = [];
+        self::polCart($polar, $result);
+        return $result;
+    }
+
+    /**
+     * Convert cartesian coordinates to polar (functional alias for cartPol)
+     *
+     * @param array $cartesian [x, y, z, ...]
+     * @return array [longitude_rad, latitude_rad, radius, ...]
+     */
+    public static function cartesianToPolar(array $cartesian): array
+    {
+        $result = [];
+        self::cartPol($cartesian, $result);
+        return $result;
+    }
+
+    /**
+     * Rotate vector around specified axis
+     * Port of swi_coortrf2() from swephlib.c
+     *
+     * @param array $vec Input vector [x, y, z, ...]
+     * @param float $angle Rotation angle in radians
+     * @param int $axis Rotation axis (0=X, 1=Y, 2=Z)
+     * @return array Rotated vector
+     */
+    public static function rotateVector(array $vec, float $angle, int $axis = 0): array
+    {
+        $sineps = sin($angle);
+        $coseps = cos($angle);
+        $result = $vec; // Copy original array to preserve extra elements
+
+        if ($axis === 0) {
+            // Rotation around X axis (ecliptic <-> equator)
+            $result[0] = $vec[0];
+            $result[1] = $vec[1] * $coseps + $vec[2] * $sineps;
+            $result[2] = -$vec[1] * $sineps + $vec[2] * $coseps;
+        } elseif ($axis === 1) {
+            // Rotation around Y axis
+            $result[0] = $vec[0] * $coseps - $vec[2] * $sineps;
+            $result[1] = $vec[1];
+            $result[2] = $vec[0] * $sineps + $vec[2] * $coseps;
+        } else {
+            // Rotation around Z axis (default)
+            $result[0] = $vec[0] * $coseps + $vec[1] * $sineps;
+            $result[1] = -$vec[0] * $sineps + $vec[1] * $coseps;
+            $result[2] = $vec[2];
+        }
+
+        return $result;
+    }
 }
 
 
