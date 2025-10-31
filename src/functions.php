@@ -313,6 +313,35 @@ if (!function_exists('swe_get_orbital_elements')) {
     }
 }
 
+if (!function_exists('swe_orbit_max_min_true_distance')) {
+    /**
+     * Calculate maximum, minimum and true distance between planet and Earth (or Sun)
+     *
+     * This function calculates the maximum possible distance, the minimum possible distance,
+     * and the current true distance of a planet, the EMB, or an asteroid.
+     *
+     * @param float $tjd_et Julian day in ET/TT
+     * @param int $ipl Planet number
+     * @param int $iflag Calculation flags (SEFLG_EPHMASK | SEFLG_HELCTR | SEFLG_BARYCTR)
+     * @param float &$dmax Output: maximum distance (AU)
+     * @param float &$dmin Output: minimum distance (AU)
+     * @param float &$dtrue Output: true distance (AU)
+     * @param string|null &$serr Error message
+     * @return int SE_OK or SE_ERR
+     */
+    function swe_orbit_max_min_true_distance(
+        float $tjd_et,
+        int $ipl,
+        int $iflag,
+        float &$dmax,
+        float &$dmin,
+        float &$dtrue,
+        ?string &$serr = null
+    ): int {
+        return OrbitalElementsFunctions::orbitMaxMinTrueDistance($tjd_et, $ipl, $iflag, $dmax, $dmin, $dtrue, $serr);
+    }
+}
+
 // Horizontal conversions and refraction
 if (!function_exists('swe_azalt')) {
     /**

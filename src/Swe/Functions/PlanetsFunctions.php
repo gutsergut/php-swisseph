@@ -43,7 +43,8 @@ class PlanetsFunctions
     {
         $xx = Output::emptyForFlags($iflag);
         // Basic arg validation
-        if ($ipl < Constants::SE_SUN || $ipl > Constants::SE_PLUTO) {
+        // Allow SE_SUN (0) through SE_PLUTO (9), plus SE_EARTH (14)
+        if (($ipl < Constants::SE_SUN || $ipl > Constants::SE_PLUTO) && $ipl !== Constants::SE_EARTH) {
             $serr = ErrorCodes::compose(ErrorCodes::INVALID_ARG, "ipl=$ipl out of supported range");
             return Constants::SE_ERR;
         }
@@ -182,25 +183,35 @@ class PlanetsFunctions
                     ($iflag & Constants::SEFLG_BARYCTR) ? 1 : 0));
             }
             if (!($iflag & Constants::SEFLG_HELCTR) && !($iflag & Constants::SEFLG_BARYCTR)) {
-                // C code sweph.c:2711-2726: subtract Earth for geocentric coordinates
-                $swed = \Swisseph\SwephFile\SwedState::getInstance();
-                $pedp = &$swed->pldat[SwephConstants::SEI_EARTH];
+                // Special case: geocentric Earth is always [0, 0, 0]
+                if ($ipl === Constants::SE_EARTH) {
+                    for ($i = 0; $i <= 5; $i++) {
+                        $xx[$i] = 0.0;
+                    }
+                    if (getenv('DEBUG_OSCU')) {
+                        error_log("DEBUG GEOCENTRIC EARTH: returning [0, 0, 0, 0, 0, 0]");
+                    }
+                } else {
+                    // C code sweph.c:2711-2726: subtract Earth for geocentric coordinates
+                    $swed = \Swisseph\SwephFile\SwedState::getInstance();
+                    $pedp = &$swed->pldat[SwephConstants::SEI_EARTH];
 
-                if (getenv('DEBUG_OSCU')) {
-                    error_log(sprintf("DEBUG GEOCENTRIC: Earth pedp->teval=%.2f, current tjd=%.2f",
-                        $pedp->teval, $jd_tt));
-                    error_log(sprintf("DEBUG GEOCENTRIC: subtracting Earth [%.15f, %.15f, %.15f] from planet [%.15f, %.15f, %.15f]",
-                        $pedp->x[0], $pedp->x[1], $pedp->x[2], $xx[0], $xx[1], $xx[2]));
-                }
+                    if (getenv('DEBUG_OSCU')) {
+                        error_log(sprintf("DEBUG GEOCENTRIC: Earth pedp->teval=%.2f, current tjd=%.2f",
+                            $pedp->teval, $jd_tt));
+                        error_log(sprintf("DEBUG GEOCENTRIC: subtracting Earth [%.15f, %.15f, %.15f] from planet [%.15f, %.15f, %.15f]",
+                            $pedp->x[0], $pedp->x[1], $pedp->x[2], $xx[0], $xx[1], $xx[2]));
+                    }
 
-                // Geocentric = Barycentric - Earth
-                for ($i = 0; $i <= 5; $i++) {
-                    $xx[$i] -= $pedp->x[$i];
-                }
+                    // Geocentric = Barycentric - Earth
+                    for ($i = 0; $i <= 5; $i++) {
+                        $xx[$i] -= $pedp->x[$i];
+                    }
 
-                if (getenv('DEBUG_OSCU')) {
-                    error_log(sprintf("DEBUG after GEOCENTRIC: xx=[%.15f, %.15f, %.15f]",
-                        $xx[0], $xx[1], $xx[2]));
+                    if (getenv('DEBUG_OSCU')) {
+                        error_log(sprintf("DEBUG after GEOCENTRIC: xx=[%.15f, %.15f, %.15f]",
+                            $xx[0], $xx[1], $xx[2]));
+                    }
                 }
             }            // Apply coordinate transformations and populate xreturn[24]
             // C code: app_pos_rest() in sweph.c:2776
