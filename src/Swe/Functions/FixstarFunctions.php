@@ -10,6 +10,7 @@ use Swisseph\FK4FK5;
 use Swisseph\ICRS;
 use Swisseph\Precession;
 use Swisseph\Bias;
+use Swisseph\VectorMath;
 use Swisseph\Swe\Functions\TimeFunctions;
 use Swisseph\Swe\Functions\PlanetsFunctions;
 
@@ -823,8 +824,16 @@ class FixstarFunctions
             }
         }
 
-        // TODO: Part 7 - Light deflection
-        // TODO: Part 8 - Aberration
+        // Part 7: Relativistic light deflection
+        if (($iflag & Constants::SEFLG_TRUEPOS) == 0 && ($iflag & Constants::SEFLG_NOGDEFL) == 0) {
+            self::deflectLight($x, $xearth, $xearth_dt, $xsun, $xsun_dt, $dt, $iflag);
+        }
+
+        // Part 8: Annual aberration of light
+        if (($iflag & Constants::SEFLG_TRUEPOS) == 0 && ($iflag & Constants::SEFLG_NOABERR) == 0) {
+            self::aberrLightEx($x, $xpo, $xpo_dt, $dt, $iflag);
+        }
+
         // TODO: Part 9 - Precession
         // TODO: Part 10 - Nutation
         // TODO: Part 11 - Coordinate transformations
@@ -832,7 +841,420 @@ class FixstarFunctions
         // TODO: Part 13 - Final conversions
 
         $xx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-        $serr = 'calcFromRecord() partially implemented - Parts 7-13 TODO';
+        $serr = 'calcFromRecord() partially implemented - Parts 9-13 TODO';
         return Constants::SE_ERR;
+    }
+
+    /**
+     * Annual aberration of light (wrapper with speed correction).
+     * Computes aberration caused by Earth's orbital motion around the Sun.
+     *
+     * The influence of aberration on apparent velocity can reach 0.4"/day.
+     *
+     * Port of swi_aberr_light_ex() from sweph.c:3671-3690
+     *
+     * @param array &$xx Planet position/velocity [x, y, z, vx, vy, vz] (modified in place)
+     * @param array $xe Earth position and velocity at time t
+     * @param array $xe_dt Earth position and velocity at time t - dt
+     * @param float $dt Time difference between xe and xe_dt
+     * @param int $iflag Calculation flags
+     */
+    private static function aberrLightEx(
+        array &$xx,
+        array $xe,
+        array $xe_dt,
+        float $dt,
+        int $iflag
+    ): void {
+        $xxs = $xx;  // Save original position/velocity
+
+        // Apply aberration correction to position
+        self::aberrLight($xx, $xe);
+
+        // Correct velocity if requested
+        if ($iflag & Constants::SEFLG_SPEED) {
+            // Compute position at t - dt
+            $xx2 = [
+                $xxs[0] - $dt * $xxs[3],
+                $xxs[1] - $dt * $xxs[4],
+                $xxs[2] - $dt * $xxs[5],
+                0.0, 0.0, 0.0
+            ];
+
+            // Apply aberration at t - dt
+            self::aberrLight($xx2, $xe_dt);
+
+            // Velocity via finite differences
+            for ($i = 0; $i <= 2; $i++) {
+                $xx[$i + 3] = ($xx[$i] - $xx2[$i]) / $dt;
+            }
+        }
+    }
+
+    /**
+     * Annual aberration of light (basic calculation).
+     * Computes relativistic aberration effect due to Earth's motion.
+     *
+     * Formula (special relativity):
+     *   β = v/c (velocity as fraction of light speed)
+     *   β_1 = sqrt(1 - β²) (Lorentz factor component)
+     *   f1 = (u · v) / |u|
+     *   f2 = 1 + f1 / (1 + β_1)
+     *   xx' = (β_1 * xx + f2 * |u| * v) / (1 + f1)
+     *
+     * Port of aberr_light() from sweph.c:3645-3660
+     *
+     * @param array &$xx Planet position [x, y, z, vx, vy, vz] (position modified in place)
+     * @param array $xe Earth position and velocity [x, y, z, vx, vy, vz]
+     */
+    private static function aberrLight(array &$xx, array $xe): void
+    {
+        $u = [$xx[0], $xx[1], $xx[2]];
+        $ru = sqrt(VectorMath::squareSum($u));
+
+        // Earth velocity in AU/day, convert to fraction of light speed
+        // xe[i+3] is in AU/day, CLIGHT is in AU/day, so no time conversion needed
+        $v = [
+            $xe[3] / 24.0 / 3600.0 / Constants::CLIGHT * Constants::AUNIT,
+            $xe[4] / 24.0 / 3600.0 / Constants::CLIGHT * Constants::AUNIT,
+            $xe[5] / 24.0 / 3600.0 / Constants::CLIGHT * Constants::AUNIT
+        ];
+
+        $v2 = VectorMath::squareSum($v);
+        $b_1 = sqrt(1.0 - $v2);  // Lorentz factor component
+
+        $f1 = VectorMath::dotProduct($u, $v) / $ru;
+        $f2 = 1.0 + $f1 / (1.0 + $b_1);
+
+        // Apply relativistic velocity addition formula
+        for ($i = 0; $i <= 2; $i++) {
+            $xx[$i] = ($b_1 * $xx[$i] + $f2 * $ru * $v[$i]) / (1.0 + $f1);
+        }
+    }
+
+    /**
+     * Relativistic light deflection by the sun.
+     * Implements general relativity correction for light passing near solar limb.
+     *
+     * When a planet approaches superior conjunction with the sun, the deflection
+     * angle cannot be computed using the point-mass formula. This implementation
+     * uses the mass distribution within the sun (via meff()) for continuity.
+     *
+     * Maximum effect:
+     * - 1.75 arcsec at solar limb
+     * - Can reach 30+ arcsec for inner planets very close to sun
+     * - Speed changes: 7-30 arcsec/day near solar conjunction
+     *
+     * Port of swi_deflect_light() from sweph.c:3742-3920
+     *
+     * @param array &$xx Planet position/velocity [x, y, z, vx, vy, vz] (modified in place)
+     * @param array $xearth Earth barycentric position at tjd
+     * @param array $xearth_dt Earth barycentric position at tjd - dt
+     * @param array $xsun Sun barycentric position at tjd
+     * @param array $xsun_dt Sun barycentric position at tjd - dt
+     * @param float $dt Time delta for light-time correction
+     * @param int $iflag Calculation flags
+     */
+    private static function deflectLight(
+        array &$xx,
+        array $xearth,
+        array $xearth_dt,
+        array $xsun,
+        array $xsun_dt,
+        float $dt,
+        int $iflag
+    ): void {
+        // Position calculation (always)
+        $xx2 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+
+        // U = planet_bary(t-tau) - earth_bary(t) = planet_geo
+        $u = [$xx[0], $xx[1], $xx[2]];
+
+        // E = earth_bary(t) - sun_bary(t) = earth_helio
+        // (xsun is sun barycentric position)
+        $e = [
+            $xearth[0] - $xsun[0],
+            $xearth[1] - $xsun[1],
+            $xearth[2] - $xsun[2]
+        ];
+
+        // Q = planet_bary(t-tau) - sun_bary(t-tau) = planet_helio
+        // Compute sun_bary(t-tau) by backward extrapolation
+        $xsun_tau = [
+            $xsun[0] - $dt * $xsun[3],
+            $xsun[1] - $dt * $xsun[4],
+            $xsun[2] - $dt * $xsun[5]
+        ];
+
+        $q = [
+            $xx[0] + $xearth[0] - $xsun_tau[0],
+            $xx[1] + $xearth[1] - $xsun_tau[1],
+            $xx[2] + $xearth[2] - $xsun_tau[2]
+        ];
+
+        // Compute magnitudes and normalize to unit vectors
+        $ru = sqrt(VectorMath::squareSum($u));
+        $rq = sqrt(VectorMath::squareSum($q));
+        $re = sqrt(VectorMath::squareSum($e));
+
+        $u = [$u[0] / $ru, $u[1] / $ru, $u[2] / $ru];
+        $q = [$q[0] / $rq, $q[1] / $rq, $q[2] / $rq];
+        $e = [$e[0] / $re, $e[1] / $re, $e[2] / $re];
+
+        // Dot products
+        $uq = VectorMath::dotProduct($u, $q);
+        $ue = VectorMath::dotProduct($u, $e);
+        $qe = VectorMath::dotProduct($q, $e);
+
+        // Effective mass correction for solar limb
+        // When planet is near sun center in superior conjunction,
+        // deflection formula breaks down (sun treated as point mass).
+        // Use mass distribution within sun for smooth transition.
+        $sina = sqrt(1.0 - $ue * $ue);  // sin(angle) between sun and planet
+        $sin_sunr = Constants::SUN_RADIUS / $re;  // sine of sun angular radius
+
+        if ($sina < $sin_sunr) {
+            $meff_fact = self::meff($sina / $sin_sunr);
+        } else {
+            $meff_fact = 1.0;
+        }
+
+        // Deflection formula from GR:
+        // g1 = 2 * G * M_sun / c^2 / AU / distance_to_sun
+        // g2 = 1 + q·e
+        $g1 = 2.0 * Constants::HELGRAVCONST * $meff_fact /
+              Constants::CLIGHT / Constants::CLIGHT / Constants::AUNIT / $re;
+        $g2 = 1.0 + $qe;
+
+        // Deflected position: xx2 = ru * (u + (g1/g2) * (uq*e - ue*q))
+        for ($i = 0; $i <= 2; $i++) {
+            $xx2[$i] = $ru * ($u[$i] + ($g1 / $g2) * ($uq * $e[$i] - $ue * $q[$i]));
+        }
+
+        // Speed correction (if requested)
+        if ($iflag & Constants::SEFLG_SPEED) {
+            // Light deflection affects apparent speed, especially near solar conjunction.
+            // For outer planet at solar limb with speed diff = 1°, effect is ~7"/day.
+            // Within solar disc, can reach 30" or more.
+            //
+            // Example: Mercury at J2434871.45, distance from sun 45":
+            //   Without deflection: 2d10'10".4034
+            //   With deflection:    2d10'43".4824
+            //
+            // Compute deflection at slightly shifted time to get velocity effect.
+            $dtsp = -Constants::DEFL_SPEED_INTV;
+
+            // U = planet_bary(t-tau-dtsp) - earth_bary(t-dtsp)
+            $u_sp = [
+                $xx[0] - $dtsp * $xx[3],
+                $xx[1] - $dtsp * $xx[4],
+                $xx[2] - $dtsp * $xx[5]
+            ];
+
+            // E = earth_bary(t-dtsp) - sun_bary(t-dtsp)
+            $e_sp = [
+                $xearth[0] - $xsun[0] - $dtsp * ($xearth[3] - $xsun[3]),
+                $xearth[1] - $xsun[1] - $dtsp * ($xearth[4] - $xsun[4]),
+                $xearth[2] - $xsun[2] - $dtsp * ($xearth[5] - $xsun[5])
+            ];
+
+            // Q = planet_bary(t-tau-dtsp) - sun_bary(t-tau-dtsp)
+            $q_sp = [
+                $u_sp[0] + $xearth[0] - $xsun_tau[0] - $dtsp * ($xearth[3] - $xsun_tau[3]),
+                $u_sp[1] + $xearth[1] - $xsun_tau[1] - $dtsp * ($xearth[4] - $xsun_tau[4]),
+                $u_sp[2] + $xearth[2] - $xsun_tau[2] - $dtsp * ($xearth[5] - $xsun_tau[5])
+            ];
+
+            // Normalize
+            $ru_sp = sqrt(VectorMath::squareSum($u_sp));
+            $rq_sp = sqrt(VectorMath::squareSum($q_sp));
+            $re_sp = sqrt(VectorMath::squareSum($e_sp));
+
+            $u_sp = [$u_sp[0] / $ru_sp, $u_sp[1] / $ru_sp, $u_sp[2] / $ru_sp];
+            $q_sp = [$q_sp[0] / $rq_sp, $q_sp[1] / $rq_sp, $q_sp[2] / $rq_sp];
+            $e_sp = [$e_sp[0] / $re_sp, $e_sp[1] / $re_sp, $e_sp[2] / $re_sp];
+
+            // Dot products at shifted time
+            $uq_sp = VectorMath::dotProduct($u_sp, $q_sp);
+            $ue_sp = VectorMath::dotProduct($u_sp, $e_sp);
+            $qe_sp = VectorMath::dotProduct($q_sp, $e_sp);
+
+            // Effective mass at shifted time
+            $sina_sp = sqrt(1.0 - $ue_sp * $ue_sp);
+            $sin_sunr_sp = Constants::SUN_RADIUS / $re_sp;
+
+            if ($sina_sp < $sin_sunr_sp) {
+                $meff_fact_sp = self::meff($sina_sp / $sin_sunr_sp);
+            } else {
+                $meff_fact_sp = 1.0;
+            }
+
+            $g1_sp = 2.0 * Constants::HELGRAVCONST * $meff_fact_sp /
+                     Constants::CLIGHT / Constants::CLIGHT / Constants::AUNIT / $re_sp;
+            $g2_sp = 1.0 + $qe_sp;
+
+            // Deflected position at shifted time
+            $xx3 = [0.0, 0.0, 0.0];
+            for ($i = 0; $i <= 2; $i++) {
+                $xx3[$i] = $ru_sp * ($u_sp[$i] + ($g1_sp / $g2_sp) * ($uq_sp * $e_sp[$i] - $ue_sp * $q_sp[$i]));
+            }
+
+            // Speed correction via finite differences
+            // dx1 = deflection at t
+            // dx2 = deflection at t-dtsp
+            // velocity correction = (dx1 - dx2) / dtsp
+            for ($i = 0; $i <= 2; $i++) {
+                $dx1 = $xx2[$i] - $xx[$i];
+                $dx2 = $xx3[$i] - $u_sp[$i] * $ru_sp;
+                $dx1 -= $dx2;
+                $xx[$i + 3] += $dx1 / $dtsp;
+            }
+        }
+
+        // Apply deflected position
+        for ($i = 0; $i <= 2; $i++) {
+            $xx[$i] = $xx2[$i];
+        }
+    }
+
+    /**
+     * Effective solar mass for light deflection calculations.
+     * Returns the effective mass of the sun at distance r (fraction of solar radius).
+     * Used for gravitational light deflection near the solar limb.
+     *
+     * The mass distribution m(r) is from Michael Stix, "The Sun", p. 47.
+     * Values computed with classic treatment of photon passing gravity field, multiplied by 2.
+     *
+     * Port of meff() from sweph.c:6021-6036
+     *
+     * @param float $r Distance from sun center in solar radii (0.0 to 1.0)
+     * @return float Effective mass (0.0 to 1.0)
+     */
+    private static function meff(float $r): float
+    {
+        // Mass distribution lookup table
+        // Each entry: [r => radius fraction, m => effective mass fraction]
+        static $effArr = [
+            ['r' => 1.000, 'm' => 1.000000],
+            ['r' => 0.990, 'm' => 0.999979],
+            ['r' => 0.980, 'm' => 0.999940],
+            ['r' => 0.970, 'm' => 0.999881],
+            ['r' => 0.960, 'm' => 0.999811],
+            ['r' => 0.950, 'm' => 0.999724],
+            ['r' => 0.940, 'm' => 0.999622],
+            ['r' => 0.930, 'm' => 0.999497],
+            ['r' => 0.920, 'm' => 0.999354],
+            ['r' => 0.910, 'm' => 0.999192],
+            ['r' => 0.900, 'm' => 0.999000],
+            ['r' => 0.890, 'm' => 0.998786],
+            ['r' => 0.880, 'm' => 0.998535],
+            ['r' => 0.870, 'm' => 0.998242],
+            ['r' => 0.860, 'm' => 0.997919],
+            ['r' => 0.850, 'm' => 0.997571],
+            ['r' => 0.840, 'm' => 0.997198],
+            ['r' => 0.830, 'm' => 0.996792],
+            ['r' => 0.820, 'm' => 0.996316],
+            ['r' => 0.810, 'm' => 0.995791],
+            ['r' => 0.800, 'm' => 0.995226],
+            ['r' => 0.790, 'm' => 0.994625],
+            ['r' => 0.780, 'm' => 0.993991],
+            ['r' => 0.770, 'm' => 0.993326],
+            ['r' => 0.760, 'm' => 0.992598],
+            ['r' => 0.750, 'm' => 0.991770],
+            ['r' => 0.740, 'm' => 0.990873],
+            ['r' => 0.730, 'm' => 0.989919],
+            ['r' => 0.720, 'm' => 0.988912],
+            ['r' => 0.710, 'm' => 0.987856],
+            ['r' => 0.700, 'm' => 0.986755],
+            ['r' => 0.690, 'm' => 0.985610],
+            ['r' => 0.680, 'm' => 0.984398],
+            ['r' => 0.670, 'm' => 0.982986],
+            ['r' => 0.660, 'm' => 0.981437],
+            ['r' => 0.650, 'm' => 0.979779],
+            ['r' => 0.640, 'm' => 0.978024],
+            ['r' => 0.630, 'm' => 0.976182],
+            ['r' => 0.620, 'm' => 0.974256],
+            ['r' => 0.610, 'm' => 0.972253],
+            ['r' => 0.600, 'm' => 0.970174],
+            ['r' => 0.590, 'm' => 0.968024],
+            ['r' => 0.580, 'm' => 0.965594],
+            ['r' => 0.570, 'm' => 0.962797],
+            ['r' => 0.560, 'm' => 0.959758],
+            ['r' => 0.550, 'm' => 0.956515],
+            ['r' => 0.540, 'm' => 0.953088],
+            ['r' => 0.530, 'm' => 0.949495],
+            ['r' => 0.520, 'm' => 0.945741],
+            ['r' => 0.510, 'm' => 0.941838],
+            ['r' => 0.500, 'm' => 0.937790],
+            ['r' => 0.490, 'm' => 0.933563],
+            ['r' => 0.480, 'm' => 0.928668],
+            ['r' => 0.470, 'm' => 0.923288],
+            ['r' => 0.460, 'm' => 0.917527],
+            ['r' => 0.450, 'm' => 0.911432],
+            ['r' => 0.440, 'm' => 0.905035],
+            ['r' => 0.430, 'm' => 0.898353],
+            ['r' => 0.420, 'm' => 0.891022],
+            ['r' => 0.410, 'm' => 0.882940],
+            ['r' => 0.400, 'm' => 0.874312],
+            ['r' => 0.390, 'm' => 0.865206],
+            ['r' => 0.380, 'm' => 0.855423],
+            ['r' => 0.370, 'm' => 0.844619],
+            ['r' => 0.360, 'm' => 0.833074],
+            ['r' => 0.350, 'm' => 0.820876],
+            ['r' => 0.340, 'm' => 0.808031],
+            ['r' => 0.330, 'm' => 0.793962],
+            ['r' => 0.320, 'm' => 0.778931],
+            ['r' => 0.310, 'm' => 0.763021],
+            ['r' => 0.300, 'm' => 0.745815],
+            ['r' => 0.290, 'm' => 0.727557],
+            ['r' => 0.280, 'm' => 0.708234],
+            ['r' => 0.270, 'm' => 0.687583],
+            ['r' => 0.260, 'm' => 0.665741],
+            ['r' => 0.250, 'm' => 0.642597],
+            ['r' => 0.240, 'm' => 0.618252],
+            ['r' => 0.230, 'm' => 0.592586],
+            ['r' => 0.220, 'm' => 0.565747],
+            ['r' => 0.210, 'm' => 0.537697],
+            ['r' => 0.200, 'm' => 0.508554],
+            ['r' => 0.190, 'm' => 0.478420],
+            ['r' => 0.180, 'm' => 0.447322],
+            ['r' => 0.170, 'm' => 0.415454],
+            ['r' => 0.160, 'm' => 0.382892],
+            ['r' => 0.150, 'm' => 0.349955],
+            ['r' => 0.140, 'm' => 0.316691],
+            ['r' => 0.130, 'm' => 0.283565],
+            ['r' => 0.120, 'm' => 0.250431],
+            ['r' => 0.110, 'm' => 0.218327],
+            ['r' => 0.100, 'm' => 0.186794],
+            ['r' => 0.090, 'm' => 0.156287],
+            ['r' => 0.080, 'm' => 0.128421],
+            ['r' => 0.070, 'm' => 0.102237],
+            ['r' => 0.060, 'm' => 0.077393],
+            ['r' => 0.050, 'm' => 0.054833],
+            ['r' => 0.040, 'm' => 0.036361],
+            ['r' => 0.030, 'm' => 0.020953],
+            ['r' => 0.020, 'm' => 0.009645],
+            ['r' => 0.010, 'm' => 0.002767],
+            ['r' => 0.000, 'm' => 0.000000]
+        ];
+
+        // Boundary conditions
+        if ($r <= 0.0) {
+            return 0.0;
+        } elseif ($r >= 1.0) {
+            return 1.0;
+        }
+
+        // Find bracket in lookup table (table is sorted descending by r)
+        $i = 0;
+        while ($i < count($effArr) && $effArr[$i]['r'] > $r) {
+            $i++;
+        }
+
+        // Linear interpolation between eff_arr[i-1] and eff_arr[i]
+        $f = ($r - $effArr[$i - 1]['r']) / ($effArr[$i]['r'] - $effArr[$i - 1]['r']);
+        $m = $effArr[$i - 1]['m'] + $f * ($effArr[$i]['m'] - $effArr[$i - 1]['m']);
+
+        return $m;
     }
 }
