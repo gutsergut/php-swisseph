@@ -2,7 +2,7 @@
 
 Обновлено: 2025-10-27
 
-## Реализовано (47 функций)
+## Реализовано (48 функций)
 
 ### Базовые функции времени/календаря
 - ✅ `swe_julday`, `swe_revjul` — преобразования JD ↔ календарь
@@ -54,6 +54,12 @@
   - Опция `SE_NODBIT_FOPOINT` (фокус вместо афелия)
   - Osculating nodes/apsides — не реализованы
 
+### Орбитальные элементы
+- ✅ `swe_get_orbital_elements` — полная реализация кеплеровских элементов (a, e, i, Ω, ω, ϖ, M, ν, E, L, periods)
+- ✅ `swe_orbit_max_min_true_distance` — расстояния min/max/true между планетой и Землей/Солнцем
+  - Newton iteration для поиска экстремумов
+  - Поддержка geocentric и heliocentric режимов
+
 ### Планетарные явления
 - ✅ `swe_pheno`, `swe_pheno_ut` — **полная реализация** фаза, блеск, угловой диаметр планет
   - Формулы Mallama 2018 для всех планет (Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune)
@@ -92,8 +98,8 @@
 - ⬜ `swe_fixstar`, `swe_fixstar_ut`, `swe_fixstar_mag` — звёздные каталоги
 - ⬜ `swe_gauquelin_sector` — сектор Gauquelin для планеты
 - ✅ `swe_refrac_extended` — расширенная рефракция с lapse rate (Newton iteration, Sinclair formula, dip calculation)
-- ✅ `swe_get_orbital_elements` — орбитальные элементы
-- ⬜ `swe_orbit_max_min_true_distance` — экстремумы расстояний
+- ✅ `swe_get_orbital_elements` — орбитальные элементы (полностью реализовано)
+- ✅ `swe_orbit_max_min_true_distance` — экстремумы расстояний (полностью реализовано)
 
 ### Низкий приоритет (специализированные)
 - ⬜ Затмения и покрытия (10+ функций: `swe_sol_eclipse_*`, `swe_lun_eclipse_*`, `swe_lun_occult_*`)
