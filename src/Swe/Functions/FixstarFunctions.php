@@ -859,20 +859,82 @@ class FixstarFunctions
         }
 
         // Part 11: Nutation
-        // TODO: Requires nutation matrix from Swed - will implement in next iteration
-        // if (!($iflag & Constants::SEFLG_NONUT)) {
-        //     Coordinates::nutate($x, $nutMatrix, $nutMatrixVelocity, $iflag, false);
-        // }
+        $nutMatrix = null;
+        $nutMatrixVelocity = null;
+        if (!($iflag & Constants::SEFLG_NONUT)) {
+            // Calculate nutation (dpsi, deps)
+            [$dpsi, $deps] = \Swisseph\Nutation::calc($tjd);
+
+            // Get obliquity for nutation matrix calculation
+            $swed = \Swisseph\SwephFile\SwedState::getInstance();
+            if ($swed->oec->needsUpdate($tjd)) {
+                $swed->oec->calculate($tjd, $iflag);
+            }
+
+            // Build nutation matrix
+            $nutMatrix = self::buildNutationMatrix($dpsi, $deps, $swed->oec);
+
+            // Build nutation velocity matrix for speed calculations
+            if ($iflag & Constants::SEFLG_SPEED) {
+                $nutMatrixVelocity = self::buildNutationMatrix($dpsi, $deps, $swed->oec);
+            }
+
+            // Apply nutation to position and velocity
+            Coordinates::nutate($x, $nutMatrix, $nutMatrixVelocity, $iflag, false);
+        }
 
         // Part 12: Transformation to ecliptic coordinates
-        // TODO: Requires obliquity data from Swed - will implement in next iteration
-        // For now, keeping positions in equatorial coordinates
-        //
-        // if (!($iflag & Constants::SEFLG_EQUATORIAL)) {
-        //     // Get obliquity (epsilon) - use date obliquity unless J2000 requested
-        //     // Transform equatorial → ecliptic using coortrf2
-        //     // Apply nutation to ecliptic if calculated
-        // }
+        if (!($iflag & Constants::SEFLG_EQUATORIAL)) {
+            // Get obliquity data
+            $swed = \Swisseph\SwephFile\SwedState::getInstance();
+
+            if ($iflag & Constants::SEFLG_J2000) {
+                // Use J2000 obliquity
+                $oe = $swed->oec2000;
+            } else {
+                // Use date obliquity
+                if ($swed->oec->needsUpdate($tjd)) {
+                    $swed->oec->calculate($tjd, $iflag);
+                }
+                $oe = $swed->oec;
+            }
+
+            // Transform equatorial → ecliptic (rotate around x-axis by -eps)
+            $xTemp = [0.0, 0.0, 0.0];
+            Coordinates::coortrf2($x, $xTemp, $oe->seps, $oe->ceps);
+            $x[0] = $xTemp[0];
+            $x[1] = $xTemp[1];
+            $x[2] = $xTemp[2];
+
+            if ($iflag & Constants::SEFLG_SPEED) {
+                $xTemp = [0.0, 0.0, 0.0];
+                Coordinates::coortrf2([$x[3], $x[4], $x[5]], $xTemp, $oe->seps, $oe->ceps);
+                $x[3] = $xTemp[0];
+                $x[4] = $xTemp[1];
+                $x[5] = $xTemp[2];
+            }
+
+            // Apply nutation to ecliptic coordinates if nutation was calculated
+            if ($nutMatrix !== null && !($iflag & Constants::SEFLG_NONUT)) {
+                // Get nutation sin/cos for ecliptic transformation
+                $snut = sin($deps); // Approximation: nutation in obliquity
+                $cnut = cos($deps);
+
+                $xTemp = [0.0, 0.0, 0.0];
+                Coordinates::coortrf2($x, $xTemp, $snut, $cnut);
+                $x[0] = $xTemp[0];
+                $x[1] = $xTemp[1];
+                $x[2] = $xTemp[2];
+
+                if ($iflag & Constants::SEFLG_SPEED) {
+                    $xTemp = [0.0, 0.0, 0.0];
+                    Coordinates::coortrf2([$x[3], $x[4], $x[5]], $xTemp, $snut, $cnut);
+                    $x[3] = $xTemp[0];
+                    $x[4] = $xTemp[1];
+                    $x[5] = $xTemp[2];
+                }
+            }
+        }
 
         // Part 13: Sidereal positions
         // TODO: Requires sidereal mode infrastructure - will implement when needed
@@ -1186,6 +1248,48 @@ class FixstarFunctions
         for ($i = 0; $i <= 2; $i++) {
             $xx[$i] = $xx2[$i];
         }
+    }
+
+    /**
+     * Build nutation matrix from nutation angles and obliquity.
+     *
+     * Port of nut_matrix() from sweph.c:5072-5092
+     *
+     * @param float $dpsi Nutation in longitude (radians)
+     * @param float $deps Nutation in obliquity (radians)
+     * @param \Swisseph\EpsilonData $oe Obliquity data
+     * @return array Nutation matrix as flat array [9 elements]
+     */
+    private static function buildNutationMatrix(
+        float $dpsi,
+        float $deps,
+        \Swisseph\EpsilonData $oe
+    ): array {
+        $psi = $dpsi;
+        $eps = $oe->eps + $deps;
+
+        $sinpsi = sin($psi);
+        $cospsi = cos($psi);
+        $sineps0 = $oe->seps;
+        $coseps0 = $oe->ceps;
+        $sineps = sin($eps);
+        $coseps = cos($eps);
+
+        // Build matrix (stored as flat array: matrix[row][col] = arr[row*3+col])
+        return [
+            // Row 0
+            $cospsi,
+            $sinpsi * $coseps,
+            $sinpsi * $sineps,
+            // Row 1
+            -$sinpsi * $coseps0,
+            $cospsi * $coseps * $coseps0 + $sineps * $sineps0,
+            $cospsi * $sineps * $coseps0 - $coseps * $sineps0,
+            // Row 2
+            -$sinpsi * $sineps0,
+            $cospsi * $coseps * $sineps0 - $sineps * $coseps0,
+            $cospsi * $sineps * $sineps0 + $coseps * $coseps0
+        ];
     }
 
     /**

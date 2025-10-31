@@ -46,6 +46,12 @@ final class SwedState
     /** Julian day for which nutation was calculated */
     public float $tnut = 0.0;
 
+    /** Obliquity of ecliptic for current date */
+    public \Swisseph\EpsilonData $oec;
+
+    /** Obliquity of ecliptic for J2000 */
+    public \Swisseph\EpsilonData $oec2000;
+
     private function __construct()
     {
         // Initialize file data array (7 files)
@@ -64,6 +70,12 @@ final class SwedState
         // Initialize nutation matrices (3x3 matrices as flat arrays)
         $this->nutMatrix = array_fill(0, 9, 0.0);
         $this->nutMatrixVelocity = array_fill(0, 9, 0.0);
+
+        // Initialize obliquity data
+        $this->oec = new \Swisseph\EpsilonData();
+        $this->oec2000 = new \Swisseph\EpsilonData();
+        // Pre-calculate J2000 obliquity
+        $this->oec2000->calculate(2451545.0); // J2000.0
     }
 
     public static function getInstance(): self
