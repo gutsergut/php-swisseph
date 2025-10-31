@@ -4,7 +4,13 @@ namespace Swisseph\Swe\Functions;
 
 use Swisseph\Constants;
 use Swisseph\FixedStar;
+use Swisseph\Coordinates;
+use Swisseph\SiderealMode;
+use Swisseph\FK4FK5;
+use Swisseph\Precession;
+use Swisseph\Bias;
 use Swisseph\Swe\Functions\TimeFunctions;
+use Swisseph\Swe\Functions\PlanetsFunctions;
 
 /**
  * Fixed star position calculations.
@@ -624,26 +630,120 @@ class FixstarFunctions
      */
     private static function calcFromRecord(string $srecord, float $tjd, int $iflag, string $star, array &$xx, string &$serr): int
     {
-        // TODO: Implement full coordinate transformations (~280 lines from sweph.c:7667-7950)
-        // This requires porting:
-        // 1. Parse star record (epoch, RA, Dec, proper motion, radial velocity, parallax)
-        // 2. FK4→FK5 conversion for epoch 1950 stars
-        // 3. ICRF/J2000 conversions
-        // 4. Apply proper motion over time
-        // 5. Get Earth/Sun positions for parallax and aberration
-        // 6. Apply observer correction (geocentric/topocentric/barycentric/heliocentric)
-        // 7. Light deflection by Sun
-        // 8. Annual aberration of light
-        // 9. Precession J2000→date
-        // 10. Nutation
-        // 11. Coordinate transformation (equatorial→ecliptic)
-        // 12. Sidereal positions if requested
-        // 13. Polar/cartesian conversions
-        // 14. Radians→degrees if requested
-        //
-        // For now, return error indicating incomplete implementation
+        // Port of swi_fixstar_calc_from_record() from sweph.c:7667-7950
+        // Full astronomical transformations without simplifications
+
+        $retc = Constants::SE_OK;
+        $x = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xxsv = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xobs = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xobs_dt = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xearth = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xearth_dt = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xsun = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xsun_dt = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+
+        $dt = Constants::PLAN_SPEED_INTV * 0.1;
+        $iflgsave = $iflag;
+        $iflag |= Constants::SEFLG_SPEED; // We need speed to work correctly
+
+        // TODO: Validate and adjust iflag with plaus_iflag()
+        $epheflag = $iflag & Constants::SEFLG_EPHMASK;
+
+        // TODO: Check ephemeris initialization (swi_init_swed_if_start)
+        // TODO: Handle ephemeris file management
+
+        // Set default sidereal mode if needed
+        if (($iflag & Constants::SEFLG_SIDEREAL) && !SiderealMode::isSet()) {
+            SiderealMode::set(Constants::SE_SIDM_FAGAN_BRADLEY, 0.0, 0.0);
+        }
+
+        /******************************************
+         * Parse star record
+         ******************************************/
+        $stardata = new FixedStar();
+        $retc = self::cutString($srecord, $star, $stardata, $serr);
+        if ($retc === Constants::SE_ERR) {
+            return Constants::SE_ERR;
+        }
+
+        $epoch = $stardata->epoch;
+        $ra_pm = $stardata->ramot;  // RA proper motion (radians/century)
+        $de_pm = $stardata->demot;  // Dec proper motion (radians/century)
+        $radv = $stardata->radvel;  // Radial velocity (AU/century)
+        $parall = $stardata->parall; // Parallax (radians)
+        $ra = $stardata->ra;        // RA at epoch (radians)
+        $de = $stardata->de;        // Dec at epoch (radians)
+
+        /******************************************
+         * Calculate time since epoch
+         ******************************************/
+        if ($epoch == 1950) {
+            $t = $tjd - Constants::B1950; // days since 1950.0
+        } else { // epoch == 2000
+            $t = $tjd - Constants::J2000; // days since 2000.0
+        }
+
+        /******************************************
+         * Initial position vector (equatorial)
+         ******************************************/
+        $x[0] = $ra;
+        $x[1] = $de;
+        $x[2] = 1.0; // Will be replaced with actual distance
+
+        // Calculate distance from parallax
+        if ($parall == 0) {
+            $rdist = 1000000000.0; // Very distant star
+        } else {
+            $rdist = 1.0 / ($parall * Constants::RADTODEG * 3600.0) * Constants::PARSEC_TO_AUNIT;
+        }
+        $x[2] = $rdist;
+
+        // Proper motion and radial velocity (per day)
+        $x[3] = $ra_pm / 36525.0;   // RA proper motion per day
+        $x[4] = $de_pm / 36525.0;   // Dec proper motion per day
+        $x[5] = $radv / 36525.0;    // Radial velocity per day
+
+        /******************************************
+         * Convert to Cartesian coordinates with speeds
+         ******************************************/
+        Coordinates::polcartSp($x, $x);
+
+        /******************************************
+         * PART 2: FK4 → FK5 conversion for epoch 1950
+         ******************************************/
+        if ($epoch == 1950) {
+            // Convert from FK4 (B1950.0) to FK5 (J2000.0)
+            FK4FK5::fk4ToFk5($x, Constants::B1950);
+
+            // Precess from B1950 to J2000
+            Precession::precess($x, Constants::B1950, 0, Constants::J_TO_J2000);
+            Precession::precess($x, Constants::B1950, 0, Constants::J_TO_J2000, 3); // Speed vector
+        }
+
+        /******************************************
+         * PART 3: ICRF conversion
+         ******************************************/
+        // FK5 to ICRF, if JPL ephemeris refers to ICRF
+        // With data that are already ICRF, epoch = 0
+        if ($epoch != 0) {
+            // TODO: Need swi_icrs2fk5() - convert to ICRF
+            // TODO: Check DE number with swi_get_denum()
+            // TODO: Apply bias correction if DE >= 403
+        }
+
+        // TODO: Part 4 - Earth/Sun positions
+        // TODO: Part 5 - Observer correction
+        // TODO: Part 6 - Light deflection
+        // TODO: Part 7 - Aberration
+        // TODO: Part 8 - Precession
+        // TODO: Part 9 - Nutation
+        // TODO: Part 10 - Coordinate transformations
+        // TODO: Part 11 - Sidereal positions
+        // TODO: Part 12 - Final conversions
+
         $xx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-        $serr = 'calcFromRecord() not yet fully implemented - requires porting ~280 lines from sweph.c:7667-7950';
+        $serr = 'calcFromRecord() partially implemented - Parts 3-12 TODO';
         return Constants::SE_ERR;
     }
 }

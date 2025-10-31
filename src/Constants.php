@@ -179,6 +179,8 @@ final class Constants
     public const GEOGCONST = 3.98600448e+14;        // G * M(earth), m^3/sec^2 (AA 1996 K6)
     public const NODE_CALC_INTV = 0.0001;           // Interval for node calculation
     public const KM_S_TO_AU_CTY = 21.095;           // km/s to AU/century conversion factor
+    public const PLAN_SPEED_INTV = 0.0001;          // 8.64 seconds (in days) for speed calculation
+    public const PARSEC_TO_AUNIT = 206264.8062471;  // Parsec to AU conversion (648000/PI, IAU 2016)
 
     // Ephemeris coverage limits (from sweph.h)
     public const MOSHNDEPH_START = -3100015.5; // 15 Aug -13200 (ET jul)
