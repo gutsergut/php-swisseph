@@ -7,7 +7,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 🌟 Features
 
-- ✅ **47+ functions** ported with identical signatures to C API
+- ✅ **51 functions** ported with identical signatures to C API
 - ✅ **High accuracy**: Planetary positions within 100m, angles within 0.01°
 - ✅ **Complete coordinate systems**: Geocentric, heliocentric, barycentric
 - ✅ **Sidereal calculations**: All 47 ayanamsha modes with `SE_SIDBIT_*` options
@@ -110,7 +110,9 @@ php scripts/bench.php
 - **Sidereal astrology**:
   - `swe_set_sid_mode()` sets ayanamsha mode (Fagan/Bradley, Lahiri, etc.)
   - `swe_get_ayanamsa_ex()` returns current ayanamsha value
-- **Note**: `swe_calc/_ut` currently return `SE_ERR` with `$serr=UNSUPPORTED` (in development)
+- **Fixed stars**: `swe_fixstar()`/`swe_fixstar_ut()` calculate positions for 3000+ stars with proper motion
+  - Supports traditional names (e.g., "Sirius"), Bayer designations (e.g., ",alCMa"), sequential numbers
+  - `swe_fixstar_mag()` returns visual magnitude with caching
 
 ## 🌙 Examples
 
@@ -166,6 +168,38 @@ $lon_obj = 123.45;            // example longitude
 $lat_obj = 0.0;               // ecliptic latitude
 $pos = HousesFunctions::housePos($armc_deg, $geolat, $eps_deg, 'J', [$lon_obj, $lat_obj]);
 echo 'HousePos(J)=' . $pos . PHP_EOL;
+```
+
+### Fixed Star Positions
+
+```php
+<?php
+use Swisseph\Swe\Functions\FixstarFunctions;
+use function Swisseph\swe_fixstar_ut;
+use function Swisseph\swe_fixstar_mag;
+
+$jd_ut = 2451545.0;  // J2000.0
+$starname = 'Sirius';
+$xx = [];
+$serr = '';
+
+// Calculate star position with proper motion
+$iflag = 0;  // Ecliptic coordinates in degrees
+$ret = swe_fixstar_ut($starname, $jd_ut, $iflag, $xx, $serr);
+if ($ret >= 0) {
+    echo "Sirius at J2000.0:\n";
+    echo "  Longitude: {$xx[0]}°\n";
+    echo "  Latitude: {$xx[1]}°\n";
+    echo "  Distance: {$xx[2]} AU\n";
+}
+
+// Get visual magnitude
+$mag = swe_fixstar_mag($starname, $serr);
+echo "Magnitude: $mag\n";
+
+// Search by Bayer designation
+$bayer = ',alCMa';  // Alpha Canis Majoris (Sirius)
+swe_fixstar_ut($bayer, $jd_ut, $iflag, $xx, $serr);
 ```
 
 ## 🧪 Parity Tests with swetest
