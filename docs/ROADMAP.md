@@ -2,7 +2,7 @@
 
 Обновлено: 2025-10-27
 
-## Реализовано (46 функций)
+## Реализовано (47 функций)
 
 ### Базовые функции времени/календаря
 - ✅ `swe_julday`, `swe_revjul` — преобразования JD ↔ календарь
@@ -36,6 +36,7 @@
 ### Горизонтальные преобразования и рефракция
 - ✅ `swe_azalt`, `swe_azalt_rev` — экваториальные/эклиптические ↔ горизонтальные (азимут/высота)
 - ✅ `swe_refrac` — атмосферная рефракция (Saemundsson; TRUE_TO_APP/APP_TO_TRUE)
+- ✅ `swe_refrac_extended` — расширенная рефракция с lapse rate (Newton iteration, Sinclair formula, dip of horizon)
 
 ### Координатные преобразования
 - ✅ `swe_cotrans`, `swe_cotrans_sp` — ортогональная X-ротация для позиций и скоростей
@@ -90,8 +91,8 @@
 ### Средний приоритет
 - ⬜ `swe_fixstar`, `swe_fixstar_ut`, `swe_fixstar_mag` — звёздные каталоги
 - ⬜ `swe_gauquelin_sector` — сектор Gauquelin для планеты
-- ⬜ `swe_refrac_extended` — расширенная рефракция с lapse rate
-- ⬜ `swe_get_orbital_elements` — орбитальные элементы
+- ✅ `swe_refrac_extended` — расширенная рефракция с lapse rate (Newton iteration, Sinclair formula, dip calculation)
+- ✅ `swe_get_orbital_elements` — орбитальные элементы
 - ⬜ `swe_orbit_max_min_true_distance` — экстремумы расстояний
 
 ### Низкий приоритет (специализированные)
