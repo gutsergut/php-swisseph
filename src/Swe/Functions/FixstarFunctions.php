@@ -741,18 +741,98 @@ class FixstarFunctions
             }
         }
 
-        // TODO: Part 4 - Earth/Sun positions
-        // TODO: Part 5 - Observer correction
-        // TODO: Part 6 - Light deflection
-        // TODO: Part 7 - Aberration
-        // TODO: Part 8 - Precession
-        // TODO: Part 9 - Nutation
-        // TODO: Part 10 - Coordinate transformations
-        // TODO: Part 11 - Sidereal positions
-        // TODO: Part 12 - Final conversions
+        /******************************************
+         * PART 4: Earth and Sun positions
+         * For parallax, light deflection, and aberration
+         ******************************************/
+        $xpo = null;
+        $xpo_dt = null;
+
+        if (!($iflag & Constants::SEFLG_BARYCTR) && (!($iflag & Constants::SEFLG_HELCTR) || !($iflag & Constants::SEFLG_MOSEPH))) {
+            // Get Earth position at tjd - dt
+            $retc = PlanetsFunctions::calc($tjd - $dt, Constants::SE_EARTH, $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ, $xearth_dt, $serr);
+            if ($retc < 0) {
+                return Constants::SE_ERR;
+            }
+
+            // Get Earth position at tjd
+            $retc = PlanetsFunctions::calc($tjd, Constants::SE_EARTH, $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ, $xearth, $serr);
+            if ($retc < 0) {
+                return Constants::SE_ERR;
+            }
+
+            // Get Sun position at tjd - dt
+            $retc = PlanetsFunctions::calc($tjd - $dt, Constants::SE_SUN, $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ, $xsun_dt, $serr);
+            if ($retc < 0) {
+                return Constants::SE_ERR;
+            }
+
+            // Get Sun position at tjd
+            $retc = PlanetsFunctions::calc($tjd, Constants::SE_SUN, $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ, $xsun, $serr);
+            if ($retc < 0) {
+                return Constants::SE_ERR;
+            }
+        }
+
+        /******************************************
+         * PART 5: Observer position (geocenter or topocenter)
+         ******************************************/
+        if ($iflag & Constants::SEFLG_TOPOCTR) {
+            // TODO: Implement swi_get_observer() for topocentric positions
+            // For now, topocentric not supported for stars
+            $serr = 'Topocentric positions for fixed stars not yet implemented';
+            return Constants::SE_ERR;
+        } elseif (!($iflag & Constants::SEFLG_BARYCTR) && (!($iflag & Constants::SEFLG_HELCTR) || !($iflag & Constants::SEFLG_MOSEPH))) {
+            // Barycentric position of geocenter
+            for ($i = 0; $i <= 5; $i++) {
+                $xobs[$i] = $xearth[$i];
+                $xobs_dt[$i] = $xearth_dt[$i];
+            }
+        }
+
+        /******************************************
+         * PART 6: Apply proper motion and parallax
+         ******************************************/
+        // Determine observer position for parallax
+        if (($iflag & Constants::SEFLG_HELCTR) && ($iflag & Constants::SEFLG_MOSEPH)) {
+            $xpo = null;    // No parallax if Moshier and heliocentric
+            $xpo_dt = null;
+        } elseif ($iflag & Constants::SEFLG_HELCTR) {
+            $xpo = $xsun;
+            $xpo_dt = $xsun_dt;
+        } elseif ($iflag & Constants::SEFLG_BARYCTR) {
+            $xpo = null;    // No parallax if barycentric
+            $xpo_dt = null;
+        } else {
+            $xpo = $xobs;
+            $xpo_dt = $xobs_dt;
+        }
+
+        // Apply proper motion over time and subtract observer position (parallax)
+        if ($xpo === null) {
+            // No parallax correction - just apply proper motion
+            for ($i = 0; $i <= 2; $i++) {
+                $x[$i] += $t * $x[$i + 3];
+            }
+        } else {
+            // Apply proper motion and parallax
+            for ($i = 0; $i <= 2; $i++) {
+                $x[$i] += $t * $x[$i + 3];      // Proper motion
+                $x[$i] -= $xpo[$i];              // Subtract observer position (parallax)
+                $x[$i + 3] -= $xpo[$i + 3];      // Speed correction
+            }
+        }
+
+        // TODO: Part 7 - Light deflection
+        // TODO: Part 8 - Aberration
+        // TODO: Part 9 - Precession
+        // TODO: Part 10 - Nutation
+        // TODO: Part 11 - Coordinate transformations
+        // TODO: Part 12 - Sidereal positions
+        // TODO: Part 13 - Final conversions
 
         $xx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-        $serr = 'calcFromRecord() partially implemented - Parts 3-12 TODO';
+        $serr = 'calcFromRecord() partially implemented - Parts 7-13 TODO';
         return Constants::SE_ERR;
     }
 }
