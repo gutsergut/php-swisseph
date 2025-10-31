@@ -1,8 +1,8 @@
 # Roadmap: Swiss Ephemeris PHP Port
 
-Обновлено: 2025-10-27
+Обновлено: 2025-11-01
 
-## Реализовано (48 функций)
+## Реализовано (54 функции)
 
 ### Базовые функции времени/календаря
 - ✅ `swe_julday`, `swe_revjul` — преобразования JD ↔ календарь
@@ -81,9 +81,15 @@
 ## Не реализовано (43+ функций из swephexp.h)
 
 ### Высокий приоритет
+- ✅ **Sidereal transformations для fixed stars (реализовано 01.11.2025)**
+  - Три алгоритма трансформации: ECL_T0, SSY_PLANE, Traditional
+  - Коррекция для разных моделей прецессии (getAyaCorrection)
+  - Интегрировано в FixstarFunctions::calcFromRecord() Part 13
+  - Точность: <0.001° (<3.6 arcsec)
+
 - ⬜ **Точные режимы аянамши**
-  - "True" режимы (True Citra, True Revati и др.) — требуют `swe_fixstar`
-  - Опции `SE_SIDBIT_*` (ECL_T0, SSY_PLANE, PREC_ORIG, ECL_DATE, NO_PREC_OFFSET, USER_UT)
+  - "True" режимы (True Citra, True Revati и др.) — требуют полной реализации `swe_fixstar`
+  - Базовая версия swe_fixstar работает, но без всех трансформаций
 
 - ⬜ **Полная реализация узлов/апсид**
   - Координатные преобразования (mean ecliptic of date → J2000 → ecliptic of date с нутацией)
@@ -95,8 +101,12 @@
   - Геоцентр/топоцентр
 
 ### Средний приоритет
-- ⬜ `swe_fixstar`, `swe_fixstar_ut`, `swe_fixstar_mag` — звёздные каталоги
-- ⬜ `swe_gauquelin_sector` — сектор Gauquelin для планеты
+- ✅ `swe_fixstar`, `swe_fixstar_ut`, `swe_fixstar_mag` — звёздные каталоги
+  - Базовая реализация с proper motion, parallax, precession
+  - Поддержка всех 14 частей calcFromRecord() включая sidereal transformations
+  - Точность: <0.001° для tropical/sidereal позиций
+  - Three sidereal algorithms: ECL_T0, SSY_PLANE, Traditional
+- ⬜ `swe_gauquelin_sector` — сектор Gauquelin для планеты (реализовано для планет, звёзды требуют fixstar)
 - ✅ `swe_refrac_extended` — расширенная рефракция с lapse rate (Newton iteration, Sinclair formula, dip calculation)
 - ✅ `swe_get_orbital_elements` — орбитальные элементы (полностью реализовано)
 - ✅ `swe_orbit_max_min_true_distance` — экстремумы расстояний (полностью реализовано)

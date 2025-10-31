@@ -120,7 +120,7 @@ final class PhenoFunctions
         $xx = [];
         $retflag = PlanetsFunctions::calc($tjd_et, $ipl, $iflag | Constants::SEFLG_XYZ, $xx, $serr);
         if ($retflag < 0) {
-            return ErrorCodes::ERR;
+            return Constants::SE_ERR;
         }
 
         // Check ephemeris flag and adjust if needed
@@ -137,7 +137,7 @@ final class PhenoFunctions
         $lbr = [];
         $retflag = PlanetsFunctions::calc($tjd_et, $ipl, $iflag, $lbr, $serr);
         if ($retflag < 0) {
-            return ErrorCodes::ERR;
+            return Constants::SE_ERR;
         }
 
         // Calculate phase angle and illuminated fraction for planets
@@ -149,10 +149,10 @@ final class PhenoFunctions
             // Special handling for Moon
             // Get Sun position
             if (PlanetsFunctions::calc($tjd_et, Constants::SE_SUN, $iflag | Constants::SEFLG_XYZ, $xxs, $serr) < 0) {
-                return ErrorCodes::ERR;
+                return Constants::SE_ERR;
             }
             if (PlanetsFunctions::calc($tjd_et, Constants::SE_SUN, $iflag, $lbr2, $serr) < 0) {
-                return ErrorCodes::ERR;
+                return Constants::SE_ERR;
             }
 
             // For Moon: phase angle is 180° - elongation
@@ -179,12 +179,12 @@ final class PhenoFunctions
             // Heliocentric planet position at tjd - dt (XYZ)
             $xx2 = [];
             if (PlanetsFunctions::calc($tjd_et - $dt, $ipl, $iflagp | Constants::SEFLG_XYZ, $xx2, $serr) < 0) {
-                return ErrorCodes::ERR;
+                return Constants::SE_ERR;
             }
 
             // Heliocentric planet position (spherical)
             if (PlanetsFunctions::calc($tjd_et - $dt, $ipl, $iflagp, $lbr2, $serr) < 0) {
-                return ErrorCodes::ERR;
+                return Constants::SE_ERR;
             }
 
             // Phase angle
@@ -208,12 +208,12 @@ final class PhenoFunctions
         if ($ipl !== Constants::SE_SUN && $ipl !== Constants::SE_EARTH) {
             $xx2 = [];
             if (PlanetsFunctions::calc($tjd_et, Constants::SE_SUN, $iflag | Constants::SEFLG_XYZ, $xx2, $serr) < 0) {
-                return ErrorCodes::ERR;
+                return Constants::SE_ERR;
             }
 
             $lbr2_sun = [];
             if (PlanetsFunctions::calc($tjd_et, Constants::SE_SUN, $iflag, $lbr2_sun, $serr) < 0) {
-                return ErrorCodes::ERR;
+                return Constants::SE_ERR;
             }
 
             $attr[2] = acos(self::dotProductUnit($xx, $xx2)) * Constants::RADTODEG;
@@ -229,7 +229,7 @@ final class PhenoFunctions
                 $xm,
                 $serr
             ) < 0) {
-                return ErrorCodes::ERR;
+                return Constants::SE_ERR;
             }
 
             $sinhp = Constants::EARTH_RADIUS / ($xm[2] * Constants::AUNIT);
@@ -239,10 +239,10 @@ final class PhenoFunctions
             if ($iflag & Constants::SEFLG_TOPOCTR) {
                 $xm_topo = [];
                 if (PlanetsFunctions::calc($tjd_et, $ipl, $epheflag | Constants::SEFLG_XYZ | Constants::SEFLG_TOPOCTR, $xm_topo, $serr) < 0) {
-                    return ErrorCodes::ERR;
+                    return Constants::SE_ERR;
                 }
                 if (PlanetsFunctions::calc($tjd_et, $ipl, $epheflag | Constants::SEFLG_XYZ, $xx, $serr) < 0) {
-                    return ErrorCodes::ERR;
+                    return Constants::SE_ERR;
                 }
                 $attr[5] = acos(self::dotProductUnit($xm_topo, $xx)) / Constants::DEGTORAD;
             }
