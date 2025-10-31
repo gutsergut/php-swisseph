@@ -418,17 +418,15 @@ class FixstarFunctions
         }
 
         // Fill output parameters if requested
-        if ($dparams !== null) {
-            $dparams = [
-                $stardata->epoch,   // 0: epoch
-                $stardata->ra,      // 1: RA(epoch)
-                $stardata->de,      // 2: Decl(epoch)
-                $stardata->ramot,   // 3: RA proper motion
-                $stardata->demot,   // 4: decl proper motion
-                $stardata->radvel,  // 5: radial velocity
-                $stardata->parall,  // 6: parallax
-                $stardata->mag,     // 7: magnitude V
-            ];
+        if (is_array($dparams)) {
+            $dparams[0] = $stardata->epoch;   // epoch
+            $dparams[1] = $stardata->ra;      // RA(epoch)
+            $dparams[2] = $stardata->de;      // Decl(epoch)
+            $dparams[3] = $stardata->ramot;   // RA proper motion
+            $dparams[4] = $stardata->demot;   // decl proper motion
+            $dparams[5] = $stardata->radvel;  // radial velocity
+            $dparams[6] = $stardata->parall;  // parallax
+            $dparams[7] = $stardata->mag;     // magnitude V
         }
 
         return Constants::SE_OK;
@@ -451,9 +449,8 @@ class FixstarFunctions
         $sstar = '';
         $srecord = '';
 
-        if ($serr !== null) {
-            $serr = '';
-        }
+        // Initialize error string
+        $serr = '';
 
         // Format search name
         $retc = self::formatSearchName($star, $sstar, $serr);
@@ -566,9 +563,8 @@ class FixstarFunctions
         $sstar = '';
         $srecord = '';
 
-        if ($serr !== null) {
-            $serr = '';
-        }
+        // Initialize error string
+        $serr = '';
 
         // Format search name
         $retc = self::formatSearchName($star, $sstar, $serr);
