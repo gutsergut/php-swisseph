@@ -155,4 +155,172 @@ class HorizonFunctions
             return $alt_deg + $R_arcmin / 60.0;
         }
     }
+
+    /**
+     * Extended refraction function with lapse rate.
+     * Port of swe_refrac_extended() from swecl.c:3035
+     *
+     * @param float $inalt Altitude in degrees (true or apparent, depending on calc_flag)
+     * @param float $geoalt Observer altitude above sea level in meters
+     * @param float $atpress Atmospheric pressure in millibars (hectopascals)
+     * @param float $attemp Atmospheric temperature in degrees Celsius
+     * @param float $lapse_rate Temperature lapse rate (dT/dh) in K/m
+     * @param int $calc_flag SE_TRUE_TO_APP or SE_APP_TO_TRUE
+     * @param array|null $dret Optional return array with 4 elements:
+     *                         [0] = true altitude
+     *                         [1] = apparent altitude
+     *                         [2] = refraction value
+     *                         [3] = dip of horizon
+     * @return float Calculated altitude (apparent or true, depending on calc_flag)
+     */
+    public static function refracExtended(
+        float $inalt,
+        float $geoalt,
+        float $atpress,
+        float $attemp,
+        float $lapse_rate,
+        int $calc_flag,
+        ?array &$dret = null
+    ): float {
+        // Initialize dret array if needed
+        $use_dret = ($dret !== null);
+        if (!$use_dret) {
+            $dret = [0.0, 0.0, 0.0, 0.0];
+        }
+
+        // Calculate dip of horizon
+        $dip = self::calcDip($geoalt, $atpress, $attemp, $lapse_rate);
+
+        // Make sure that inalt <= 90
+        if ($inalt > 90) {
+            $inalt = 180 - $inalt;
+        }
+
+        if ($calc_flag === Constants::SE_TRUE_TO_APP) {
+            // True to apparent altitude
+            if ($inalt < -10) {
+                $dret[0] = $inalt;
+                $dret[1] = $inalt;
+                $dret[2] = 0.0;
+                $dret[3] = $dip;
+                return $inalt;
+            }
+
+            // Newton iteration to find apparent altitude
+            $y = $inalt;
+            $D = 0.0;
+            $yy0 = 0.0;
+            $D0 = $D;
+
+            for ($i = 0; $i < 5; $i++) {
+                $D = self::calcAstronomicalRefr($y, $atpress, $attemp);
+                $N = $y - $yy0;
+                $yy0 = $D - $D0 - $N; // denominator of derivative
+
+                if ($N != 0.0 && $yy0 != 0.0) {
+                    // Newton iteration with numerically estimated derivative
+                    $N = $y - $N * ($inalt + $D - $y) / $yy0;
+                } else {
+                    // Can't do it on first pass
+                    $N = $inalt + $D;
+                }
+
+                $yy0 = $y;
+                $D0 = $D;
+                $y = $N;
+            }
+
+            $refr = $D;
+
+            if ($inalt + $refr < $dip) {
+                $dret[0] = $inalt;
+                $dret[1] = $inalt;
+                $dret[2] = 0.0;
+                $dret[3] = $dip;
+                return $inalt;
+            }
+
+            $dret[0] = $inalt;
+            $dret[1] = $inalt + $refr;
+            $dret[2] = $refr;
+            $dret[3] = $dip;
+
+            return $inalt + $refr;
+        } else {
+            // Apparent to true altitude (SE_APP_TO_TRUE)
+            $refr = self::calcAstronomicalRefr($inalt, $atpress, $attemp);
+            $trualt = $inalt - $refr;
+
+            if ($inalt > $dip) {
+                $dret[0] = $trualt;
+                $dret[1] = $inalt;
+                $dret[2] = $refr;
+                $dret[3] = $dip;
+            } else {
+                $dret[0] = $inalt;
+                $dret[1] = $inalt;
+                $dret[2] = 0.0;
+                $dret[3] = $dip;
+            }
+
+            // Apparent altitude cannot be below dip.
+            // True altitude is only returned if apparent altitude is higher than dip.
+            // Otherwise the apparent altitude is returned.
+            if ($inalt >= $dip) {
+                return $trualt;
+            } else {
+                return $inalt;
+            }
+        }
+    }
+
+    /**
+     * Calculate astronomical refraction.
+     * Port of calc_astronomical_refr() from swecl.c:3095
+     *
+     * Uses Sinclair formula (better for apparent altitudes < 0)
+     * from Bennett, G.G. (1982), "The calculation of astronomical refraction in marine navigation",
+     * Journal of Inst. Navigation, No. 35, page 255-259, especially page 256.
+     *
+     * @param float $inalt Apparent altitude in degrees
+     * @param float $atpress Atmospheric pressure in millibars
+     * @param float $attemp Atmospheric temperature in degrees Celsius
+     * @return float Refraction in degrees
+     */
+    private static function calcAstronomicalRefr(float $inalt, float $atpress, float $attemp): float
+    {
+        if ($inalt > 17.904104638432) {
+            // For continuous function, instead of '>15'
+            $r = 0.97 / tan($inalt * Constants::DEGTORAD);
+        } else {
+            $r = (34.46 + 4.23 * $inalt + 0.004 * $inalt * $inalt) /
+                 (1 + 0.505 * $inalt + 0.0845 * $inalt * $inalt);
+        }
+
+        $r = (($atpress - 80) / 930 / (1 + 0.00008 * ($r + 39) * ($attemp - 10)) * $r) / 60.0;
+
+        return $r;
+    }
+
+    /**
+     * Calculate dip of the horizon.
+     * Port of calc_dip() from swecl.c:3120
+     *
+     * Formula based on A. Thom, "Megalithic lunar observations", 1973 (page 32).
+     * Conversion to metric by V. Reijs, 2000,
+     * http://www.archaeocosmology.org/eng/refract.htm#Sea
+     *
+     * @param float $geoalt Observer altitude above sea level in meters
+     * @param float $atpress Atmospheric pressure in millibars
+     * @param float $attemp Atmospheric temperature in degrees Celsius
+     * @param float $lapse_rate Temperature lapse rate (dT/dh) in K/m
+     * @return float Dip in degrees
+     */
+    private static function calcDip(float $geoalt, float $atpress, float $attemp, float $lapse_rate): float
+    {
+        $krefr = (0.0342 + $lapse_rate) / (0.154 * 0.0238);
+        $d = 1 - 1.8480 * $krefr * $atpress / (273.15 + $attemp) / (273.15 + $attemp);
+
+        return -180.0 / M_PI * acos(1 / (1 + $geoalt / Constants::EARTH_RADIUS)) * sqrt($d);
+    }
 }

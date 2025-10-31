@@ -362,6 +362,44 @@ if (!function_exists('swe_refrac')) {
     }
 }
 
+if (!function_exists('swe_refrac_extended')) {
+    /**
+     * Extended atmospheric refraction with lapse rate.
+     *
+     * @param float $inalt Altitude in degrees (true or apparent, depending on calc_flag)
+     * @param float $geoalt Observer altitude above sea level in meters
+     * @param float $atpress Atmospheric pressure in millibars (hectopascals)
+     * @param float $attemp Atmospheric temperature in degrees Celsius
+     * @param float $lapse_rate Temperature lapse rate (dT/dh) in K/m
+     * @param int $calc_flag SE_TRUE_TO_APP (0) or SE_APP_TO_TRUE (1)
+     * @param array|null $dret Optional return array with 4 elements:
+     *                         [0] = true altitude
+     *                         [1] = apparent altitude
+     *                         [2] = refraction value
+     *                         [3] = dip of horizon
+     * @return float Calculated altitude (apparent or true, depending on calc_flag)
+     */
+    function swe_refrac_extended(
+        float $inalt,
+        float $geoalt,
+        float $atpress,
+        float $attemp,
+        float $lapse_rate,
+        int $calc_flag,
+        ?array &$dret = null
+    ): float {
+        return HorizonFunctions::refracExtended(
+            $inalt,
+            $geoalt,
+            $atpress,
+            $attemp,
+            $lapse_rate,
+            $calc_flag,
+            $dret
+        );
+    }
+}
+
 // Coordinate transforms: cotrans
 if (!function_exists('swe_cotrans')) {
     /**
