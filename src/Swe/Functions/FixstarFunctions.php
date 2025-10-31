@@ -7,6 +7,7 @@ use Swisseph\FixedStar;
 use Swisseph\Coordinates;
 use Swisseph\SiderealMode;
 use Swisseph\FK4FK5;
+use Swisseph\ICRS;
 use Swisseph\Precession;
 use Swisseph\Bias;
 use Swisseph\Swe\Functions\TimeFunctions;
@@ -727,9 +728,17 @@ class FixstarFunctions
         // FK5 to ICRF, if JPL ephemeris refers to ICRF
         // With data that are already ICRF, epoch = 0
         if ($epoch != 0) {
-            // TODO: Need swi_icrs2fk5() - convert to ICRF
-            // TODO: Check DE number with swi_get_denum()
-            // TODO: Apply bias correction if DE >= 403
+            // Convert FK5 → ICRF (backward = TRUE)
+            ICRS::icrsToFk5($x, $iflag, true);
+
+            // With ephemerides < DE403, we now convert to J2000
+            // For DE >= 403, apply bias correction
+            // TODO: Implement swi_get_denum() to check DE number
+            // For now, assume modern ephemerides (DE >= 403) and apply bias
+            $denum = 431; // Assume DE431 (modern ephemeris)
+            if ($denum >= 403) {
+                Bias::bias($x, Constants::J2000, Constants::SEFLG_SPEED, false);
+            }
         }
 
         // TODO: Part 4 - Earth/Sun positions
