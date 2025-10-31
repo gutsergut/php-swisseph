@@ -145,6 +145,7 @@ final class GauquelinFunctions
         $epheflag = $iflag & Constants::SEFLG_EPHMASK;
 
         // Find the next rising time
+        $trise = 0.0;
         $retval = RiseSetFunctions::riseTrans(
             $t_ut,
             $ipl,
@@ -154,7 +155,8 @@ final class GauquelinFunctions
             $geopos,
             $atpress,
             $attemp,
-            $tret[0],
+            null,
+            $trise,
             $serr
         );
 
@@ -163,9 +165,12 @@ final class GauquelinFunctions
         } elseif ($retval === -2) {
             // Circumpolar body: no rise
             $rise_found = false;
+        } else {
+            $tret[0] = $trise;
         }
 
         // Find the next setting time
+        $tset = 0.0;
         $retval = RiseSetFunctions::riseTrans(
             $t_ut,
             $ipl,
@@ -175,7 +180,8 @@ final class GauquelinFunctions
             $geopos,
             $atpress,
             $attemp,
-            $tret[1],
+            null,
+            $tset,
             $serr
         );
 
@@ -184,12 +190,14 @@ final class GauquelinFunctions
         } elseif ($retval === -2) {
             // Circumpolar body: no set
             $set_found = false;
+        } else {
+            $tret[1] = $tset;
         }
 
         // Determine if body is above or below horizon
         $above_horizon = false;
 
-        if ($tret[0] < $tret[1] && $rise_found) {
+        if ($tret[0] < $tret[1] && $rise_found && $set_found) {
             // Next event is rise, so body is below horizon
             $above_horizon = false;
 
@@ -198,8 +206,7 @@ final class GauquelinFunctions
             if ($set_found) {
                 $t = $tret[1] - 1.2;
             }
-            $set_found = true;
-
+            $tset_prev = 0.0;
             $retval = RiseSetFunctions::riseTrans(
                 $t,
                 $ipl,
@@ -209,7 +216,8 @@ final class GauquelinFunctions
                 $geopos,
                 $atpress,
                 $attemp,
-                $tret[1],
+                null,
+                $tset_prev,
                 $serr
             );
 
@@ -217,6 +225,9 @@ final class GauquelinFunctions
                 return Constants::SE_ERR;
             } elseif ($retval === -2) {
                 $set_found = false;
+            } else {
+                $tret[1] = $tset_prev;
+                $set_found = true;
             }
         } elseif ($tret[0] >= $tret[1] && $set_found) {
             // Next event is set, so body is above horizon
@@ -227,8 +238,8 @@ final class GauquelinFunctions
             if ($rise_found) {
                 $t = $tret[0] - 1.2;
             }
-            $rise_found = true;
 
+            $trise_prev = 0.0;
             $retval = RiseSetFunctions::riseTrans(
                 $t,
                 $ipl,
@@ -238,7 +249,8 @@ final class GauquelinFunctions
                 $geopos,
                 $atpress,
                 $attemp,
-                $tret[0],
+                null,
+                $trise_prev,
                 $serr
             );
 
@@ -246,6 +258,9 @@ final class GauquelinFunctions
                 return Constants::SE_ERR;
             } elseif ($retval === -2) {
                 $rise_found = false;
+            } else {
+                $tret[0] = $trise_prev;
+                $rise_found = true;
             }
         }
 
