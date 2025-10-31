@@ -67,13 +67,6 @@ final class GauquelinFunctions
 
         // Check if star is requested
         $do_fixstar = ($starname !== null && $starname !== '');
-        if ($do_fixstar) {
-            $serr = ErrorCodes::compose(
-                ErrorCodes::UNSUPPORTED,
-                "swe_fixstar not yet implemented, cannot calculate Gauquelin sector for stars"
-            );
-            return Constants::SE_ERR;
-        }
 
         // Handle Pluto with asteroid number 134340
         // Treat as main body SE_PLUTO
@@ -99,14 +92,20 @@ final class GauquelinFunctions
             $nutlo1 = Math::radToDeg($nutlo1); // nutation in obliquity (deps)
 
             // Calculate ARMC (Right Ascension of Meridian)
-            // ARMC = sidereal time * 15 + geographic longitude
-            $sidtime_deg = Math::radToDeg(\Swisseph\Horizontal::gmstRad($t_ut, 0.0));
-            $armc = Math::normAngleDeg($sidtime_deg * 15 + $geopos[0]);
+            // armc = swe_degnorm(swe_sidtime0(t_ut, eps + nutlo[1], nutlo[0]) * 15 + geopos[0])
+            $sidtime0 = \Swisseph\Sidereal::sidtime0($t_ut, $eps + $nutlo1, $nutlo0);
+            $armc = Math::normAngleDeg($sidtime0 * 15.0 + $geopos[0]);
 
-            // Calculate planet position
+            // Calculate planet or star position
             $x0 = [];
-            if (PlanetsFunctions::calc($t_et, $ipl, $iflag, $x0, $serr) < 0) {
-                return Constants::SE_ERR;
+            if ($do_fixstar) {
+                if (FixstarFunctions::fixstar($starname, $t_et, $iflag, $x0, $serr) === Constants::SE_ERR) {
+                    return Constants::SE_ERR;
+                }
+            } else {
+                if (PlanetsFunctions::calc($t_et, $ipl, $iflag, $x0, $serr) < 0) {
+                    return Constants::SE_ERR;
+                }
             }
 
             // If method 1, set latitude to 0 (ignore latitude)
@@ -263,10 +262,9 @@ final class GauquelinFunctions
         } else {
             // Circumpolar body: no rise or set found
             $dgsect = 0.0;
-            $serr = ErrorCodes::compose(
-                ErrorCodes::NOT_AVAILABLE,
-                "rise or set not found for planet $ipl (circumpolar body)"
-            );
+            if ($serr !== null) {
+                $serr = sprintf("rise or set not found for planet %d", $ipl);
+            }
             return Constants::SE_ERR;
         }
     }

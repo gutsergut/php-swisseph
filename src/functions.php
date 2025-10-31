@@ -162,12 +162,17 @@ if (!function_exists('swe_jd_to_utc')) {
 }
 if (!function_exists('swe_sidtime0')) {
     /**
-     * Swiss Ephemeris has a more complex signature; here a simplified variant:
-     * Given JD (UT) and nutation params (ignored now), return GMST (hours).
+     * Sidereal time with nutation correction
+     *
+     * @param float $jdut Julian day (UT)
+     * @param float $eps Obliquity (degrees)
+     * @param float $nut Nutation in longitude (degrees)
+     * @param float $nut2 Nutation in obliquity (degrees) - currently unused in simplified version
+     * @return float Apparent sidereal time in hours
      */
     function swe_sidtime0(float $jdut, float $eps, float $nut, float $nut2): float
     {
-        return Sidereal::gmstHoursFromJdUt($jdut);
+        return Sidereal::sidtime0($jdut, $eps, $nut);
     }
 }
 
