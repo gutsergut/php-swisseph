@@ -992,3 +992,52 @@ if (!function_exists('swe_fixstar_mag')) {
         return FixstarFunctions::fixstarMag($star, $mag, $serr);
     }
 }
+
+if (!function_exists('swe_gauquelin_sector')) {
+    /**
+     * Calculate Gauquelin sector position for a planet or fixed star.
+     *
+     * @param float $t_ut Julian day number (UT)
+     * @param int $ipl Planet number (SE_SUN, etc.) - ignored if starname is set
+     * @param string|null $starname Star name for fixed stars, or null/empty for planets
+     * @param int $iflag Calculation flags (SEFLG_*)
+     * @param int $imeth Method (0-5):
+     *                    0 = geometric with latitude
+     *                    1 = geometric without latitude
+     *                    2 = from rise/set, disc center, no refraction
+     *                    3 = from rise/set, disc center, with refraction
+     *                    4 = from rise/set, no refraction
+     *                    5 = from rise/set, with refraction
+     * @param array $geopos Geographic position [longitude, latitude, height]
+     * @param float $atpress Atmospheric pressure (mbar), 0 = default 1013.25
+     * @param float $attemp Atmospheric temperature (°C)
+     * @param float &$dgsect Output: Gauquelin sector position (1.0 - 36.999...)
+     * @param string|null &$serr Error message
+     * @return int OK or ERR
+     */
+    function swe_gauquelin_sector(
+        float $t_ut,
+        int $ipl,
+        ?string $starname,
+        int $iflag,
+        int $imeth,
+        array $geopos,
+        float $atpress,
+        float $attemp,
+        float &$dgsect,
+        ?string &$serr = null
+    ): int {
+        return \Swisseph\Swe\Functions\GauquelinFunctions::gauquelinSector(
+            $t_ut,
+            $ipl,
+            $starname,
+            $iflag,
+            $imeth,
+            $geopos,
+            $atpress,
+            $attemp,
+            $dgsect,
+            $serr
+        );
+    }
+}
