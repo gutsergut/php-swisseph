@@ -57,11 +57,18 @@ final class Coordinates
 
     public static function coortrf2(array $xpo, array &$xpn, float $sineps, float $coseps): void
     {
-        $xpn = [
+        // Use temporary array to handle case when $xpo and $xpn reference the same array
+        // This matches C implementation in swephlib.c swi_coortrf2() which uses double x[3]
+        $x = [
             $xpo[0],
             $xpo[1] * $coseps + $xpo[2] * $sineps,
             -$xpo[1] * $sineps + $xpo[2] * $coseps,
         ];
+
+        // Assign only first 3 elements, preserving any additional elements in $xpn
+        $xpn[0] = $x[0];
+        $xpn[1] = $x[1];
+        $xpn[2] = $x[2];
     }
 
     public static function cartPol(array $x, array &$l): void

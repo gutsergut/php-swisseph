@@ -241,8 +241,12 @@ class Precession
 
         // Then add precessional proper motion (0.137"/day)
         // Convert to ecliptic coordinates
+        // Matches C: swi_coortrf2(xx, xx, oe->seps, oe->ceps);
         Coordinates::coortrf2($xx, $xx, $seps, $ceps);
-        $vel = array_slice($xx, 3, 3);
+
+        // Matches C: swi_coortrf2(xx+3, xx+3, oe->seps, oe->ceps);
+        // In PHP, create temporary view of velocity part
+        $vel = [$xx[3], $xx[4], $xx[5]];
         Coordinates::coortrf2($vel, $vel, $seps, $ceps);
         $xx[3] = $vel[0];
         $xx[4] = $vel[1];
@@ -261,8 +265,11 @@ class Precession
         Coordinates::polCartSp($xx, $xx);
 
         // Convert back to equatorial
-        $vel = array_slice($xx, 3, 3);
+        // Matches C: swi_coortrf2(xx, xx, -oe->seps, oe->ceps);
         Coordinates::coortrf2($xx, $xx, -$seps, $ceps);
+
+        // Matches C: swi_coortrf2(xx+3, xx+3, -oe->seps, oe->ceps);
+        $vel = [$xx[3], $xx[4], $xx[5]];
         Coordinates::coortrf2($vel, $vel, -$seps, $ceps);
         $xx[3] = $vel[0];
         $xx[4] = $vel[1];
