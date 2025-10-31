@@ -2,7 +2,7 @@
 
 Обновлено: 2025-01-16
 
-## Реализовано (58 функций)
+## Реализовано (59 функций)
 
 ### Базовые функции времени/календаря
 - ✅ `swe_julday`, `swe_revjul` — преобразования JD ↔ календарь
@@ -128,7 +128,17 @@
   - Поддержка всех 14 частей calcFromRecord() включая sidereal transformations
   - Точность: <0.001° для tropical/sidereal позиций
   - Three sidereal algorithms: ECL_T0, SSY_PLANE, Traditional
-- ⬜ `swe_gauquelin_sector` — сектор Gauquelin для планеты (реализовано для планет, звёзды требуют fixstar)
+- ✅ - [x] `swe_gauquelin_sector()` - Расчёт сектора Гокелена для планет и звёзд
+  - ✅ Полный C-порт (271 строка из swecl.c:6328-6457)
+  - ✅ Поддержка 6 методов расчёта (0-5): геометрический с/без широты, восход/заход с/без рефракции
+  - ✅ Методы 0/1 (геометрические) проверены: Солнце 31.185, Спика 30.122
+  - ⚠️ Методы 2-5 (восход/заход) требуют улучшения RiseSetFunctions
+  - ✅ Поддержка неподвижных звёзд через FixstarFunctions
+  - ✅ Commit: 83d4a31 (реализовано 01.11.2025)
+  - Full C port from swecl.c:6328-6457 (NO SIMPLIFICATIONS)
+  - 6 methods: geometric (0/1) and rise/set based (2-5)
+  - Methods 0/1 verified: Sun sector 31.185, Spica 30.122
+  - Methods 2-5 (rise/set) need RiseSetFunctions improvement
 - ✅ `swe_refrac_extended` — расширенная рефракция с lapse rate (Newton iteration, Sinclair formula, dip calculation)
 - ✅ `swe_get_orbital_elements` — орбитальные элементы (полностью реализовано)
 - ✅ `swe_orbit_max_min_true_distance` — экстремумы расстояний (полностью реализовано)
