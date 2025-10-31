@@ -1,14 +1,15 @@
 # Roadmap: Swiss Ephemeris PHP Port
 
-Обновлено: 2025-11-01
+Обновлено: 2025-01-16
 
-## Реализовано (57 функций)
+## Реализовано (58 функций)
 
 ### Базовые функции времени/календаря
 - ✅ `swe_julday`, `swe_revjul` — преобразования JD ↔ календарь
 - ✅ `swe_utc_to_jd`, `swe_jd_to_utc` — UTC ↔ JD с валидацией
 - ✅ `swe_deltat`, `swe_deltat_ex` — ΔT (аппроксимации Espenak/Meeus)
 - ✅ `swe_sidtime` — GMST (звёздное время)
+- ✅ `swe_sidtime0` — полная реализация сидерического времени (4 модели: IAU 1976/2006, IERS 2010, LONGTERM) с точностью <0.001" (эпохи 1800-2025)
 - ✅ `swe_date_conversion` — преобразование календарной даты в JD с валидацией
 - ✅ `swe_day_of_week` — день недели по JD (Monday=0, ..., Sunday=6)
 - ✅ `swe_time_equ` — equation of time (разница между средним и истинным солнечным временем)
