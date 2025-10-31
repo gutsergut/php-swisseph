@@ -30,6 +30,7 @@ use Swisseph\Swe\Functions\TransformFunctions;
 use Swisseph\Swe\Functions\NodesApsidesFunctions;
 use Swisseph\Swe\Functions\OrbitalElementsFunctions;
 use Swisseph\Swe\Functions\PhenoFunctions;
+use Swisseph\Swe\Functions\FixstarFunctions;
 
 if (!function_exists('swe_julday')) {
     /**
@@ -920,5 +921,64 @@ if (!function_exists('swe_pheno_ut')) {
         ?string &$serr = null
     ): int {
         return PhenoFunctions::phenoUt($tjd_ut, $ipl, $iflag, $attr, $serr);
+    }
+}
+
+if (!function_exists('swe_fixstar')) {
+    /**
+     * Calculate fixed star positions (ET version).
+     * @param string &$star Star name (traditional name, Bayer designation, or sequential number). Modified to full name on success.
+     * @param float $tjd Julian day number (ET)
+     * @param int $iflag Calculation flags (SEFLG_*)
+     * @param array &$xx Output array [longitude, latitude, distance, speed_long, speed_lat, speed_dist]
+     * @param string|null &$serr Error message
+     * @return int Flag value or ERR
+     */
+    function swe_fixstar(
+        string &$star,
+        float $tjd,
+        int $iflag,
+        ?array &$xx = null,
+        ?string &$serr = null
+    ): int {
+        return FixstarFunctions::fixstar($star, $tjd, $iflag, $xx, $serr);
+    }
+}
+
+if (!function_exists('swe_fixstar_ut')) {
+    /**
+     * Calculate fixed star positions (UT version).
+     * @param string &$star Star name. Modified to full name on success.
+     * @param float $tjd_ut Julian day number (UT)
+     * @param int $iflag Calculation flags (SEFLG_*)
+     * @param array &$xx Output array [longitude, latitude, distance, speed_long, speed_lat, speed_dist]
+     * @param string|null &$serr Error message
+     * @return int Flag value or ERR
+     */
+    function swe_fixstar_ut(
+        string &$star,
+        float $tjd_ut,
+        int $iflag,
+        ?array &$xx = null,
+        ?string &$serr = null
+    ): int {
+        return FixstarFunctions::fixstarUt($star, $tjd_ut, $iflag, $xx, $serr);
+    }
+}
+
+if (!function_exists('swe_fixstar_mag')) {
+    /**
+     * Get visual magnitude of a fixed star.
+     * @param string &$star Star name. Modified to full name on success.
+     * @param float &$mag Output magnitude
+     * @param string|null &$serr Error message
+     * @return int OK or ERR
+     */
+    function swe_fixstar_mag(
+        string &$star,
+        float &$mag,
+        ?string &$serr = null
+    ): int {
+        return FixstarFunctions::fixstarMag($star, $mag, $serr);
     }
 }

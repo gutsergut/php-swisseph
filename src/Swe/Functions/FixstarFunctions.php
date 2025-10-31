@@ -435,4 +435,192 @@ class FixstarFunctions
 
         return Error::OK;
     }
+
+    /**
+     * Calculate fixstar position from ET (Ephemeris Time).
+     *
+     * Port of swe_fixstar() from sweph.c:7950-8018
+     *
+     * @param string $star Star name (traditional name, Bayer designation, or sequential number). Modified to full name on success.
+     * @param float $tjd Julian day number (ET)
+     * @param int $iflag Calculation flags (SEFLG_*)
+     * @param array $xx Output array [longitude, latitude, distance, speed_long, speed_lat, speed_dist]
+     * @param string|null $serr Error string (passed by reference)
+     * @return int Flag value or ERR
+     */
+    public static function fixstar(string &$star, float $tjd, int $iflag, array &$xx, ?string &$serr): int
+    {
+        $sstar = '';
+        $srecord = '';
+
+        if ($serr !== null) {
+            $serr = '';
+        }
+
+        // Format search name
+        $retc = self::formatSearchName($star, $sstar, $serr);
+        if ($retc === Error::ERR) {
+            goto return_err;
+        }
+
+        // Process search name
+        if ($sstar[0] === ',') {
+            // is Bayer designation
+        } elseif (ctype_digit($sstar[0])) {
+            // is a sequential star number
+        } else {
+            // cut off Bayer, if trad. name
+            $commaPos = strpos($sstar, ',');
+            if ($commaPos !== false) {
+                $sstar = substr($sstar, 0, $commaPos);
+            }
+        }
+
+        // Check cache: star elements from last call
+        if (self::$lastStarData !== null && self::$lastStarName === $sstar) {
+            $srecord = self::$lastStarData;
+            goto found;
+        }
+
+        // Check built-in stars
+        if (self::getBuiltinStar($star, $sstar, $srecord)) {
+            goto found;
+        }
+
+        // Load from star file
+        $dparams = null;
+        if (($retc = self::loadRecord($star, $srecord, $dparams, $serr)) !== Error::OK) {
+            goto return_err;
+        }
+
+        found:
+        // Cache for next call
+        self::$lastStarData = $srecord;
+        self::$lastStarName = $sstar;
+
+        // Calculate position from record
+        // Note: This is a simplified version - full implementation would call calcFromRecord()
+        // For now, parse the record and return basic coordinates
+        $stardata = new FixedStar();
+        if (self::cutString($srecord, $star, $stardata, $serr) === Error::ERR) {
+            goto return_err;
+        }
+
+        // TODO: Full calculation with proper motion, parallax, precession, nutation, aberration
+        // For now, return epoch coordinates (placeholder)
+        $xx = [
+            $stardata->ra * Constants::RADTODEG,
+            $stardata->de * Constants::RADTODEG,
+            1.0,  // distance placeholder
+            0.0,  // speed longitude
+            0.0,  // speed latitude
+            0.0,  // speed distance
+        ];
+
+        return $iflag;
+
+        return_err:
+        $xx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        return Error::ERR;
+    }
+
+    /**
+     * Calculate fixstar position from UT (Universal Time).
+     *
+     * Port of swe_fixstar_ut() from sweph.c:8020-8042
+     *
+     * @param string $star Star name. Modified to full name on success.
+     * @param float $tjdUt Julian day number (UT)
+     * @param int $iflag Calculation flags (SEFLG_*)
+     * @param array $xx Output array [longitude, latitude, distance, speed_long, speed_lat, speed_dist]
+     * @param string|null $serr Error string (passed by reference)
+     * @return int Flag value or ERR
+     */
+    public static function fixstarUt(string &$star, float $tjdUt, int $iflag, array &$xx, ?string &$serr): int
+    {
+        // Get delta T
+        $deltat = TimeFunctions::deltatEx($tjdUt, $iflag, $serr);
+
+        // Calculate with ET
+        $retflag = self::fixstar($star, $tjdUt + $deltat, $iflag, $xx, $serr);
+
+        // If ephemeris changed, recalculate delta T
+        if ($retflag !== Error::ERR && ($retflag & Constants::SEFLG_EPHMASK) !== ($iflag & Constants::SEFLG_EPHMASK)) {
+            $deltat = TimeFunctions::deltatEx($tjdUt, $retflag, $serr);
+            $retflag = self::fixstar($star, $tjdUt + $deltat, $iflag, $xx, $serr);
+        }
+
+        return $retflag;
+    }
+
+    /**
+     * Get visual magnitude of a fixed star.
+     *
+     * Port of swe_fixstar_mag() from sweph.c:8044-8095
+     *
+     * @param string $star Star name. Modified to full name on success.
+     * @param float $mag Output magnitude (passed by reference)
+     * @param string|null $serr Error string (passed by reference)
+     * @return int OK or ERR
+     */
+    public static function fixstarMag(string &$star, float &$mag, ?string &$serr): int
+    {
+        $sstar = '';
+        $srecord = '';
+
+        if ($serr !== null) {
+            $serr = '';
+        }
+
+        // Format search name
+        $retc = self::formatSearchName($star, $sstar, $serr);
+        if ($retc === Error::ERR) {
+            goto return_err;
+        }
+
+        // Process search name
+        if ($sstar[0] === ',') {
+            // is Bayer designation
+        } elseif (ctype_digit($sstar[0])) {
+            // is a sequential star number
+        } else {
+            // cut off Bayer, if trad. name
+            $commaPos = strpos($sstar, ',');
+            if ($commaPos !== false) {
+                $sstar = substr($sstar, 0, $commaPos);
+            }
+        }
+
+        // Check cache: star elements from last call
+        if (self::$lastMagStarData !== null && self::$lastMagStarName === $sstar) {
+            $srecord = self::$lastMagStarData;
+            $stardata = new FixedStar();
+            $retc = self::cutString($srecord, $star, $stardata, $serr);
+            if ($retc === Error::ERR) {
+                goto return_err;
+            }
+            $mag = $stardata->mag;
+            goto found;
+        }
+
+        // Load from file (or built-in)
+        $dparams = [];
+        if (($retc = self::loadRecord($star, $srecord, $dparams, $serr)) !== Error::OK) {
+            goto return_err;
+        }
+
+        // Magnitude is in dparams[7]
+        $mag = $dparams[7];
+
+        found:
+        // Cache for next call
+        self::$lastMagStarData = $srecord;
+        self::$lastMagStarName = $sstar;
+
+        return Error::OK;
+
+        return_err:
+        $mag = 0.0;
+        return Error::ERR;
+    }
 }
