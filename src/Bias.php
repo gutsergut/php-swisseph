@@ -77,7 +77,8 @@ class Bias
         $hasSpeed = ($iflag & Constants::SEFLG_SPEED) && count($x) >= 6;
 
         // Apply transformation with JPL Horizons corrections
-        $result = [];
+        // Initialize result with same length as input (preserve structure)
+        $result = $hasSpeed ? [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] : [0.0, 0.0, 0.0];
 
         if ($backward) {
             // J2000 → ICRS
@@ -166,7 +167,7 @@ class Bias
 
     /**
      * Get model name as string.
-     *
+    /**
      * @param int $model Bias model constant
      * @return string Model name
      */
@@ -178,5 +179,21 @@ class Bias
             self::MODEL_IAU_2006 => 'IAU 2006',
             default => 'Unknown',
         };
+    }
+
+    /**
+     * Apply frame bias transformation (simplified wrapper).
+     *
+     * Compatibility wrapper for swi_bias() C function.
+     * Port of: swephlib.c swi_bias()
+     *
+     * @param array &$x Position vector [x, y, z] or [x, y, z, dx, dy, dz], modified in place
+     * @param float $tjd Julian day (TT)
+     * @param int $iflag Calculation flags
+     * @param bool $backward If true, transform J2000 → ICRS; if false, transform ICRS → J2000
+     */
+    public static function bias(array &$x, float $tjd, int $iflag, bool $backward): void
+    {
+        $x = self::apply($x, $tjd, $iflag, self::MODEL_DEFAULT, $backward);
     }
 }

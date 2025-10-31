@@ -751,26 +751,30 @@ class FixstarFunctions
 
         if (!($iflag & Constants::SEFLG_BARYCTR) && (!($iflag & Constants::SEFLG_HELCTR) || !($iflag & Constants::SEFLG_MOSEPH))) {
             // Get Earth position at tjd - dt
-            $retc = PlanetsFunctions::calc($tjd - $dt, Constants::SE_EARTH, $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ, $xearth_dt, $serr);
+            $retc = PlanetsFunctions::calc($tjd - $dt, Constants::SE_EARTH, $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR, $xearth_dt, $serr);
             if ($retc < 0) {
+                $serr = "Failed to get Earth position at tjd-dt: " . ($serr ?? 'unknown error');
                 return Constants::SE_ERR;
             }
 
             // Get Earth position at tjd
-            $retc = PlanetsFunctions::calc($tjd, Constants::SE_EARTH, $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ, $xearth, $serr);
+            $retc = PlanetsFunctions::calc($tjd, Constants::SE_EARTH, $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR, $xearth, $serr);
             if ($retc < 0) {
+                $serr = "Failed to get Earth position at tjd: " . ($serr ?? 'unknown error');
                 return Constants::SE_ERR;
             }
 
             // Get Sun position at tjd - dt
-            $retc = PlanetsFunctions::calc($tjd - $dt, Constants::SE_SUN, $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ, $xsun_dt, $serr);
+            $retc = PlanetsFunctions::calc($tjd - $dt, Constants::SE_SUN, $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR, $xsun_dt, $serr);
             if ($retc < 0) {
+                $serr = "Failed to get Sun position at tjd-dt: " . ($serr ?? 'unknown error');
                 return Constants::SE_ERR;
             }
 
             // Get Sun position at tjd
-            $retc = PlanetsFunctions::calc($tjd, Constants::SE_SUN, $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ, $xsun, $serr);
+            $retc = PlanetsFunctions::calc($tjd, Constants::SE_SUN, $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR, $xsun, $serr);
             if ($retc < 0) {
+                $serr = "Failed to get Sun position at tjd: " . ($serr ?? 'unknown error');
                 return Constants::SE_ERR;
             }
         }
@@ -1129,6 +1133,11 @@ class FixstarFunctions
         $ru = sqrt(VectorMath::squareSum($u));
         $rq = sqrt(VectorMath::squareSum($q));
         $re = sqrt(VectorMath::squareSum($e));
+
+        // Skip deflection if any vector is zero (Earth/Sun positions not loaded)
+        if ($ru < 1e-10 || $rq < 1e-10 || $re < 1e-10) {
+            return; // No deflection applied
+        }
 
         $u = [$u[0] / $ru, $u[1] / $ru, $u[2] / $ru];
         $q = [$q[0] / $rq, $q[1] / $rq, $q[2] / $rq];
