@@ -181,6 +181,9 @@ final class RiseSetFunctions
         $dd = 0.0; // diameter in meters
         $rdi = 0.0; // apparent radius in degrees
 
+        // Debug mode
+        $debug = getenv('DEBUG_RISESET') === '1';
+
         // Sample heights every 2 hours over 28 hours (swecl.c:4460-4552)
         for ($ii = 0, $t = $tjd_ut - $twohrs; $ii <= $jmax; $ii++, $t += $twohrs) {
             $tc[$ii] = $t;
@@ -254,6 +257,12 @@ final class RiseSetFunctions
             }
 
             $xh[$ii] = $xhii;
+
+            if ($debug) {
+                $date = \swe_revjul($tc[$ii], Constants::SE_GREG_CAL);
+                error_log(sprintf("  Sample ii=%2d: JD %.7f (%02d:%02d UT) h=%.5f°",
+                    $ii, $tc[$ii], (int)$date['ut'], (int)((($date['ut'] - (int)$date['ut']) * 60)), $h[$ii]));
+            }
 
             // Check for culmination (local max or min) (swecl.c:4515-4552)
             $calc_culm = 0;
@@ -372,6 +381,9 @@ final class RiseSetFunctions
 
         // Find points with zero height (horizon crossing) (swecl.c:4616-4692)
         $t2 = [];
+        if ($debug) {
+            error_log(sprintf("=== Looking for events after JD %.7f ===", $tjd_ut));
+        }
         for ($ii = 1; $ii <= $jmax; $ii++) {
             // Check for sign change (swecl.c:4620-4621)
             if ($h[$ii - 1] * $h[$ii] >= 0) {
@@ -380,10 +392,19 @@ final class RiseSetFunctions
 
             // Check if it's the right type (rise vs set) (swecl.c:4622-4625)
             if ($h[$ii - 1] < $h[$ii] && !($rsmi & Constants::SE_CALC_RISE)) {
+                if ($debug) error_log(sprintf("  Skip ii=%d (rising but looking for set): h[%d]=%.5f h[%d]=%.5f",
+                    $ii, $ii-1, $h[$ii-1], $ii, $h[$ii]));
                 continue;
             }
             if ($h[$ii - 1] > $h[$ii] && !($rsmi & Constants::SE_CALC_SET)) {
+                if ($debug) error_log(sprintf("  Skip ii=%d (setting but looking for rise): h[%d]=%.5f h[%d]=%.5f",
+                    $ii, $ii-1, $h[$ii-1], $ii, $h[$ii]));
                 continue;
+            }
+
+            if ($debug) {
+                error_log(sprintf("  Found crossing at ii=%d: h[%d]=%.5f h[%d]=%.5f (tc[%d]=%.7f tc[%d]=%.7f)",
+                    $ii, $ii-1, $h[$ii-1], $ii, $h[$ii], $ii-1, $tc[$ii-1], $ii, $tc[$ii]));
             }
 
             // Binary search for exact crossing time (swecl.c:4626-4688)
@@ -446,13 +467,21 @@ final class RiseSetFunctions
             }
 
             // Return first event after tjd_ut (swecl.c:4689-4693)
+            if ($debug) {
+                if ($t > $tjd_ut) {
+                    error_log(sprintf("  ✅ Event at JD %.7f is AFTER tjd_ut %.7f - RETURNING", $t, $tjd_ut));
+                } else {
+                    error_log(sprintf("  ⏩ Event at JD %.7f is BEFORE tjd_ut %.7f - SKIPPING", $t, $tjd_ut));
+                }
+            }
             if ($t > $tjd_ut) {
                 $tret = $t;
                 return 0; // OK
             }
+            // If t <= tjd_ut, continue searching for next crossing
         }
 
-        // No rise or set found (swecl.c:4694-4696)
+        // No rise or set found after tjd_ut (swecl.c:4694-4696)
         if ($serr !== null) {
             $serr = sprintf('rise or set not found for planet %d', $ipl);
         }
