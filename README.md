@@ -7,11 +7,11 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 56/200+ implemented (28%)
+**Core Functions**: 57/200+ implemented (29%)
 
 ```
 Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
-Houses & Angles        ████████████████░░░░  4/5   (80%)
+Houses & Angles        ████████████████████  5/5   (100%)
 Sidereal & Ayanamsha   ██████████████████░░  9/10  (90%)
 Nodes & Apsides        ████████░░░░░░░░░░░░  2/5   (40%)
 Rise/Set/Transit       ████████████░░░░░░░░  3/7   (43%)
@@ -40,10 +40,11 @@ Misc Utilities         ███████████████████
 </details>
 
 <details>
-<summary><b>Houses & Angles (4)</b></summary>
+<summary><b>Houses & Angles (5)</b></summary>
 
 - ✅ `swe_houses` - Calculate house cusps (basic)
-- ✅ `swe_houses_ex2` - Calculate houses with speeds
+- ✅ `swe_houses_ex` - Calculate houses with iflag (without speeds)
+- ✅ `swe_houses_ex2` - Calculate houses with iflag and speeds
 - ✅ `swe_house_pos` - Find house position of planet
 - ✅ `swe_house_name` - Get house system name
 </details>

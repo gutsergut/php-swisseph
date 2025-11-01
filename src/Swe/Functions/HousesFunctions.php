@@ -138,7 +138,40 @@ final class HousesFunctions
     }
 
     /**
-     * Тонкая обёртка под классический API (без iflag/speed массивов).
+     * Calculate house cusps with ephemeris flags.
+     * Port of swe_houses_ex() from swehouse.c:178
+     *
+     * This is a wrapper around housesEx2() that omits the speed calculations.
+     *
+     * @param float $jd_ut Julian day in UT
+     * @param int $iflag Ephemeris flags (e.g., SEFLG_SIDEREAL, SEFLG_NONUT, etc.)
+     * @param float $geolat Geographic latitude in degrees
+     * @param float $geolon Geographic longitude in degrees
+     * @param string $hsys House system code (single letter)
+     * @param array &$cusp Output array for house cusps [0..12] or [0..36] for Gauquelin
+     * @param array &$ascmc Output array for additional points [0..9]:
+     *                      [0]=Ascendant, [1]=MC, [2]=ARMC, [3]=Vertex,
+     *                      [4]=Equatorial Asc, [5]=Co-Asc Koch, [6]=Co-Asc Munkasey,
+     *                      [7]=Polar Asc, [8]=reserved, [9]=reserved
+     * @return int SE_OK (0) or SE_ERR (-1)
+     */
+    public static function housesEx(
+        float $jd_ut,
+        int $iflag,
+        float $geolat,
+        float $geolon,
+        string $hsys,
+        array &$cusp,
+        array &$ascmc
+    ): int {
+        $cusp_speed = null;
+        $ascmc_speed = null;
+        $serr = null;
+        return self::housesEx2($jd_ut, $iflag, $geolat, $geolon, $hsys, $cusp, $ascmc, $cusp_speed, $ascmc_speed, $serr);
+    }
+
+    /**
+     * Обёртка для совместимости с swe_houses из С API.
      */
     public static function houses(
         float $jd_ut,

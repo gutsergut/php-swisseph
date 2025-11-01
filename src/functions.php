@@ -652,6 +652,48 @@ if (!function_exists('swe_houses_ex2')) {
         );
     }
 }
+
+if (!function_exists('swe_houses_ex')) {
+    /**
+     * Calculate house cusps with ephemeris flags (without speeds).
+     * Port of swe_houses_ex() from swehouse.c:178
+     *
+     * This is a middle-ground function between swe_houses() and swe_houses_ex2():
+     * - Has iflag parameter (unlike swe_houses)
+     * - Omits speed calculations (unlike swe_houses_ex2)
+     *
+     * @param float $jd_ut Julian day in UT
+     * @param int $iflag Ephemeris flags (e.g., SEFLG_SIDEREAL, SEFLG_NONUT, etc.)
+     * @param float $geolat Geographic latitude in degrees
+     * @param float $geolon Geographic longitude in degrees
+     * @param string $hsys House system code (single letter: P, K, O, R, C, E, W, etc.)
+     * @param array &$cusp Output array for house cusps [0..12] or [0..36] for Gauquelin
+     * @param array &$ascmc Output array for additional points [0..9]
+     * @return int SE_OK (0) or SE_ERR (-1)
+     *
+     * Mirrors C API: swe_houses_ex(tjd_ut, iflag, geolat, geolon, hsys, cusps, ascmc)
+     */
+    function swe_houses_ex(
+        float $jd_ut,
+        int $iflag,
+        float $geolat,
+        float $geolon,
+        string $hsys,
+        array &$cusp,
+        array &$ascmc
+    ): int {
+        return \Swisseph\Swe\Functions\HousesFunctions::housesEx(
+            $jd_ut,
+            $iflag,
+            $geolat,
+            $geolon,
+            $hsys,
+            $cusp,
+            $ascmc
+        );
+    }
+}
+
 if (!function_exists('swe_houses')) {
     /**
      * Thin wrapper matching classic API (no iflag/speeds): delegates to swe_houses_ex2.
