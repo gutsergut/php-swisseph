@@ -89,6 +89,7 @@ class PlanetsFunctions
             // Call SwephPlanCalculator (port of C sweplan())
             // This handles Sun/Earth/Moon dependencies and heliocentric->barycentric conversion
             // Use doSave=true to cache results in SwedState
+            // CRITICAL: Pass $ipl (external index) to distinguish SE_SUN from SE_EARTH (both map to SEI_*=0)
             $xpret = []; // Planet position output
             $xperet = null; // Earth position (not needed here)
             $xpsret = null; // Sun barycenter (not needed here)
@@ -97,6 +98,7 @@ class PlanetsFunctions
             $retc = \Swisseph\SwephFile\SwephPlanCalculator::calculate(
                 $jd_tt,
                 $ipli,
+                $ipl,  // Pass external index to distinguish SUN/EARTH!
                 SwephConstants::SEI_FILE_PLANET,
                 $iflag,
                 true, // doSave
@@ -110,6 +112,11 @@ class PlanetsFunctions
             if (getenv('DEBUG_OSCU')) {
                 error_log(sprintf("DEBUG PlanetsFunctions after SwephPlanCalculator: xpret=[%.15f, %.15f, %.15f]",
                     $xpret[0] ?? 0, $xpret[1] ?? 0, $xpret[2] ?? 0));
+                // Check what's in slot 0 (EMB/EARTH) after SwephPlanCalculator
+                $swed_check = \Swisseph\SwephFile\SwedState::getInstance();
+                $slot0_check = &$swed_check->pldat[0];
+                error_log(sprintf("DEBUG PlanetsFunctions: Slot 0 AFTER SwephPlanCalculator: x=[%.15f, %.15f, %.15f]",
+                    $slot0_check->x[0] ?? 0, $slot0_check->x[1] ?? 0, $slot0_check->x[2] ?? 0));
             }
 
             if ($retc < 0) { // Check for ERR or NOT_AVAILABLE
@@ -119,6 +126,11 @@ class PlanetsFunctions
 
             // Copy barycentric result
             $xx = $xpret;
+
+            if (getenv('DEBUG_OSCU')) {
+                error_log(sprintf("DEBUG [calc ipl=%d] xx AFTER copy from xpret=[%.15f, %.15f, %.15f]",
+                    $ipl, $xx[0], $xx[1], $xx[2]));
+            }
 
             // Debug: Log coordinates after SwephCalculator (should be ecliptic J2000)
             if (getenv('DEBUG_OSCU')) {
@@ -216,7 +228,21 @@ class PlanetsFunctions
             }            // Apply coordinate transformations and populate xreturn[24]
             // C code: app_pos_rest() in sweph.c:2776
             $swed = \Swisseph\SwephFile\SwedState::getInstance();
-            $pdp = &$swed->pldat[$ipli];
+
+            // CRITICAL: Determine correct slot for result storage
+            // For SE_SUN, data comes from SUNBARY (slot 10), not EMB (slot 0)
+            // C code uses pdp = &swed.pldat[ipli], but for SUN ipli=0 while data is in slot 10!
+            // We need to store result in the slot that contains the SOURCE data
+            $result_slot = $ipli;
+            if ($ipl === Constants::SE_SUN) {
+                $result_slot = SwephConstants::SEI_SUNBARY;  // Store in SUNBARY slot, not EMB!
+            }
+            $pdp = &$swed->pldat[$result_slot];
+
+            if (getenv('DEBUG_OSCU')) {
+                error_log(sprintf("DEBUG [calc ipl=%d] using result_slot=%d, xx before appPosRest=[%.15f, %.15f, %.15f]",
+                    $ipl, $result_slot, $xx[0], $xx[1], $xx[2]));
+            }
 
             // Get epsilon (obliquity) - use J2000 constant if J2000 flag set
             if ($iflag & Constants::SEFLG_J2000) {

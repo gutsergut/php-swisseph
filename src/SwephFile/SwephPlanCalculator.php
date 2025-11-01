@@ -26,6 +26,7 @@ final class SwephPlanCalculator
      *
      * @param float $tjd Julian day (TT/ET)
      * @param int $ipli Internal planet index (SEI_*)
+     * @param int $iplExternal External planet index (SE_*) - needed to distinguish SUN/EARTH/MOON
      * @param int $ifno File number (SEI_FILE_PLANET or SEI_FILE_MOON)
      * @param int $iflag Calculation flags (SEFLG_*)
      * @param bool $doSave Whether to save results in SwedState cache
@@ -39,6 +40,7 @@ final class SwephPlanCalculator
     public static function calculate(
         float $tjd,
         int $ipli,
+        int $iplExternal,
         int $ifno,
         int $iflag,
         bool $doSave,
@@ -262,35 +264,36 @@ final class SwephPlanCalculator
 
         // ===== MAIN PLANET/BODY =====
         // C code lines 1921-1970
+        // NOTE: SEI_SUN, SEI_EARTH, SEI_EMB all equal 0, so we MUST use $iplExternal to distinguish them!
+        // CRITICAL: $xp may point to $pdp->x (when doSave=true), which for SUN is slot 0 (EMB)!
+        // We must NOT overwrite EMB data with SUN data - use local array instead!
+        $xp_result = null;  // Will point to result data
+
         if ($ipli === SwephConstants::SEI_MOON) {
             // Return Moon position
-            for ($i = 0; $i <= 5; $i++) {
-                $xp[$i] = $xpm[$i];
-            }
-        } elseif ($ipli === SwephConstants::SEI_EARTH) {
-            // Return Earth position
-            for ($i = 0; $i <= 5; $i++) {
-                $xp[$i] = $xpe[$i];
-            }
+            $xp_result = $xpm;
+        } elseif ($iplExternal === Constants::SE_EARTH) {
+            // C code sweph.c:1933-1935
+            // Return Earth position (use external index to distinguish from SUN!)
+            $xp_result = $xpe;
+        } elseif ($iplExternal === Constants::SE_SUN) {
+            // C code sweph.c:1936-1939
+            // CRITICAL: SE_SUN uses SEI_SUN=0 which is same as SEI_EMB!
+            // $xp points to slot 0 (EMB), but we need SUNBARY data!
+            // DO NOT overwrite EMB slot - return SUNBARY directly!
+            $xp_result = $xps;
         } elseif ($ipli === SwephConstants::SEI_SUNBARY) {
             // Return Sun barycenter position
-            for ($i = 0; $i <= 5; $i++) {
-                $xp[$i] = $xps[$i];
-            }
+            $xp_result = $xps;
         } else {
             // Regular planet
-            $speedf1 = $pdp->xflgs & Constants::SEFLG_SPEED;
-
-            // Check cache
+            // For regular planets, $xp correctly points to $pdp->x (own slot)
+            $speedf1 = $pdp->xflgs & Constants::SEFLG_SPEED;            // Check cache
             if ($tjd == $pdp->teval
                 && $pdp->iephe == Constants::SEFLG_SWIEPH
                 && (!$speedf2 || $speedf1)
             ) {
-                // Use cached value
-                for ($i = 0; $i <= 5; $i++) {
-                    $xp[$i] = $pdp->x[$i];
-                }
-
+                // Use cached value - already in $xp
                 // Copy to output and return early
                 if ($xpret !== null) {
                     for ($i = 0; $i <= 5; $i++) {
@@ -344,13 +347,17 @@ final class SwephPlanCalculator
                         error_log("DEBUG SwephPlanCalculator: planet is NOT heliocentric, no conversion needed");
                     }
                 }
+
+                // Set result pointer AFTER computation
+                $xp_result = $xp;
             }
         }
 
         // Copy to output parameter if requested
-        if ($xpret !== null) {
+        // Use $xp_result which points to correct data (may be $xps for SUN!)
+        if ($xpret !== null && $xp_result !== null) {
             for ($i = 0; $i <= 5; $i++) {
-                $xpret[$i] = $xp[$i];
+                $xpret[$i] = $xp_result[$i];
             }
         }
 
@@ -374,8 +381,18 @@ final class SwephPlanCalculator
         // = xmoon[i] / ((1/0.0123000383) + 1.0) = xmoon[i] / 82.300559852728...
         $earthMoonMassRatio = 1.0 / 0.0123000383;  // = 81.300559852728...
 
+        if (getenv('DEBUG_OSCU')) {
+            error_log(sprintf("DEBUG embofs BEFORE: xemb=[%.15f, %.15f, %.15f], xmoon=[%.15f, %.15f, %.15f]",
+                $xemb[0], $xemb[1], $xemb[2], $xmoon[0], $xmoon[1], $xmoon[2]));
+        }
+
         for ($i = 0; $i <= 2; $i++) {
             $xemb[$i] -= $xmoon[$i] / ($earthMoonMassRatio + 1.0);
+        }
+
+        if (getenv('DEBUG_OSCU')) {
+            error_log(sprintf("DEBUG embofs AFTER: xemb=[%.15f, %.15f, %.15f]",
+                $xemb[0], $xemb[1], $xemb[2]));
         }
     }
 
