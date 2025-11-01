@@ -5,6 +5,163 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 [![PHP Version](https://img.shields.io/badge/PHP-8.1%2B-777BB4.svg)](https://php.net)
 
+## 📊 Implementation Progress
+
+**Core Functions**: 51/200+ implemented (25%)
+
+```
+Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
+Houses & Angles        ████████████████░░░░  4/5   (80%)
+Sidereal & Ayanamsha   ██████████████████░░  9/10  (90%)
+Nodes & Apsides        ████████░░░░░░░░░░░░  2/5   (40%)
+Rise/Set/Transit       ████████████░░░░░░░░  3/7   (43%)
+Time & Conversions     ████████████████████  6/6   (100%)
+Coordinate Transform   ████████████████░░░░  4/5   (80%)
+Orbital Elements       ██████░░░░░░░░░░░░░░  3/10  (30%)
+Stars & Fixed Objects  ░░░░░░░░░░░░░░░░░░░░  0/8   (0%)
+Eclipses & Phenomena   ░░░░░░░░░░░░░░░░░░░░  0/15  (0%)
+Heliacal Phenomena     ░░░░░░░░░░░░░░░░░░░░  0/8   (0%)
+Misc Utilities         ████████████████████  12/12 (100%)
+```
+
+### ✅ Implemented Functions
+
+<details>
+<summary><b>Planets & Calculation (8)</b></summary>
+
+- ✅ `swe_calc` - Calculate planet positions (TT)
+- ✅ `swe_calc_ut` - Calculate planet positions (UT)
+- ✅ `swe_get_planet_name` - Get planet name by index
+- ✅ Internal: Moshier planetary algorithms (Sun, Moon, Mercury-Pluto)
+- ✅ Internal: VSOP87 integration for major planets
+- ✅ Internal: Light-time correction scaffolding
+- ✅ Internal: Coordinate system transformations
+- ✅ Internal: Precession/nutation framework
+</details>
+
+<details>
+<summary><b>Houses & Angles (4)</b></summary>
+
+- ✅ `swe_houses` - Calculate house cusps (basic)
+- ✅ `swe_houses_ex2` - Calculate houses with speeds
+- ✅ `swe_house_pos` - Find house position of planet
+- ✅ `swe_house_name` - Get house system name
+</details>
+
+<details>
+<summary><b>Sidereal & Ayanamsha (9)</b></summary>
+
+- ✅ `swe_set_sid_mode` - Set sidereal mode (47 ayanamshas)
+- ✅ `swe_get_ayanamsa` - Get ayanamsha (UT)
+- ✅ `swe_get_ayanamsa_ut` - Get ayanamsha with UT
+- ✅ `swe_get_ayanamsa_ex` - Get ayanamsha extended (TT)
+- ✅ `swe_get_ayanamsa_ex_ut` - Get ayanamsha extended (UT)
+- ✅ `swe_get_ayanamsa_name` - Get ayanamsha name
+- ✅ `swe_sidtime` - Sidereal time (GMST)
+- ✅ `swe_sidtime0` - Sidereal time at 0h UT
+- ✅ `swe_time_equ` - Equation of time
+</details>
+
+<details>
+<summary><b>Nodes & Apsides (2)</b></summary>
+
+- ✅ `swe_nod_aps` - Mean nodes and apsides (TT)
+- ✅ `swe_nod_aps_ut` - Mean nodes and apsides (UT)
+</details>
+
+<details>
+<summary><b>Rise/Set/Transit (3)</b></summary>
+
+- ✅ `swe_rise_trans` - Rise/set/transit times with refraction
+- ✅ `swe_rise_trans_true_hor` - Rise/set with true horizon
+- ✅ Internal: Gauquelin sectors (methods 2-5)
+</details>
+
+<details>
+<summary><b>Time & Conversions (6)</b></summary>
+
+- ✅ `swe_julday` - Calendar to Julian Day
+- ✅ `swe_revjul` - Julian Day to calendar date
+- ✅ `swe_utc_to_jd` - UTC to Julian Day
+- ✅ `swe_jdet_to_utc` - TT to UTC
+- ✅ `swe_jdut1_to_utc` - UT1 to UTC
+- ✅ `swe_utc_time_zone` - UTC with timezone offset
+</details>
+
+<details>
+<summary><b>Coordinate Transforms (4)</b></summary>
+
+- ✅ `swe_cotrans` - Coordinate transformation (obliquity)
+- ✅ `swe_cotrans_sp` - Coordinate transform with speed
+- ✅ `swe_azalt` - Equatorial to horizontal
+- ✅ `swe_azalt_rev` - Horizontal to equatorial
+</details>
+
+<details>
+<summary><b>Orbital Elements (3)</b></summary>
+
+- ✅ `swe_get_orbital_elements` - Keplerian elements
+- ✅ Internal: True anomaly from mean anomaly
+- ✅ Internal: Eccentric anomaly solver
+</details>
+
+<details>
+<summary><b>Misc Utilities (12)</b></summary>
+
+- ✅ `swe_deltat` - Delta-T (ΔT = TT - UT)
+- ✅ `swe_version` - Library version string
+- ✅ `swe_set_ephe_path` - Set ephemeris file path
+- ✅ `swe_close` - Cleanup (no-op for compatibility)
+- ✅ `swe_set_topo` - Set topocentric observer position
+- ✅ `swe_degnorm` - Normalize degrees to [0,360)
+- ✅ `swe_radnorm` - Normalize radians to [0,2π)
+- ✅ `swe_deg_midp` - Midpoint between two degrees
+- ✅ `swe_rad_midp` - Midpoint between two radians
+- ✅ `swe_split_deg` - Split degrees to d°m's"
+- ✅ `swe_refrac` - Atmospheric refraction (Bennett)
+- ✅ `swe_refrac_extended` - Extended refraction model
+</details>
+
+### 🚧 Planned Functions
+
+<details>
+<summary><b>Not Yet Implemented (149+)</b></summary>
+
+**Stars & Fixed Objects (8)**
+- ⬜ `swe_fixstar` - Fixed star positions
+- ⬜ `swe_fixstar_ut` - Fixed star (UT)
+- ⬜ `swe_fixstar2` - Fixed star v2
+- ⬜ `swe_fixstar2_ut` - Fixed star v2 (UT)
+- ⬜ `swe_fixstar_mag` - Fixed star magnitude
+- ⬜ `swe_fixstar2_mag` - Fixed star v2 magnitude
+- ⬜ And more...
+
+**Eclipses & Phenomena (15)**
+- ⬜ `swe_sol_eclipse_when_loc` - Solar eclipse for location
+- ⬜ `swe_sol_eclipse_when_glob` - Global solar eclipse
+- ⬜ `swe_lun_eclipse_when` - Lunar eclipse
+- ⬜ `swe_lun_eclipse_how` - Lunar eclipse details
+- ⬜ `swe_sol_eclipse_how` - Solar eclipse details
+- ⬜ `swe_pheno` - Phenomena (phase, magnitude, etc.)
+- ⬜ `swe_pheno_ut` - Phenomena (UT)
+- ⬜ And more...
+
+**Heliacal Phenomena (8)**
+- ⬜ `swe_heliacal_ut` - Heliacal events
+- ⬜ `swe_heliacal_pheno_ut` - Heliacal phenomena
+- ⬜ `swe_vis_limit_mag` - Visual limiting magnitude
+- ⬜ And more...
+
+**Additional Calculations**
+- ⬜ Osculating nodes/apsides (SE_NODBIT_OSCU)
+- ⬜ True nodes with nutation
+- ⬜ "True" ayanamsha modes (require swe_fixstar)
+- ⬜ Planetary stations and retrogrades
+- ⬜ Occultations
+- ⬜ And many more...
+
+</details>
+
 ## 🌟 Features
 
 - ✅ **51 functions** ported with identical signatures to C API
