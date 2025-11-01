@@ -178,6 +178,7 @@ final class Constants
     public const EARTH_RADIUS = 6378136.6;          // Earth radius in meters (AA 2006 K6)
     public const RADTODEG = 57.2957795130823;       // Radians to degrees conversion
     public const DEGTORAD = 0.0174532925199433;     // Degrees to radians conversion
+    public const SE_LAPSE_RATE = 0.0065;            // Temperature lapse rate (deg K/m) for refraction
     public const EARTH_MOON_MRAT = 81.30056907419062; // Earth/Moon mass ratio (DE431)
     public const HELGRAVCONST = 1.32712440017987e+20; // G * M(sun), m^3/sec^2 (AA 2006 K6)
     public const GEOGCONST = 3.98600448e+14;        // G * M(earth), m^3/sec^2 (AA 1996 K6)

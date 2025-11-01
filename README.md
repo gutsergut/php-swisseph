@@ -7,7 +7,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 53/200+ implemented (27%)
+**Core Functions**: 56/200+ implemented (28%)
 
 ```
 Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
@@ -16,7 +16,7 @@ Sidereal & Ayanamsha   ██████████████████░
 Nodes & Apsides        ████████░░░░░░░░░░░░  2/5   (40%)
 Rise/Set/Transit       ████████████░░░░░░░░  3/7   (43%)
 Time & Conversions     ████████████████████  6/6   (100%)
-Coordinate Transform   ████████████████░░░░  4/5   (80%)
+Coordinate Transform   ████████████████████  5/5   (100%)
 Orbital Elements       ██████░░░░░░░░░░░░░░  3/10  (30%)
 Stars & Fixed Objects  ░░░░░░░░░░░░░░░░░░░░  0/8   (0%)
 Eclipses & Phenomena   ██░░░░░░░░░░░░░░░░░░  2/15  (13%)
@@ -89,12 +89,15 @@ Misc Utilities         ███████████████████
 </details>
 
 <details>
-<summary><b>Coordinate Transforms (4)</b></summary>
+<summary><b>Coordinate Transforms (5)</b></summary>
 
 - ✅ `swe_cotrans` - Coordinate transformation (obliquity)
 - ✅ `swe_cotrans_sp` - Coordinate transform with speed
 - ✅ `swe_azalt` - Equatorial to horizontal
 - ✅ `swe_azalt_rev` - Horizontal to equatorial
+- ✅ `swe_refrac` - Atmospheric refraction (true ↔ apparent altitude)
+- ✅ `swe_refrac_extended` - Extended refraction with observer altitude & lapse rate
+- ✅ `swe_set_lapse_rate` - Set temperature lapse rate for refraction
 </details>
 
 <details>

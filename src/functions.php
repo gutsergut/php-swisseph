@@ -26,6 +26,7 @@ use Swisseph\Domain\Houses\Support\CuspPostprocessor as CuspPost;
 use Swisseph\Swe\Functions\PlanetsFunctions;
 use Swisseph\Swe\Functions\TimeFunctions;
 use Swisseph\Swe\Functions\HorizonFunctions;
+use Swisseph\Swe\Functions\RefractionFunctions;
 use Swisseph\Swe\Functions\TransformFunctions;
 use Swisseph\Swe\Functions\NodesApsidesFunctions;
 use Swisseph\Swe\Functions\OrbitalElementsFunctions;
@@ -393,31 +394,49 @@ if (!function_exists('swe_azalt_rev')) {
 if (!function_exists('swe_refrac')) {
     /**
      * Atmospheric refraction: true<->apparent altitude conversion.
-     * dir: Constants::SE_TRUE_TO_APP (0) or SE_APP_TO_TRUE (1)
-     * Returns refracted altitude (degrees).
+     * Port of swe_refrac() from swecl.c:2887
+     *
+     * Uses algorithm from Meeus for different altitude ranges.
+     *
+     * @param float $inalt Input altitude in degrees (true or apparent, depending on calc_flag)
+     * @param float $atpress Atmospheric pressure in millibars (hectopascals)
+     * @param float $attemp Atmospheric temperature in degrees Celsius
+     * @param int $calc_flag Constants::SE_TRUE_TO_APP (0) or SE_APP_TO_TRUE (1)
+     * @return float Output altitude in degrees (apparent or true, depending on calc_flag)
+     *
+     * Mirrors C API: swe_refrac(inalt, atpress, attemp, calc_flag)
      */
-    function swe_refrac(float $alt_deg, float $atpress, float $attemp, int $dir): float
+    function swe_refrac(float $inalt, float $atpress, float $attemp, int $calc_flag): float
     {
-        return HorizonFunctions::refrac($alt_deg, $atpress, $attemp, $dir);
+        return RefractionFunctions::refrac($inalt, $atpress, $attemp, $calc_flag);
     }
 }
 
 if (!function_exists('swe_refrac_extended')) {
     /**
-     * Extended atmospheric refraction with lapse rate.
+     * Extended atmospheric refraction with observer altitude and lapse rate.
+     * Port of swe_refrac_extended() from swecl.c:3035
      *
-     * @param float $inalt Altitude in degrees (true or apparent, depending on calc_flag)
+     * More accurate than swe_refrac():
+     * - Allows correct calculation for altitudes above sea level > 0
+     * - Handles negative apparent heights (below ideal horizon)
+     * - Allows manipulation of refraction constant via lapse rate
+     *
+     * @param float $inalt Altitude of object above geometric horizon in degrees
      * @param float $geoalt Observer altitude above sea level in meters
      * @param float $atpress Atmospheric pressure in millibars (hectopascals)
      * @param float $attemp Atmospheric temperature in degrees Celsius
-     * @param float $lapse_rate Temperature lapse rate (dT/dh) in K/m
-     * @param int $calc_flag SE_TRUE_TO_APP (0) or SE_APP_TO_TRUE (1)
+     * @param float $lapse_rate Temperature lapse rate (dT/dh) in K/m (default: SE_LAPSE_RATE = 0.0065)
+     * @param int $calc_flag Constants::SE_TRUE_TO_APP (0) or SE_APP_TO_TRUE (1)
      * @param array|null $dret Optional return array with 4 elements:
-     *                         [0] = true altitude
-     *                         [1] = apparent altitude
-     *                         [2] = refraction value
-     *                         [3] = dip of horizon
-     * @return float Calculated altitude (apparent or true, depending on calc_flag)
+     *                         [0] = true altitude (if possible, else input value)
+     *                         [1] = apparent altitude (if possible, else input value)
+     *                         [2] = refraction value in degrees
+     *                         [3] = dip of horizon in degrees
+     *                         Body is above horizon if dret[0] != dret[1]
+     * @return float Apparent altitude (SE_TRUE_TO_APP) or true altitude (SE_APP_TO_TRUE)
+     *
+     * Mirrors C API: swe_refrac_extended(inalt, geoalt, atpress, attemp, lapse_rate, calc_flag, dret)
      */
     function swe_refrac_extended(
         float $inalt,
@@ -428,7 +447,7 @@ if (!function_exists('swe_refrac_extended')) {
         int $calc_flag,
         ?array &$dret = null
     ): float {
-        return HorizonFunctions::refracExtended(
+        return RefractionFunctions::refracExtended(
             $inalt,
             $geoalt,
             $atpress,
@@ -437,6 +456,24 @@ if (!function_exists('swe_refrac_extended')) {
             $calc_flag,
             $dret
         );
+    }
+}
+
+if (!function_exists('swe_set_lapse_rate')) {
+    /**
+     * Set atmospheric lapse rate (temperature gradient).
+     * Port of swe_set_lapse_rate() from swecl.c:2988
+     *
+     * Used for refraction calculations with swe_refrac_extended().
+     *
+     * @param float $lapse_rate Temperature lapse rate (dT/dh) in degrees K per meter
+     *                          Default is Constants::SE_LAPSE_RATE = 0.0065 K/m
+     *
+     * Mirrors C API: swe_set_lapse_rate(lapse_rate)
+     */
+    function swe_set_lapse_rate(float $lapse_rate): void
+    {
+        RefractionFunctions::setLapseRate($lapse_rate);
     }
 }
 
