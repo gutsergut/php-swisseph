@@ -7,7 +7,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 51/200+ implemented (25%)
+**Core Functions**: 53/200+ implemented (27%)
 
 ```
 Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
@@ -19,7 +19,7 @@ Time & Conversions     ███████████████████
 Coordinate Transform   ████████████████░░░░  4/5   (80%)
 Orbital Elements       ██████░░░░░░░░░░░░░░  3/10  (30%)
 Stars & Fixed Objects  ░░░░░░░░░░░░░░░░░░░░  0/8   (0%)
-Eclipses & Phenomena   ░░░░░░░░░░░░░░░░░░░░  0/15  (0%)
+Eclipses & Phenomena   ██░░░░░░░░░░░░░░░░░░  2/15  (13%)
 Heliacal Phenomena     ░░░░░░░░░░░░░░░░░░░░  0/8   (0%)
 Misc Utilities         ████████████████████  12/12 (100%)
 ```
@@ -142,8 +142,8 @@ Misc Utilities         ███████████████████
 - ⬜ `swe_lun_eclipse_when` - Lunar eclipse
 - ⬜ `swe_lun_eclipse_how` - Lunar eclipse details
 - ⬜ `swe_sol_eclipse_how` - Solar eclipse details
-- ⬜ `swe_pheno` - Phenomena (phase, magnitude, etc.)
-- ⬜ `swe_pheno_ut` - Phenomena (UT)
+- ✅ `swe_pheno` - Phenomena (phase, magnitude, etc.) **TESTED**
+- ✅ `swe_pheno_ut` - Phenomena (UT) **TESTED**
 - ⬜ And more...
 
 **Heliacal Phenomena (8)**
