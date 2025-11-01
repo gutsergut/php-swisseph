@@ -140,28 +140,19 @@ final class PhenoFunctions
             return Constants::SE_ERR;
         }
 
-        // Calculate phase angle and illuminated fraction for planets
-        $lbr2 = [];
-        $dt = 0.0;
+        // If moon, we need sun as well, for magnitude calculation
         $xxs = [];
-
         if ($ipl === Constants::SE_MOON) {
-            // Special handling for Moon
-            // Get Sun position
             if (PlanetsFunctions::calc($tjd_et, Constants::SE_SUN, $iflag | Constants::SEFLG_XYZ, $xxs, $serr) < 0) {
                 return Constants::SE_ERR;
             }
-            if (PlanetsFunctions::calc($tjd_et, Constants::SE_SUN, $iflag, $lbr2, $serr) < 0) {
-                return Constants::SE_ERR;
-            }
+        }
 
-            // For Moon: phase angle is 180° - elongation
-            $elong = acos(self::dotProductUnit($xx, $xxs)) * Constants::RADTODEG;
-            $attr[0] = 180.0 - $elong;
+        // Calculate phase angle and illuminated fraction for planets
+        $lbr2 = [];
+        $dt = 0.0;
 
-            // Phase (illuminated fraction)
-            $attr[1] = (1.0 + cos($attr[0] * Constants::DEGTORAD)) / 2.0;
-        } elseif ($ipl === Constants::SE_SUN || $ipl === Constants::SE_EARTH ||
+        if ($ipl === Constants::SE_SUN || $ipl === Constants::SE_EARTH ||
                   $ipl === Constants::SE_MEAN_NODE || $ipl === Constants::SE_TRUE_NODE ||
                   $ipl === Constants::SE_MEAN_APOG || $ipl === Constants::SE_OSCU_APOG) {
             // Sun and special bodies: always fully illuminated
