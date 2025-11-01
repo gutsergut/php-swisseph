@@ -198,7 +198,7 @@ final class PhenoFunctions
         if ($lbr[2] < $dd / 2.0 / Constants::AUNIT) {
             $attr[3] = 180.0; // On surface of Earth
         } else {
-            $attr[3] = asin($dd / 2.0 / Constants::AUNIT / $lbr[2]) * 2.0 * Constants::RADTODEG * 3600.0;
+            $attr[3] = asin($dd / 2.0 / Constants::AUNIT / $lbr[2]) * 2.0 * Constants::RADTODEG;
         }
 
         // Apparent magnitude
