@@ -270,8 +270,38 @@ final class SwephPlanCalculator
         $xp_result = null;  // Will point to result data
 
         if ($ipli === SwephConstants::SEI_MOON) {
-            // Return Moon position
-            $xp_result = $xpm;
+            // CRITICAL: Moon file contains GEOCENTRIC coordinates (relative to Earth)
+            // But sweplan() must return BARYCENTRIC Moon!
+            // Formula: barycentric_moon = geocentric_moon + barycentric_earth
+            // C code comment sweph.c:1797-1801: "the geocentric moon, in barycentric cartesian equatorial coordinates"
+            // This means: origin at SSB, but vector is geocentric (needs conversion to barycentric)
+
+            if (getenv('DEBUG_MOON')) {
+                error_log(sprintf("DEBUG Moon BEFORE conversion: xpm=[%.15f,%.15f,%.15f], dist=%.9f AU",
+                    $xpm[0], $xpm[1], $xpm[2],
+                    sqrt($xpm[0]*$xpm[0] + $xpm[1]*$xpm[1] + $xpm[2]*$xpm[2])));
+                error_log(sprintf("DEBUG Earth: xpe=[%.15f,%.15f,%.15f], dist=%.9f AU",
+                    $xpe[0], $xpe[1], $xpe[2],
+                    sqrt($xpe[0]*$xpe[0] + $xpe[1]*$xpe[1] + $xpe[2]*$xpe[2])));
+            }
+
+            // CRITICAL: Do NOT modify $xpm directly! It may be a reference to $pmdp->x!
+            // Create a copy for barycentric Moon computation
+            $xpm_bary = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+
+            // Convert geocentric Moon → barycentric Moon
+            for ($i = 0; $i <= 5; $i++) {
+                $xpm_bary[$i] = $xpm[$i] + $xpe[$i];  // barycentric = geocentric + Earth
+            }
+
+            if (getenv('DEBUG_MOON')) {
+                error_log(sprintf("DEBUG Moon AFTER conversion: xpm_bary=[%.15f,%.15f,%.15f], dist=%.9f AU",
+                    $xpm_bary[0], $xpm_bary[1], $xpm_bary[2],
+                    sqrt($xpm_bary[0]*$xpm_bary[0] + $xpm_bary[1]*$xpm_bary[1] + $xpm_bary[2]*$xpm_bary[2])));
+            }
+
+            // Return barycentric Moon position (use copy, not original $xpm!)
+            $xp_result = $xpm_bary;
         } elseif ($iplExternal === Constants::SE_EARTH) {
             // C code sweph.c:1933-1935
             // Return Earth position (use external index to distinguish from SUN!)

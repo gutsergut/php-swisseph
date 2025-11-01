@@ -109,9 +109,10 @@ class PlanetsFunctions
                 $serr
             );
 
-            if (getenv('DEBUG_OSCU')) {
-                error_log(sprintf("DEBUG PlanetsFunctions after SwephPlanCalculator: xpret=[%.15f, %.15f, %.15f]",
-                    $xpret[0] ?? 0, $xpret[1] ?? 0, $xpret[2] ?? 0));
+            if (getenv('DEBUG_OSCU') || getenv('DEBUG_MOON')) {
+                $dist_xpret = sqrt($xpret[0]*$xpret[0] + $xpret[1]*$xpret[1] + $xpret[2]*$xpret[2]);
+                error_log(sprintf("DEBUG PlanetsFunctions after SwephPlanCalculator: ipl=%d, xpret=[%.15f, %.15f, %.15f], dist=%.9f AU",
+                    $ipl, $xpret[0] ?? 0, $xpret[1] ?? 0, $xpret[2] ?? 0, $dist_xpret));
                 // Check what's in slot 0 (EMB/EARTH) after SwephPlanCalculator
                 $swed_check = \Swisseph\SwephFile\SwedState::getInstance();
                 $slot0_check = &$swed_check->pldat[0];
@@ -127,9 +128,10 @@ class PlanetsFunctions
             // Copy barycentric result
             $xx = $xpret;
 
-            if (getenv('DEBUG_OSCU')) {
-                error_log(sprintf("DEBUG [calc ipl=%d] xx AFTER copy from xpret=[%.15f, %.15f, %.15f]",
-                    $ipl, $xx[0], $xx[1], $xx[2]));
+            if (getenv('DEBUG_OSCU') || getenv('DEBUG_MOON')) {
+                $dist_xx = sqrt($xx[0]*$xx[0] + $xx[1]*$xx[1] + $xx[2]*$xx[2]);
+                error_log(sprintf("DEBUG [calc ipl=%d] xx AFTER copy from xpret=[%.15f, %.15f, %.15f], dist=%.9f AU",
+                    $ipl, $xx[0], $xx[1], $xx[2], $dist_xx));
             }
 
             // Debug: Log coordinates after SwephCalculator (should be ecliptic J2000)
@@ -140,25 +142,8 @@ class PlanetsFunctions
                     $ipl, $jd_tt, $iflag, Constants::SEFLG_J2000, $iflag & Constants::SEFLG_J2000));
             }
 
-            // CRITICAL: Apply precession if NOT SEFLG_J2000
-            // C code: sweph.c:2765-2768
-            // SwephCalculator returns ecliptic J2000 coordinates
-            // If SEFLG_J2000 is NOT set, we need to precess to epoch of date
-            if (!($iflag & Constants::SEFLG_J2000)) {
-                // Precess from J2000 to epoch of date
-                Precession::precess($xx, $jd_tt, $iflag, Constants::J2000_TO_J);
-
-                // Also precess velocities (speeds) if requested
-                // C code sweph.c:2768 calls swi_precess_speed()
-                if ($iflag & Constants::SEFLG_SPEED) {
-                    Precession::precessSpeed($xx, $jd_tt, $iflag, Constants::J2000_TO_J);
-                }
-
-                if (getenv('DEBUG_OSCU')) {
-                    error_log(sprintf("DEBUG after precession (epoch of date): xx=[%.10f, %.10f, %.10f, %.10f, %.10f, %.10f]",
-                        $xx[0], $xx[1], $xx[2], $xx[3], $xx[4], $xx[5]));
-                }
-            }
+            // CRITICAL: Apply LIGHT-TIME, DEFLECTION, ABERRATION here (TODO)
+            // C code: sweph.c:2542-2707
 
             // Convert barycentric to heliocentric if requested
             // C code sweph.c:2691-2695 in app_pos_etc_plan()
@@ -187,7 +172,8 @@ class PlanetsFunctions
             }
 
             // Convert barycentric to geocentric (default when neither HELCTR nor BARYCTR)
-            // C code sweph.c:2711-2726 in app_pos_etc_plan()
+            // CRITICAL: Geocentric conversion must happen BEFORE precession! (C code sweph.c:2711-2726)
+            // C code order: light-time → geocentric → deflection/aberration → precession
             if (getenv('DEBUG_OSCU')) {
                 error_log(sprintf("DEBUG checking geocentric: iflag=0x%X, HELCTR=0x%X, BARYCTR=0x%X, has_HELCTR=%d, has_BARYCTR=%d",
                     $iflag, Constants::SEFLG_HELCTR, Constants::SEFLG_BARYCTR,
@@ -208,9 +194,9 @@ class PlanetsFunctions
                     $swed = \Swisseph\SwephFile\SwedState::getInstance();
                     $pedp = &$swed->pldat[SwephConstants::SEI_EARTH];
 
-                    if (getenv('DEBUG_OSCU')) {
-                        error_log(sprintf("DEBUG GEOCENTRIC: Earth pedp->teval=%.2f, current tjd=%.2f",
-                            $pedp->teval, $jd_tt));
+                    if (getenv('DEBUG_OSCU') || getenv('DEBUG_MOON')) {
+                        error_log(sprintf("DEBUG GEOCENTRIC: ipl=%d, Earth pedp->teval=%.2f, current tjd=%.2f",
+                            $ipl, $pedp->teval, $jd_tt));
                         error_log(sprintf("DEBUG GEOCENTRIC: subtracting Earth [%.15f, %.15f, %.15f] from planet [%.15f, %.15f, %.15f]",
                             $pedp->x[0], $pedp->x[1], $pedp->x[2], $xx[0], $xx[1], $xx[2]));
                     }
@@ -220,12 +206,46 @@ class PlanetsFunctions
                         $xx[$i] -= $pedp->x[$i];
                     }
 
-                    if (getenv('DEBUG_OSCU')) {
-                        error_log(sprintf("DEBUG after GEOCENTRIC: xx=[%.15f, %.15f, %.15f]",
-                            $xx[0], $xx[1], $xx[2]));
+                    if (getenv('DEBUG_OSCU') || getenv('DEBUG_MOON')) {
+                        $dist = sqrt($xx[0]*$xx[0] + $xx[1]*$xx[1] + $xx[2]*$xx[2]);
+                        error_log(sprintf("DEBUG after GEOCENTRIC: ipl=%d, xx=[%.15f, %.15f, %.15f], dist=%.9f AU",
+                            $ipl, $xx[0], $xx[1], $xx[2], $dist));
                     }
                 }
-            }            // Apply coordinate transformations and populate xreturn[24]
+            }
+
+            // CRITICAL: Apply precession if NOT SEFLG_J2000
+            // Must be done AFTER geocentric conversion! (C code: sweph.c:2765-2768)
+            // C code order: light-time → geocentric → deflection/aberration → PRECESSION
+            if (!($iflag & Constants::SEFLG_J2000)) {
+                if (getenv('DEBUG_MOON')) {
+                    $dist_before = sqrt($xx[0]*$xx[0] + $xx[1]*$xx[1] + $xx[2]*$xx[2]);
+                    error_log(sprintf("DEBUG [calc ipl=%d] BEFORE precession: xx=[%.15f, %.15f, %.15f], dist=%.9f AU",
+                        $ipl, $xx[0], $xx[1], $xx[2], $dist_before));
+                }
+
+                // Precess from J2000 to epoch of date
+                Precession::precess($xx, $jd_tt, $iflag, Constants::J2000_TO_J);
+
+                if (getenv('DEBUG_MOON')) {
+                    $dist_after = sqrt($xx[0]*$xx[0] + $xx[1]*$xx[1] + $xx[2]*$xx[2]);
+                    error_log(sprintf("DEBUG [calc ipl=%d] AFTER precession: xx=[%.15f, %.15f, %.15f], dist=%.9f AU",
+                        $ipl, $xx[0], $xx[1], $xx[2], $dist_after));
+                }
+
+                // Also precess velocities (speeds) if requested
+                // C code sweph.c:2768 calls swi_precess_speed()
+                if ($iflag & Constants::SEFLG_SPEED) {
+                    Precession::precessSpeed($xx, $jd_tt, $iflag, Constants::J2000_TO_J);
+                }
+
+                if (getenv('DEBUG_OSCU')) {
+                    error_log(sprintf("DEBUG after precession (epoch of date): xx=[%.10f, %.10f, %.10f, %.10f, %.10f, %.10f]",
+                        $xx[0], $xx[1], $xx[2], $xx[3], $xx[4], $xx[5]));
+                }
+            }
+
+            // Apply coordinate transformations and populate xreturn[24]
             // C code: app_pos_rest() in sweph.c:2776
             $swed = \Swisseph\SwephFile\SwedState::getInstance();
 
