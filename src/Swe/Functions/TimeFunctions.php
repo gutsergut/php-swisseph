@@ -22,6 +22,7 @@ final class TimeFunctions
 
     /**
      * Convert Local Mean Time to Local Apparent Time.
+     * Port of swe_lmt_to_lat() from sweph.c:7469
      * LAT = LMT + equation_of_time
      *
      * @param float $tjd_lmt Julian Day in Local Mean Time
@@ -39,24 +40,25 @@ final class TimeFunctions
         $serr = null;
 
         // Convert LMT to UT: UT = LMT - (geolon/360) days
-        $tjd_ut = $tjd_lmt - ($geolon / 360.0);
+        $tjd_lmt0 = $tjd_lmt - ($geolon / 360.0);
 
         // Get equation of time in days
         $E = 0.0;
-        $result = self::timeEqu($tjd_ut, $E, $serr);
-        if ($result !== Constants::SE_OK) {
+        $retval = self::timeEqu($tjd_lmt0, $E, $serr);
+        if ($retval !== Constants::SE_OK) {
             return Constants::SE_ERR;
         }
 
         // LAT = LMT + E
         $tjd_lat = $tjd_lmt + $E;
 
-        return Constants::SE_OK;
+        return $retval;
     }
 
     /**
      * Convert Local Apparent Time to Local Mean Time.
-     * LMT = LAT - equation_of_time
+     * Port of swe_lat_to_lmt() from sweph.c:7478
+     * LMT = LAT - equation_of_time (with iteration for precision)
      *
      * @param float $tjd_lat Julian Day in Local Apparent Time
      * @param float $geolon Geographic longitude (degrees, positive East)
@@ -72,21 +74,32 @@ final class TimeFunctions
     ): int {
         $serr = null;
 
-        // For approximation: use LAT as UT estimate
-        // More precise: iterate, but for now simple version
-        $tjd_ut = $tjd_lat - ($geolon / 360.0);
+        // Initial approximation: convert LAT to UT estimate
+        $tjd_lmt0 = $tjd_lat - ($geolon / 360.0);
 
         // Get equation of time in days
         $E = 0.0;
-        $result = self::timeEqu($tjd_ut, $E, $serr);
-        if ($result !== Constants::SE_OK) {
+        $retval = self::timeEqu($tjd_lmt0, $E, $serr);
+        if ($retval !== Constants::SE_OK) {
+            return Constants::SE_ERR;
+        }
+
+        // Iteration: refine equation of time calculation
+        // C code does 2 more iterations for precision
+        $retval = self::timeEqu($tjd_lmt0 - $E, $E, $serr);
+        if ($retval !== Constants::SE_OK) {
+            return Constants::SE_ERR;
+        }
+
+        $retval = self::timeEqu($tjd_lmt0 - $E, $E, $serr);
+        if ($retval !== Constants::SE_OK) {
             return Constants::SE_ERR;
         }
 
         // LMT = LAT - E
         $tjd_lmt = $tjd_lat - $E;
 
-        return Constants::SE_OK;
+        return $retval;
     }
 
     /**

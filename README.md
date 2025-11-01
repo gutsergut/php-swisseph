@@ -7,12 +7,12 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 57/200+ implemented (29%)
+**Core Functions**: 59/200+ implemented (30%)
 
 ```
 Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
 Houses & Angles        ████████████████████  5/5   (100%)
-Sidereal & Ayanamsha   ██████████████████░░  9/10  (90%)
+Sidereal & Ayanamsha   ████████████████████  10/10 (100%)
 Nodes & Apsides        ████████░░░░░░░░░░░░  2/5   (40%)
 Rise/Set/Transit       ████████████░░░░░░░░  3/7   (43%)
 Time & Conversions     ████████████████████  6/6   (100%)
@@ -50,7 +50,7 @@ Misc Utilities         ███████████████████
 </details>
 
 <details>
-<summary><b>Sidereal & Ayanamsha (9)</b></summary>
+<summary><b>Sidereal & Ayanamsha (10)</b></summary>
 
 - ✅ `swe_set_sid_mode` - Set sidereal mode (47 ayanamshas)
 - ✅ `swe_get_ayanamsa` - Get ayanamsha (UT)
@@ -61,6 +61,8 @@ Misc Utilities         ███████████████████
 - ✅ `swe_sidtime` - Sidereal time (GMST)
 - ✅ `swe_sidtime0` - Sidereal time at 0h UT
 - ✅ `swe_time_equ` - Equation of time
+- ✅ `swe_lmt_to_lat` - Local Mean Time → Local Apparent Time
+- ✅ `swe_lat_to_lmt` - Local Apparent Time → Local Mean Time
 </details>
 
 <details>

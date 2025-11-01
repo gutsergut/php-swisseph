@@ -936,11 +936,17 @@ if (!function_exists('swe_day_of_week')) {
 if (!function_exists('swe_lmt_to_lat')) {
     /**
      * Convert Local Mean Time to Local Apparent Time.
+     * Port of swe_lmt_to_lat() from sweph.c:7469
+     *
+     * LAT = LMT + equation_of_time
+     *
      * @param float $tjd_lmt Julian Day in Local Mean Time
      * @param float $geolon Geographic longitude (degrees, positive East)
      * @param float &$tjd_lat Output: Julian Day in Local Apparent Time
      * @param string|null &$serr Error message
-     * @return int SE_OK on success, SE_ERR on error
+     * @return int Constants::SE_OK on success, Constants::SE_ERR on error
+     *
+     * Mirrors C API: swe_lmt_to_lat(tjd_lmt, geolon, &tjd_lat, serr)
      */
     function swe_lmt_to_lat(
         float $tjd_lmt,
@@ -955,11 +961,17 @@ if (!function_exists('swe_lmt_to_lat')) {
 if (!function_exists('swe_lat_to_lmt')) {
     /**
      * Convert Local Apparent Time to Local Mean Time.
+     * Port of swe_lat_to_lmt() from sweph.c:7478
+     *
+     * LMT = LAT - equation_of_time (with iteration for precision)
+     *
      * @param float $tjd_lat Julian Day in Local Apparent Time
      * @param float $geolon Geographic longitude (degrees, positive East)
      * @param float &$tjd_lmt Output: Julian Day in Local Mean Time
      * @param string|null &$serr Error message
-     * @return int SE_OK on success, SE_ERR on error
+     * @return int Constants::SE_OK on success, Constants::SE_ERR on error
+     *
+     * Mirrors C API: swe_lat_to_lmt(tjd_lat, geolon, &tjd_lmt, serr)
      */
     function swe_lat_to_lmt(
         float $tjd_lat,
