@@ -182,7 +182,17 @@ Misc Utilities         ███████████████████
 - ✅ **Refraction models**: True altitude, apparent altitude, Bennett's formula
 - ✅ **Pure PHP**: No C extensions required, works on any PHP 8.1+ environment
 
-## 🚀 Why PHP Swiss Ephemeris?
+## � Recent Updates
+
+### v0.3.0 - Coordinate Transformation Fixes (January 2025)
+- **Critical fix**: `swe_cotrans()` now correctly works with polar coordinates (was using cartesian)
+- **Fixed**: Parameter order in `swe_cotrans()` to match C API: `(input, output, angle)`
+- **Added**: `Coordinates::coortrf()` for cartesian X-axis rotations
+- **Result**: Round-trip coordinate errors reduced from ~17° to 0°
+- **Impact**: All horizon transformations (azalt/azalt_rev) now perfectly accurate
+- See [docs/FIX-COTRANS-POLAR.md](docs/FIX-COTRANS-POLAR.md) for details
+
+## �🚀 Why PHP Swiss Ephemeris?
 
 Swiss Ephemeris is the **gold standard** for astronomical calculations, used by professional astrologers and astronomers worldwide. This PHP port brings that precision to web applications without requiring C extensions or external binaries.
 
