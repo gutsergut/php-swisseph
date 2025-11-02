@@ -7,7 +7,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 57/200+ implemented (29%)
+**Core Functions**: 67/200+ implemented (33%)
 
 ```
 Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
@@ -21,7 +21,7 @@ Orbital Elements       ███████████████░░░░
 Stars & Fixed Objects  ███████████░░░░░░░░░  3/5   (60%)
 Eclipses & Phenomena   ███░░░░░░░░░░░░░░░░░  3/15  (20%)
 Heliacal Phenomena     ░░░░░░░░░░░░░░░░░░░░  0/8   (0%)
-Misc Utilities         ████████████████████  10/10 (100%)
+Misc Utilities         ████████████████████  22/22 (100%)
 ```
 
 ### ✅ Implemented Functions
@@ -112,7 +112,7 @@ Misc Utilities         ███████████████████
 </details>
 
 <details>
-<summary><b>Misc Utilities (12)</b></summary>
+<summary><b>Misc Utilities (22)</b></summary>
 
 - ✅ `swe_deltat` - Delta-T (ΔT = TT - UT)
 - ✅ `swe_version` - Library version string
@@ -126,6 +126,16 @@ Misc Utilities         ███████████████████
 - ✅ `swe_split_deg` - Split degrees to d°m's"
 - ✅ `swe_refrac` - Atmospheric refraction (Bennett)
 - ✅ `swe_refrac_extended` - Extended refraction model
+- ✅ `swe_csnorm` - Normalize centisec to [0,360°[
+- ✅ `swe_difcsn` - Centisec difference [0,360°[
+- ✅ `swe_difdegn` - Degree difference [0,360°[
+- ✅ `swe_difcs2n` - Centisec difference [-180,180°[
+- ✅ `swe_difdeg2n` - Degree difference [-180,180°[
+- ✅ `swe_difrad2n` - Radian difference [-π,π[
+- ✅ `swe_csroundsec` - Round centisec to seconds
+- ✅ `swe_cs2timestr` - Format centisec as HH:MM:SS
+- ✅ `swe_cs2lonlatstr` - Format centisec as longitude/latitude
+- ✅ `swe_cs2degstr` - Format centisec as zodiac degree
 </details>
 
 ### 🚧 Planned Functions
