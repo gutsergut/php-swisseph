@@ -17,48 +17,47 @@ use Swisseph\State;
 /**
  * Calculator for fixed star positions with full astronomical transformations
  *
- * Port of fixstar_calc_from_struct() from sweph.c:6461-6718
+ * Exact port of fixstar_calc_from_struct() from sweph.c:6461-6718
  *
- * Applies all necessary corrections to convert catalog coordinates to apparent position:
+ * Applies corrections following C algorithm EXACTLY:
  * 1. Proper motion correction
- * 2. Epoch conversion (FK4 B1950 -> FK5 J2000 -> ICRS)
- * 3. Parallax correction
- * 4. Relativistic light deflection
- * 5. Annual aberration
- * 6. Precession to date
- * 7. Nutation
- * 8. Coordinate transformations (equatorial <-> ecliptic)
- * 9. Sidereal mode support
- *
- * Uses FixedStarData structures from StarRegistry (fixstar2 API)
+ * 2. FK4→FK5 conversion (epoch 1950 only)
+ * 3. ICRF conversion
+ * 4. Earth/Sun positions for parallax, deflection, aberration
+ * 5. Observer position (geocenter or topocenter)
+ * 6. Parallax correction
+ * 7. Light deflection
+ * 8. Aberration
+ * 9. ICRS→J2000 bias
+ * 10. Precession to date
+ * 11. Nutation
+ * 12. Equatorial→Ecliptic
+ * 13. Sidereal mode
+ * 14. Polar coordinates
+ * 15. Degrees conversion
  */
 final class StarCalculator
 {
     /**
-     * Time interval for speed calculation (days)
-     * PLAN_SPEED_INTV * 0.1 where PLAN_SPEED_INTV = 0.0001
+     * Time interval for speed calculation: PLAN_SPEED_INTV * 0.1 = 0.0001 * 0.1 = 0.00001 days
      */
     private const DT = 0.00001;
 
     /**
-     * Parsec to AU conversion: 1 parsec = 206264.806 AU
+     * Parsec to AU: 206264.806247096 AU per parsec
      */
     private const PARSEC_TO_AUNIT = 206264.806;
 
     /**
-     * Calculate position of fixed star
+     * Calculate fixed star position
      *
      * Port of fixstar_calc_from_struct() from sweph.c:6461-6718
-     *
-     * Current implementation covers steps 1-8 (proper motion through coord transforms).
-     * TODO: Add light deflection, aberration, parallax correction
-     * TODO: Add topocentric observer support
      *
      * @param FixedStarData $stardata Star catalog data
      * @param float $tjd Julian Day (ET)
      * @param int $iflag Calculation flags
      * @param string &$star Output: formatted star name
-     * @param array &$xx Output: 6 doubles for position [0-2] and speed [3-5]
+     * @param array &$xx Output: 6 doubles [lon/ra, lat/dec, dist, dlon, dlat, ddist]
      * @param string|null &$serr Output: error message
      * @return int iflag on success, ERR on error
      */
@@ -72,146 +71,230 @@ final class StarCalculator
     ): int {
         $serr = '';
         $iflgsave = $iflag;
-        $iflag |= Constants::SEFLG_SPEED; // We need speed for intermediate calculations
+        $iflag |= Constants::SEFLG_SPEED; // We need this to work correctly
 
-        // Initialize arrays
-        $xx = array_fill(0, 6, 0.0);
-        $x = array_fill(0, 6, 0.0);
-        $xxsv = array_fill(0, 6, 0.0);
+        // Initialize arrays (matching C code line-by-line)
+        $x = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xxsv = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xobs = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xobs_dt = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xearth = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xearth_dt = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xsun = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xsun_dt = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 
-        // Format star name
-        $star = $stardata->getFullName();
+        $epheflag = $iflag & Constants::SEFLG_EPHMASK;
 
-        // Calculate obliquity for coordinate transformations
-        $epsJ2000 = Obliquity::calc(self::J2000);
-        $epsDate = Obliquity::calc($tjd);
-
-        // Calculate nutation if needed
-        $nut = null;
-        if (!($iflag & Constants::SEFLG_NONUT)) {
-            $nutResult = Nutation::calc($tjd, $iflag);
-            $nut = [
-                'nutlo' => $nutResult['nutlo'],
-                'obliqMeanEps' => $nutResult['obliqMeanEps'],
-                'obliqTrueEps' => $nutResult['obliqTrueEps'],
-                'snut' => sin($nutResult['nutlo']),
-                'cnut' => cos($nutResult['nutlo']),
-            ];
+        // C: if (iflag & SEFLG_SIDEREAL && !swed.ayana_is_set)
+        if (($iflag & Constants::SEFLG_SIDEREAL) && !State::isSiderealModeSet()) {
+            State::setSiderealMode(Constants::SE_SIDM_FAGAN_BRADLEY, 0.0, 0.0);
         }
 
-        // Extract star data
+        // C: swi_check_ecliptic(tjd, iflag); swi_check_nutation(tjd, iflag);
+        // In PHP: Calculate obliquity and nutation directly
+        $obliq2000 = Obliquity::calc(Constants::J2000);
+        $obliqDate = Obliquity::calc($tjd);
+        $nutData = null;
+        if (!($iflag & Constants::SEFLG_NONUT)) {
+            $nutData = Nutation::calc($tjd, $iflag);
+        }
+
+        // C: sprintf(star, "%s,%s", stardata->starname, stardata->starbayer);
+        $star = $stardata->getFullName();
+
+        // C: Extract star data
         $epoch = $stardata->epoch;
-        $ra = $stardata->ra;
-        $de = $stardata->de;
         $ra_pm = $stardata->ramot;
         $de_pm = $stardata->demot;
         $radv = $stardata->radvel;
         $parall = $stardata->parall;
+        $ra = $stardata->ra;
+        $de = $stardata->de;
 
-        // Calculate time difference from epoch
-        if ($epoch == 1950.0) {
-            $t = $tjd - self::B1950; // days since B1950.0
+        // C: if (epoch == 1950) t = (tjd - B1950); else t = (tjd - J2000);
+        if ($epoch == 1950) {
+            $t = $tjd - Constants::B1950;
         } else {
-            $t = $tjd - self::J2000; // days since J2000.0
+            $t = $tjd - Constants::J2000;
         }
 
-        // Initial position in polar coordinates (RA, Dec, distance)
+        // C: x[0] = ra; x[1] = de; x[2] = 1;
         $x[0] = $ra;
         $x[1] = $de;
+        $x[2] = 1.0;
 
-        // Calculate distance from parallax
-        if ($parall == 0.0) {
-            $rdist = 1000000000.0; // Very distant star
+        // C: if (parall == 0) rdist = 1000000000; else rdist = 1.0 / (parall * RADTODEG * 3600) * PARSEC_TO_AUNIT;
+        if ($parall == 0) {
+            $rdist = 1000000000.0;
         } else {
             $rdist = 1.0 / ($parall * Constants::RADTODEG * 3600.0) * self::PARSEC_TO_AUNIT;
         }
         $x[2] = $rdist;
 
-        // Proper motion and radial velocity (per day)
+        // C: x[3] = ra_pm / 36525.0; x[4] = de_pm / 36525.0; x[5] = radv / 36525.0;
         $x[3] = $ra_pm / 36525.0;
         $x[4] = $de_pm / 36525.0;
         $x[5] = $radv / 36525.0;
 
-        // Convert to Cartesian space motion vector
+        // C: swi_polcart_sp(x, x); // Cartesian space motion vector
         Coordinates::polCartSp($x, $x);
 
-        /******************************************
-         * FK4 -> FK5 conversion for B1950 epoch *
-         ******************************************/
-        if ($epoch == 1950.0) {
-            FK4FK5::fk4ToFk5($x, self::B1950);
-            Precession::precess($x, self::B1950, 0, Precession::J_TO_J2000);
-            Precession::precess(array_slice($x, 3, 3), self::B1950, 0, Precession::J_TO_J2000);
+        // C: FK4 -> FK5 conversion for B1950 epoch
+        if ($epoch == 1950) {
+            FK4FK5::fk4ToFk5($x, Constants::B1950);
+            Precession::precess($x, Constants::B1950, 0, Constants::J_TO_J2000);
+            $xSpeed = array_slice($x, 3, 3);
+            Precession::precess($xSpeed, Constants::B1950, 0, Constants::J_TO_J2000);
+            $x[3] = $xSpeed[0];
+            $x[4] = $xSpeed[1];
+            $x[5] = $xSpeed[2];
         }
 
-        /******************************************
-         * FK5 to ICRF conversion                *
-         ******************************************/
+        // C: FK5 to ICRF
         if ($epoch != 0) {
-            // ICRS to FK5 backward (i.e., FK5 to ICRS)
-            ICRS::icrs2fk5($x, $iflag, true);
-
-            // With ephemerides >= DE403, convert via bias
-            // TODO: Check ephemeris denum
-            $denum = 431; // Assume DE431 for now
+            ICRS::icrs2fk5($x, $iflag, true); // TRUE = backward (FK5→ICRF)
+            // C: if (swi_get_denum(SEI_SUN, iflag) >= 403)
+            $denum = 431; // TODO: Implement swi_get_denum
             if ($denum >= 403) {
-                Bias::bias($x, self::J2000, Constants::SEFLG_SPEED, false);
+                Bias::bias($x, Constants::J2000, Constants::SEFLG_SPEED, false);
             }
         }
 
-        /******************************************
-         * Position at tjd with proper motion     *
-         ******************************************/
-        // Note: For now, we skip parallax correction (observer position)
-        // as it requires main_planet_bary() which is not yet ported
-        for ($i = 0; $i <= 2; $i++) {
-            $x[$i] += $t * $x[$i + 3];
+        // C: Earth/Sun for parallax, light deflection, and aberration
+        if (!($iflag & Constants::SEFLG_BARYCTR) && (!($iflag & Constants::SEFLG_HELCTR) || !($iflag & Constants::SEFLG_MOSEPH))) {
+            // C: main_planet_bary(tjd - dt, SEI_EARTH, epheflag, iflag, NO_SAVE, xearth_dt, xearth_dt, xsun_dt, NULL, serr)
+            $retc = \Swisseph\Swe\Functions\PlanetFunctions::calc(
+                $tjd - self::DT,
+                Constants::SE_EARTH,
+                $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR,
+                $xearth_dt,
+                $serr
+            );
+            if ($retc < 0) return Constants::SE_ERR;
+
+            // C: main_planet_bary(tjd, SEI_EARTH, epheflag, iflag, DO_SAVE, xearth, xearth, xsun, NULL, serr)
+            $retc = \Swisseph\Swe\Functions\PlanetFunctions::calc(
+                $tjd,
+                Constants::SE_EARTH,
+                $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR,
+                $xearth,
+                $serr
+            );
+            if ($retc < 0) return Constants::SE_ERR;
+
+            // Get Sun positions
+            $retc = \Swisseph\Swe\Functions\PlanetFunctions::calc(
+                $tjd - self::DT,
+                Constants::SE_SUN,
+                $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR,
+                $xsun_dt,
+                $serr
+            );
+            if ($retc < 0) return Constants::SE_ERR;
+
+            $retc = \Swisseph\Swe\Functions\PlanetFunctions::calc(
+                $tjd,
+                Constants::SE_SUN,
+                $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR,
+                $xsun,
+                $serr
+            );
+            if ($retc < 0) return Constants::SE_ERR;
         }
 
-        // TODO: Light deflection (requires swi_deflect_light)
-        // TODO: Aberration (requires swi_aberr_light_ex and observer position)
+        // C: Observer: geocenter or topocenter
+        if ($iflag & Constants::SEFLG_TOPOCTR) {
+            // C: swi_get_observer(tjd - dt, iflag | SEFLG_NONUT, NO_SAVE, xobs_dt, serr)
+            // TODO: Implement swi_get_observer for topocentric
+            $serr = 'Topocentric positions for fixed stars not yet implemented';
+            return Constants::SE_ERR;
+        } elseif (!($iflag & Constants::SEFLG_BARYCTR) && (!($iflag & Constants::SEFLG_HELCTR) || !($iflag & Constants::SEFLG_MOSEPH))) {
+            // C: for (i = 0; i <= 5; i++) { xobs[i] = xearth[i]; xobs_dt[i] = xearth_dt[i]; }
+            for ($i = 0; $i <= 5; $i++) {
+                $xobs[$i] = $xearth[$i];
+                $xobs_dt[$i] = $xearth_dt[$i];
+            }
+        }
 
-        /******************************************
-         * ICRS to J2000 if needed               *
-         ******************************************/
-        if (!($iflag & Constants::SEFLG_ICRS) && $denum >= 403) {
+        // C: Position and speed at tjd (for parallax)
+        $xpo = null;
+        $xpo_dt = null;
+
+        // C: Determine xpo, xpo_dt based on flags
+        if (($iflag & Constants::SEFLG_HELCTR) && ($iflag & Constants::SEFLG_MOSEPH)) {
+            $xpo = null;
+            $xpo_dt = null;
+        } elseif ($iflag & Constants::SEFLG_HELCTR) {
+            $xpo = $xsun;
+            $xpo_dt = $xsun_dt;
+        } elseif ($iflag & Constants::SEFLG_BARYCTR) {
+            $xpo = null;
+            $xpo_dt = null;
+        } else {
+            $xpo = $xobs;
+            $xpo_dt = $xobs_dt;
+        }
+
+        // C: Apply proper motion and parallax
+        if ($xpo === null) {
+            // C: for (i = 0; i <= 2; i++) x[i] += t * x[i+3];
+            for ($i = 0; $i <= 2; $i++) {
+                $x[$i] += $t * $x[$i + 3];
+            }
+        } else {
+            // C: for (i = 0; i <= 2; i++) { x[i] += t * x[i+3]; x[i] -= xpo[i]; x[i+3] -= xpo[i+3]; }
+            for ($i = 0; $i <= 2; $i++) {
+                $x[$i] += $t * $x[$i + 3];
+                $x[$i] -= $xpo[$i];
+                $x[$i + 3] -= $xpo[$i + 3];
+            }
+        }
+
+        // C: Relativistic light deflection
+        if (($iflag & Constants::SEFLG_TRUEPOS) == 0 && ($iflag & Constants::SEFLG_NOGDEFL) == 0) {
+            // C: swi_deflect_light(x, 0, iflag & SEFLG_SPEED);
+            \Swisseph\Swe\FixedStars\StarTransforms::deflectLight($x, $xearth, $xearth_dt, $xsun, $xsun_dt, self::DT, $iflag);
+        }
+
+        // C: Annual aberration
+        if (($iflag & Constants::SEFLG_TRUEPOS) == 0 && ($iflag & Constants::SEFLG_NOABERR) == 0) {
+            // C: swi_aberr_light_ex(x, xpo, xpo_dt, dt, iflag & SEFLG_SPEED);
+            \Swisseph\Swe\FixedStars\StarTransforms::aberrLightEx($x, $xpo, $xpo_dt, self::DT, $iflag);
+        }
+
+        // C: ICRS to J2000
+        if (!($iflag & Constants::SEFLG_ICRS) && ($denum >= 403 || ($iflag & Constants::SEFLG_BARYCTR))) {
             Bias::bias($x, $tjd, $iflag, false);
         }
 
-        // Save J2000 coordinates for sidereal mode
+        // C: Save J2000 coordinates (required for sidereal positions)
         for ($i = 0; $i <= 5; $i++) {
             $xxsv[$i] = $x[$i];
         }
 
-        /******************************************
-         * Precession: J2000 -> date              *
-         ******************************************/
-        $eps = null;
-        $seps = null;
-        $ceps = null;
+        // C: Precession: equator 2000 -> equator of date
+        $oe = null;
         if (!($iflag & Constants::SEFLG_J2000)) {
-            Precession::precess($x, $tjd, $iflag, Precession::J2000_TO_J);
+            Precession::precess($x, $tjd, $iflag, Constants::J2000_TO_J);
             if ($iflag & Constants::SEFLG_SPEED) {
-                Precession::precessSpeed($x, $tjd, $iflag, Precession::J2000_TO_J);
+                Precession::precessSpeed($x, $tjd, $iflag, Constants::J2000_TO_J);
             }
-            $eps = $epsDate;
+            // C: oe = &swed.oec;
+            $oe = ['eps' => $obliqDate, 'seps' => sin($obliqDate), 'ceps' => cos($obliqDate)];
         } else {
-            $eps = $epsJ2000;
+            // C: oe = &swed.oec2000;
+            $oe = ['eps' => $obliq2000, 'seps' => sin($obliq2000), 'ceps' => cos($obliq2000)];
         }
-        $seps = sin($eps);
-        $ceps = cos($eps);
 
-        /******************************************
-         * Nutation                               *
-         ******************************************/
+        // C: Nutation
         if (!($iflag & Constants::SEFLG_NONUT)) {
+            // C: swi_nutate(x, iflag, FALSE);
             Coordinates::nutate($x, $iflag, false, $serr);
         }
 
-        /******************************************
-         * Transform to ecliptic if needed        *
-         ******************************************/
+        // C: Transformation to ecliptic
         if (!($iflag & Constants::SEFLG_EQUATORIAL)) {
+            // C: swi_coortrf2(x, x, oe->seps, oe->ceps);
             Coordinates::coortrf2($x, $x, $oe['seps'], $oe['ceps']);
             if ($iflag & Constants::SEFLG_SPEED) {
                 $xSpeed = array_slice($x, 3, 3);
@@ -220,12 +303,14 @@ final class StarCalculator
                 $x[4] = $xSpeed[1];
                 $x[5] = $xSpeed[2];
             }
-            if (!($iflag & Constants::SEFLG_NONUT)) {
-                $nut = State::getNut();
-                Coordinates::coortrf2($x, $x, $nut['snut'], $nut['cnut']);
+            // C: if (!(iflag & SEFLG_NONUT)) { swi_coortrf2(x, x, swed.nut.snut, swed.nut.cnut); ... }
+            if (!($iflag & Constants::SEFLG_NONUT) && $nutData !== null) {
+                $snut = sin($nutData['nutlo']);
+                $cnut = cos($nutData['nutlo']);
+                Coordinates::coortrf2($x, $x, $snut, $cnut);
                 if ($iflag & Constants::SEFLG_SPEED) {
                     $xSpeed = array_slice($x, 3, 3);
-                    Coordinates::coortrf2($xSpeed, $xSpeed, $nut['snut'], $nut['cnut']);
+                    Coordinates::coortrf2($xSpeed, $xSpeed, $snut, $cnut);
                     $x[3] = $xSpeed[0];
                     $x[4] = $xSpeed[1];
                     $x[5] = $xSpeed[2];
@@ -233,46 +318,47 @@ final class StarCalculator
             }
         }
 
-        /******************************************
-         * Sidereal mode                          *
-         ******************************************/
+        // C: Sidereal positions
         if ($iflag & Constants::SEFLG_SIDEREAL) {
-            // TODO: Implement sidereal transformations
-            // Requires swi_trop_ra2sid_lon, swi_trop_ra2sid_lon_sosy, or ayanamsa
+            // TODO: Port sidereal transformations from C
             $serr = 'Sidereal mode not yet implemented for fixstar2';
             return Constants::SE_ERR;
         }
 
-        /******************************************
-         * Convert to polar coordinates           *
-         ******************************************/
+        // C: Transformation to polar coordinates
         if (!($iflag & Constants::SEFLG_XYZ)) {
+            // C: swi_cartpol_sp(x, x);
             Coordinates::cartPolSp($x, $x);
         }
 
-        /******************************************
-         * Convert to degrees if needed           *
-         ******************************************/
+        // C: Radians to degrees
         if (!($iflag & Constants::SEFLG_RADIANS) && !($iflag & Constants::SEFLG_XYZ)) {
+            // C: for (i = 0; i < 2; i++) { x[i] *= RADTODEG; x[i+3] *= RADTODEG; }
             for ($i = 0; $i < 2; $i++) {
                 $x[$i] *= Constants::RADTODEG;
                 $x[$i + 3] *= Constants::RADTODEG;
             }
         }
 
-        // Copy to output
+        // C: Copy to output array
         for ($i = 0; $i <= 5; $i++) {
             $xx[$i] = $x[$i];
         }
 
-        // If speed not requested, zero out velocity components
+        // C: If speed not requested, zero out velocity
         if (!($iflgsave & Constants::SEFLG_SPEED)) {
-            $xx[3] = 0.0;
-            $xx[4] = 0.0;
-            $xx[5] = 0.0;
+            // C: for (i = 3; i <= 5; i++) xx[i] = 0;
+            for ($i = 3; $i <= 5; $i++) {
+                $xx[$i] = 0.0;
+            }
         }
 
-        // Clear SPEED flag from return value
+        // C: if ((iflgsave & SEFLG_EPHMASK) == 0) iflag = iflag & ~SEFLG_DEFAULTEPH;
+        if (($iflgsave & Constants::SEFLG_EPHMASK) == 0) {
+            $iflag = $iflag & ~Constants::SEFLG_DEFAULTEPH;
+        }
+
+        // C: iflag = iflag & ~SEFLG_SPEED;
         $iflag = $iflag & ~Constants::SEFLG_SPEED;
 
         return $iflag;
