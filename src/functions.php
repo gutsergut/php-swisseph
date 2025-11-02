@@ -1314,3 +1314,74 @@ if (!function_exists('swe_cs2degstr')) {
         return \Swisseph\Swe\Functions\CentisecFunctions::cs2degstr($t);
     }
 }
+
+if (!function_exists('swe_d2l')) {
+    /**
+     * Convert double to int32 with rounding (no overflow check)
+     * C API: int32 swe_d2l(double x);
+     *
+     * @param float $x Value to convert
+     * @return int Rounded integer value
+     */
+    function swe_d2l(float $x): int
+    {
+        return \Swisseph\Swe\Functions\MiscUtilityFunctions::d2l($x);
+    }
+}
+
+if (!function_exists('swe_day_of_week')) {
+    /**
+     * Get day of week for Julian Day number
+     * C API: int swe_day_of_week(double jd);
+     *
+     * Returns: 0 = Monday, 1 = Tuesday, ..., 6 = Sunday
+     *
+     * @param float $jd Julian Day number
+     * @return int Day of week (0-6, Monday = 0)
+     */
+    function swe_day_of_week(float $jd): int
+    {
+        return \Swisseph\Swe\Functions\MiscUtilityFunctions::dayOfWeek($jd);
+    }
+}
+
+if (!function_exists('swe_date_conversion')) {
+    /**
+     * Convert calendar date to Julian Day and validate date
+     * C API: int swe_date_conversion(int y, int m, int d, double utime, char c, double *tjd);
+     *
+     * This function converts date+time input {y,m,d,uttime} into Julian day number.
+     * It checks that the input is a legal combination of dates.
+     * For illegal dates like 32 January 1993, it returns ERR but still converts
+     * the date correctly (like 1 Feb 1993).
+     *
+     * Be aware: we always use astronomical year numbering for years before Christ:
+     * - Year 0 (astronomical) = 1 BC historical
+     * - Year -1 (astronomical) = 2 BC historical
+     *
+     * @param int $year Year (astronomical numbering)
+     * @param int $month Month (1-12)
+     * @param int $day Day (1-31)
+     * @param float $uttime Universal Time in hours (decimal)
+     * @param string $calendar 'g' = Gregorian, 'j' = Julian
+     * @param float &$tjd Output: Julian Day number
+     * @return int OK (0) if date is valid, ERR (-1) if invalid
+     */
+    function swe_date_conversion(
+        int $year,
+        int $month,
+        int $day,
+        float $uttime,
+        string $calendar,
+        float &$tjd
+    ): int {
+        return \Swisseph\Swe\Functions\MiscUtilityFunctions::dateConversion(
+            $year,
+            $month,
+            $day,
+            $uttime,
+            $calendar,
+            $tjd
+        );
+    }
+}
