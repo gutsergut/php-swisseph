@@ -131,7 +131,9 @@ Misc Utilities         ███████████████████
 - ✅ `swe_split_deg` - Split degrees to d°m's"
 - ✅ `swe_refrac` - Atmospheric refraction (Bennett)
 - ✅ `swe_refrac_extended` - Extended refraction model
-- ✅ `swe_d2l` - Double to int32 with rounding
+- ✅ `swe_get_tid_acc` - Get tidal acceleration value
+- ✅ `swe_set_tid_acc` - Set tidal acceleration value
+- ✅ `swe_set_delta_t_userdef` - Override Delta-T calculation
 - ✅ `swe_csnorm` - Normalize centisec to [0,360°[
 - ✅ `swe_difcsn` - Centisec difference [0,360°[
 - ✅ `swe_difdegn` - Degree difference [0,360°[
@@ -142,7 +144,6 @@ Misc Utilities         ███████████████████
 - ✅ `swe_cs2timestr` - Format centisec as HH:MM:SS
 - ✅ `swe_cs2lonlatstr` - Format centisec as longitude/latitude
 - ✅ `swe_cs2degstr` - Format centisec as zodiac degree
-- ✅ Internal: Math utilities (split_deg implementation)
 </details>
 
 ### 🚧 Planned Functions
