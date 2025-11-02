@@ -357,38 +357,59 @@ if (!function_exists('swe_orbit_max_min_true_distance')) {
 // Horizontal conversions and refraction
 if (!function_exists('swe_azalt')) {
     /**
-     * Convert between equatorial/ecliptic and horizontal coordinates. Units: degrees.
-     * mode: Constants::SE_EQU2HOR | SE_ECL2HOR | SE_HOR2EQU | SE_HOR2ECL
-     * xin: [a, b] depending on mode
-     * geopos: [lon_deg (east+), lat_deg, alt_m]
+     * Convert equatorial or ecliptic coordinates to horizontal coordinates
+     *
+     * C API: void swe_azalt(double tjd_ut, int32 calc_flag, double *geopos,
+     *                       double atpress, double attemp, double *xin, double *xaz)
+     * Port from swecl.c:2788-2822
+     *
+     * IMPORTANT: This matches C API parameter order exactly:
+     * (tjd_ut, calc_flag, geopos, atpress, attemp, xin, xaz)
+     *
+     * @param float $tjd_ut Julian day, Universal Time
+     * @param int $calc_flag SE_ECL2HOR (0) or SE_EQU2HOR (1)
+     * @param array $geopos [longitude (deg), latitude (deg), height (m)]
+     * @param float $atpress Atmospheric pressure in mbar/hPa (0 = auto-estimate)
+     * @param float $attemp Atmospheric temperature in °C
+     * @param array $xin Input coordinates [coord1, coord2] in degrees
+     * @param array $xaz Output [azimuth, true_alt, apparent_alt] in degrees
+     * @return void
      */
     function swe_azalt(
-        float $jd_ut,
-        int $mode,
-        array $xin,
+        float $tjd_ut,
+        int $calc_flag,
         array $geopos,
         float $atpress,
         float $attemp,
-        array &$xout,
-        ?string &$serr = null
-    ): int {
-        return HorizonFunctions::azalt($jd_ut, $mode, $xin, $geopos, $atpress, $attemp, $xout, $serr);
+        array $xin,
+        array &$xaz
+    ): void {
+        HorizonFunctions::azalt($tjd_ut, $calc_flag, $geopos, $atpress, $attemp, $xin, $xaz);
     }
 }
 if (!function_exists('swe_azalt_rev')) {
     /**
-     * Reverse transformation: horizontal (azimuth/altitude) → equatorial or ecliptic.
-     * Mirrors C API: swe_azalt_rev(tjd_ut, calc_flag, geopos, xin, xout)
+     * Convert horizontal coordinates to equatorial or ecliptic coordinates
+     *
+     * C API: void swe_azalt_rev(double tjd_ut, int32 calc_flag, double *geopos,
+     *                           double *xin, double *xout)
+     * Port from swecl.c:2838-2878
+     *
+     * @param float $tjd_ut Julian day, Universal Time
+     * @param int $calc_flag SE_HOR2ECL (0) or SE_HOR2EQU (1)
+     * @param array $geopos [longitude (deg), latitude (deg), height (m)]
+     * @param array $xin Input [azimuth, true_altitude] in degrees
+     * @param array $xout Output coordinates [coord1, coord2] in degrees
+     * @return void
      */
     function swe_azalt_rev(
-        float $jd_ut,
-        int $mode,
+        float $tjd_ut,
+        int $calc_flag,
         array $geopos,
         array $xin,
-        array &$xout,
-        ?string &$serr = null
-    ): int {
-        return HorizonFunctions::azalt_rev($jd_ut, $mode, $xin, $geopos, $xout, $serr);
+        array &$xout
+    ): void {
+        HorizonFunctions::azalt_rev($tjd_ut, $calc_flag, $geopos, $xin, $xout);
     }
 }
 if (!function_exists('swe_refrac')) {

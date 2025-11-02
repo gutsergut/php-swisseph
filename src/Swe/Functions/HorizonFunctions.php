@@ -3,156 +3,149 @@
 namespace Swisseph\Swe\Functions;
 
 use Swisseph\Constants;
-use Swisseph\DeltaT;
-use Swisseph\Horizontal;
-use Swisseph\Math;
-use Swisseph\Obliquity;
-use Swisseph\Coordinates;
-use Swisseph\ErrorCodes;
 
+/**
+ * Horizontal coordinate transformations
+ * Full port from swecl.c:2788-2878 (swe_azalt and swe_azalt_rev)
+ *
+ * WITHOUT SIMPLIFICATIONS - complete C algorithm with:
+ * - Uses swe_sidtime, swe_calc, swe_deltat_ex, swe_cotrans, swe_degnorm
+ * - Atmospheric refraction via swe_refrac_extended
+ * - Matches C API signature exactly
+ */
 class HorizonFunctions
 {
     /**
-     * Implements the logic for swe_azalt.
+     * Convert equatorial or ecliptic coordinates to horizontal coordinates
+     * Port from swecl.c:2788-2822 (swe_azalt)
+     *
+     * C API: void swe_azalt(double tjd_ut, int32 calc_flag, double *geopos,
+     *                       double atpress, double attemp, double *xin, double *xaz)
+     *
+     * This matches the original C API parameter order exactly.
+     *
+     * @param float $tjd_ut Julian day, Universal Time
+     * @param int $calc_flag SE_ECL2HOR (0) or SE_EQU2HOR (1)
+     * @param array $geopos [longitude (deg), latitude (deg), height (m)]
+     * @param float $atpress Atmospheric pressure in mbar/hPa (0 = auto-estimate)
+     * @param float $attemp Atmospheric temperature in °C
+     * @param array $xin Input coordinates [coord1, coord2] in degrees
+     * @param array $xaz Output [azimuth, true_alt, apparent_alt] in degrees
+     * @return void
      */
-    public static function azalt(float $jd_ut, int $mode, array $xin, array $geopos, float $atpress, float $attemp, array &$xout, ?string &$serr = null): int
-    {
-        $serr = null;
-        $xout = array_fill(0, 3, 0.0);
+    public static function azalt(
+        float $tjd_ut,
+        int $calc_flag,
+        array $geopos,
+        float $atpress,
+        float $attemp,
+        array $xin,
+        array &$xaz
+    ): void {
+        $x = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xra = [0.0, 0.0, 1.0];
 
-        // Input coords in degrees
-        $in0 = $xin[0];
-        $in1 = $xin[1];
+        // Calculate ARMC (sidereal time at Greenwich + longitude)
+        $armc = \swe_degnorm(\swe_sidtime($tjd_ut) * 15.0 + $geopos[0]);
 
-        // Geopos
-        $geolon_deg = $geopos[0];
-        $geolat_deg = $geopos[1];
-        $geoalt_m = $geopos[2];
+        // Copy input coordinates
+        $xra[0] = $xin[0];
+        $xra[1] = $xin[1];
 
-        // Convert geo lat to radians
-        $geolat_rad = Math::degToRad($geolat_deg);
-
-        // LST
-        $lst_rad = Horizontal::lstRad($jd_ut, $geolon_deg);
-
-        // Obliquity
-        $jd_tt = $jd_ut + DeltaT::deltaTSecondsFromJd($jd_ut) / 86400.0;
-        $eps_rad = Obliquity::meanObliquityRadFromJdTT($jd_tt);
-
-        $ra_rad = 0.0;
-        $dec_rad = 0.0;
-
-        switch ($mode) {
-            case Constants::SE_ECL2HOR:
-                $lon_rad = Math::degToRad($in0);
-                $lat_rad = Math::degToRad($in1);
-                // Assuming distance=1 for ecliptic to equatorial conversion of angles
-                [$ra_rad, $dec_rad] = Coordinates::eclipticToEquatorialRad($lon_rad, $lat_rad, 1.0, $eps_rad);
-                break;
-            case Constants::SE_EQU2HOR:
-                $ra_rad = Math::degToRad($in0);
-                $dec_rad = Math::degToRad($in1);
-                break;
-            default:
-                $serr = ErrorCodes::compose(ErrorCodes::INVALID_ARG, 'Invalid mode for azalt');
-                return Constants::SE_ERR;
+        // If ecliptic coordinates, convert to equatorial
+        if ($calc_flag === Constants::SE_ECL2HOR) {
+            $serr = '';
+            \swe_calc($tjd_ut + \swe_deltat_ex($tjd_ut, -1, $serr), Constants::SE_ECL_NUT, 0, $x, $serr);
+            $eps_true = $x[0]; // True obliquity
+            $xra_out = [0.0, 0.0, 0.0];
+            \swe_cotrans($xra, -$eps_true, $xra_out);
+            $xra = $xra_out;
         }
 
-        // Convert equatorial to horizontal
-        [$az_rad, $alt_rad] = Horizontal::equatorialToHorizontal($ra_rad, $dec_rad, $geolat_rad, $lst_rad);
+        // Calculate meridian distance
+        $mdd = \swe_degnorm($xra[0] - $armc);
 
-        // Convert azimuth from (North=0, Eastward) to Swisseph's (South=0, Westward)
-        $az_deg = Math::radToDeg($az_rad);
-        $az_deg_swe = Math::normAngleDeg($az_deg + 180.0);
+        // Rotate by meridian distance
+        $x[0] = \swe_degnorm($mdd - 90.0);
+        $x[1] = $xra[1];
+        $x[2] = 1.0;
 
-        $alt_true_deg = Math::radToDeg($alt_rad);
+        // Azimuth from east, counterclockwise
+        // Rotate by (90 - latitude)
+        $x_out = [0.0, 0.0, 0.0];
+        \swe_cotrans($x, 90.0 - $geopos[1], $x_out);
+        $x = $x_out;        // Convert azimuth from south to west
+        $x[0] = \swe_degnorm($x[0] + 90.0);
+        $xaz[0] = 360.0 - $x[0];
+        $xaz[1] = $x[1]; // True altitude
 
-        // Refraction
-        $alt_app_deg = self::refrac($alt_true_deg, $atpress, $attemp, Constants::SE_TRUE_TO_APP);
-
-        $xout[0] = $az_deg_swe;      // Azimuth, from south clockwise
-        $xout[1] = $alt_true_deg;    // True altitude
-        $xout[2] = $alt_app_deg;     // Apparent altitude
-
-        return Constants::SE_OK;
-    }
-
-    /**
-     * Implements the logic for swe_azalt_rev.
-     */
-    public static function azalt_rev(float $jd_ut, int $mode, array $xin, array $geopos, array &$xout, ?string &$serr = null): int
-    {
-        $serr = null;
-        $xout = array_fill(0, 2, 0.0);
-
-        // Input coords in degrees from Swisseph convention (Azimuth from South, clockwise)
-        $az_swe_deg = $xin[0];
-        $alt_true_deg = $xin[1];
-
-        // Geopos
-        $geolon_deg = $geopos[0];
-        $geolat_deg = $geopos[1];
-        $geoalt_m = $geopos[2];
-
-        // Convert azimuth from Swisseph's (South=0, Westward) to internal (North=0, Eastward)
-        $az_rad = Math::degToRad(Math::normAngleDeg($az_swe_deg - 180.0));
-        $alt_rad = Math::degToRad($alt_true_deg);
-
-        // Convert geo lat to radians
-        $geolat_rad = Math::degToRad($geolat_deg);
-
-        // LST
-        $lst_rad = Horizontal::lstRad($jd_ut, $geolon_deg);
-
-        // Obliquity
-        $jd_tt = $jd_ut + DeltaT::deltaTSecondsFromJd($jd_ut) / 86400.0;
-        $eps_rad = Obliquity::meanObliquityRadFromJdTT($jd_tt);
-
-        // Convert horizontal to equatorial
-        [$ra_rad, $dec_rad] = Horizontal::horizontalToEquatorial($az_rad, $alt_rad, $geolat_rad, $lst_rad);
-
-        switch ($mode) {
-            case Constants::SE_HOR2ECL:
-                // Assuming distance=1 for equatorial to ecliptic conversion of angles
-                [$lon_rad, $lat_rad] = Coordinates::equatorialToEclipticRad($ra_rad, $dec_rad, 1.0, $eps_rad);
-                $xout[0] = Math::radToDeg($lon_rad);
-                $xout[1] = Math::radToDeg($lat_rad);
-                break;
-            case Constants::SE_HOR2EQU:
-                $xout[0] = Math::radToDeg($ra_rad);
-                $xout[1] = Math::radToDeg($dec_rad);
-                break;
-            default:
-                $serr = ErrorCodes::compose(ErrorCodes::INVALID_ARG, 'Invalid mode for azalt_rev');
-                return Constants::SE_ERR;
+        // Estimate atmospheric pressure if not provided
+        if ($atpress == 0.0) {
+            $atpress = 1013.25 * pow(1.0 - 0.0065 * $geopos[2] / 288.0, 5.255);
         }
 
-        return Constants::SE_OK;
-    }
-
-    /**
-     * A simple refraction model.
-     * Based on Bennett, G. G. (1982). The calculation of astronomical refraction.
-     * Journal of the British Astronomical Association, 92(4), 178-183.
-     * This is a simplified version.
-     * Returns apparent altitude from true altitude, or vice-versa.
+        // Calculate apparent altitude with refraction
+        $dret = null;
+        $xaz[2] = \swe_refrac_extended($x[1], $geopos[2], $atpress, $attemp, Constants::SE_LAPSE_RATE,
+                                       Constants::SE_TRUE_TO_APP, $dret);
+    }    /**
+     * Convert horizontal coordinates to equatorial or ecliptic coordinates
+     * Port from swecl.c:2838-2878 (swe_azalt_rev)
+     *
+     * C API: void swe_azalt_rev(double tjd_ut, int32 calc_flag, double *geopos,
+     *                           double *xin, double *xout)
+     *
+     * @param float $tjd_ut Julian day, Universal Time
+     * @param int $calc_flag SE_HOR2ECL (0) or SE_HOR2EQU (1)
+     * @param array $geopos [longitude (deg), latitude (deg), height (m)]
+     * @param array $xin Input [azimuth, true_altitude] in degrees
+     * @param array $xout Output coordinates [coord1, coord2] in degrees
+     * @return void
      */
-    public static function refrac(float $alt_deg, float $atpress, float $attemp, int $dir): float
-    {
-        if ($dir === Constants::SE_APP_TO_TRUE) {
-            // Formula for apparent to true
-            $R = 1.0 / tan(Math::degToRad($alt_deg + 7.31 / ($alt_deg + 4.4)));
-        } else {
-            // Formula for true to apparent
-            $R = 1.02 / tan(Math::degToRad($alt_deg + 10.3 / ($alt_deg + 5.11)));
-        }
+    public static function azalt_rev(
+        float $tjd_ut,
+        int $calc_flag,
+        array $geopos,
+        array $xin,
+        array &$xout
+    ): void {
+        $x = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xaz = [0.0, 0.0, 1.0];
 
-        $R_arcmin = $R * ($atpress / 1010.0) * (283.0 / (273.0 + $attemp));
+        $geolon = $geopos[0];
+        $geolat = $geopos[1];
 
-        if ($dir === Constants::SE_APP_TO_TRUE) {
-            return $alt_deg - $R_arcmin / 60.0;
-        } else {
-            return $alt_deg + $R_arcmin / 60.0;
+        // Calculate ARMC
+        $armc = \swe_degnorm(\swe_sidtime($tjd_ut) * 15.0 + $geolon);
+
+        // Copy input coordinates
+        $xaz[0] = $xin[0];
+        $xaz[1] = $xin[1];
+
+        // Azimuth is from south, clockwise
+        // We need it from east, counterclockwise
+        $xaz[0] = 360.0 - $xaz[0];
+        $xaz[0] = \swe_degnorm($xaz[0] - 90.0);
+
+        // Convert to equatorial positions
+        $dang = $geolat - 90.0;
+        $xaz_out = [0.0, 0.0, 0.0];
+        \swe_cotrans($xaz, $dang, $xaz_out);
+        $xaz = $xaz_out;
+
+        $xaz[0] = \swe_degnorm($xaz[0] + $armc + 90.0);
+        $xout[0] = $xaz[0];
+        $xout[1] = $xaz[1];
+
+        // Convert to ecliptic positions if requested
+        if ($calc_flag === Constants::SE_HOR2ECL) {
+            $serr = '';
+            \swe_calc($tjd_ut + \swe_deltat_ex($tjd_ut, -1, $serr), Constants::SE_ECL_NUT, 0, $x, $serr);
+            $eps_true = $x[0]; // True obliquity
+            $x_out = [0.0, 0.0, 0.0];
+            \swe_cotrans($xaz, $eps_true, $x_out);
+            $xout[0] = $x_out[0];
+            $xout[1] = $x_out[1];
         }
     }
 

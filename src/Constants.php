@@ -27,6 +27,9 @@ final class Constants
     public const SE_OSCU_APOG = 13;
     public const SE_EARTH = 14;
 
+    // Special calculation object for ecliptic and nutation (swephexp.h:99)
+    public const SE_ECL_NUT = -1;
+
     // Offsets for special object types
     public const SE_AST_OFFSET = 10000;      // Numbered asteroids start here
     public const SE_PLMOON_OFFSET = 9000;    // Planetary moons start here
