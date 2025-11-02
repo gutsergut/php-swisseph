@@ -150,11 +150,13 @@ final class StarCalculator
             $x[5] = $xSpeed[2];
         }
 
+        // C: Get DE ephemeris number (used multiple times below)
+        $denum = \Swisseph\SwephFile\SwephUtils::getDenum(\Swisseph\SwephFile\SwephConstants::SEI_SUN, $iflag);
+
         // C: FK5 to ICRF
         if ($epoch != 0) {
             ICRS::icrs2fk5($x, $iflag, true); // TRUE = backward (FK5→ICRF)
             // C: if (swi_get_denum(SEI_SUN, iflag) >= 403)
-            $denum = 431; // TODO: Implement swi_get_denum
             if ($denum >= 403) {
                 Bias::bias($x, Constants::J2000, Constants::SEFLG_SPEED, false);
             }

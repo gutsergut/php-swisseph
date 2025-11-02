@@ -16,6 +16,9 @@ final class SwedState
     /** Ephemeris path */
     public string $ephepath = '';
 
+    /** JPL ephemeris DE number (e.g., 431, 406) */
+    public int $jpldenum = 0;
+
     /** File data for ephemeris files (SEI_NEPHFILES = 7) */
     public array $fidat = [];
 

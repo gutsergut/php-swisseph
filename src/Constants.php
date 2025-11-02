@@ -176,6 +176,9 @@ final class Constants
     public const J2000 = 2451545.0;                 // Julian date of J2000.0 epoch (2000 January 1.5 TT)
     public const B1950 = 2433282.42345905;          // Julian date of B1950.0 epoch (1950.0 Besselian)
 
+    // DE ephemeris number (default)
+    public const SE_DE_NUMBER = 431;                // Default ephemeris version (DE431)
+
     // Physical constants (from Swiss Ephemeris sweph.h)
     public const AUNIT = 1.49597870700e+11;         // AU in meters (DE431)
     public const CLIGHT = 2.99792458e+8;            // Speed of light in m/s (AA 1996 K6)
