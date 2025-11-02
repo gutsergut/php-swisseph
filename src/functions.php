@@ -502,19 +502,23 @@ if (!function_exists('swe_set_lapse_rate')) {
 if (!function_exists('swe_cotrans')) {
     /**
      * Rotate rectangular coordinates around X-axis by angle eps (deg).
+     * C API: void swe_cotrans(double *xpo, double *xpn, double eps);
      */
-    function swe_cotrans(array $xpo, float $eps, array &$xpn): int
+    function swe_cotrans(array $xpo, array &$xpn, float $eps): int
     {
-        return TransformFunctions::cotrans($xpo, $eps, $xpn, $err);
+        $serr = null;
+        return TransformFunctions::cotrans($xpo, $xpn, $eps, $serr);
     }
 }
 if (!function_exists('swe_cotrans_sp')) {
     /**
      * Rotate rectangular coordinates and velocities around X-axis by angle eps (deg).
+     * C API: void swe_cotrans_sp(double *xpo, double *xpn, double eps);
      */
-    function swe_cotrans_sp(array $xpo6, float $eps, array &$xpn6): int
+    function swe_cotrans_sp(array $xpo6, array &$xpn6, float $eps): int
     {
-        return TransformFunctions::cotransSp($xpo6, $eps, $xpn6, $err);
+        $serr = null;
+        return TransformFunctions::cotransSp($xpo6, $xpn6, $eps, $serr);
     }
 }
 

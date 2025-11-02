@@ -55,6 +55,21 @@ final class Coordinates
         return [$x, $y * $ce + $z * $se, -$y * $se + $z * $ce];
     }
 
+    /**
+     * Rotate cartesian coordinates around X-axis by angle eps (radians).
+     * Port of swi_coortrf() from swephlib.c:279-292
+     *
+     * @param array $xpo Input cartesian coordinates [x, y, z]
+     * @param array $xpn Output cartesian coordinates [x, y, z]
+     * @param float $eps Rotation angle in radians
+     */
+    public static function coortrf(array $xpo, array &$xpn, float $eps): void
+    {
+        $sineps = sin($eps);
+        $coseps = cos($eps);
+        self::coortrf2($xpo, $xpn, $sineps, $coseps);
+    }
+
     public static function coortrf2(array $xpo, array &$xpn, float $sineps, float $coseps): void
     {
         // Use temporary array to handle case when $xpo and $xpn reference the same array

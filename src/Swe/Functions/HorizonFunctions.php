@@ -57,9 +57,8 @@ class HorizonFunctions
             $serr = '';
             \swe_calc($tjd_ut + \swe_deltat_ex($tjd_ut, -1, $serr), Constants::SE_ECL_NUT, 0, $x, $serr);
             $eps_true = $x[0]; // True obliquity
-            $xra_out = [0.0, 0.0, 0.0];
-            \swe_cotrans($xra, -$eps_true, $xra_out);
-            $xra = $xra_out;
+            // In-place transformation: xra = xra rotated
+            \swe_cotrans($xra, $xra, -$eps_true);
         }
 
         // Calculate meridian distance
@@ -71,10 +70,8 @@ class HorizonFunctions
         $x[2] = 1.0;
 
         // Azimuth from east, counterclockwise
-        // Rotate by (90 - latitude)
-        $x_out = [0.0, 0.0, 0.0];
-        \swe_cotrans($x, 90.0 - $geopos[1], $x_out);
-        $x = $x_out;        // Convert azimuth from south to west
+        // Rotate by (90 - latitude) - in-place transformation
+        \swe_cotrans($x, $x, 90.0 - $geopos[1]);        // Convert azimuth from south to west
         $x[0] = \swe_degnorm($x[0] + 90.0);
         $xaz[0] = 360.0 - $x[0];
         $xaz[1] = $x[1]; // True altitude
@@ -127,11 +124,9 @@ class HorizonFunctions
         $xaz[0] = 360.0 - $xaz[0];
         $xaz[0] = \swe_degnorm($xaz[0] - 90.0);
 
-        // Convert to equatorial positions
+        // Convert to equatorial positions - in-place transformation
         $dang = $geolat - 90.0;
-        $xaz_out = [0.0, 0.0, 0.0];
-        \swe_cotrans($xaz, $dang, $xaz_out);
-        $xaz = $xaz_out;
+        \swe_cotrans($xaz, $xaz, $dang);
 
         $xaz[0] = \swe_degnorm($xaz[0] + $armc + 90.0);
         $xout[0] = $xaz[0];
@@ -142,10 +137,10 @@ class HorizonFunctions
             $serr = '';
             \swe_calc($tjd_ut + \swe_deltat_ex($tjd_ut, -1, $serr), Constants::SE_ECL_NUT, 0, $x, $serr);
             $eps_true = $x[0]; // True obliquity
-            $x_out = [0.0, 0.0, 0.0];
-            \swe_cotrans($xaz, $eps_true, $x_out);
-            $xout[0] = $x_out[0];
-            $xout[1] = $x_out[1];
+            // Transformation with output to $x
+            \swe_cotrans($xaz, $x, $eps_true);
+            $xout[0] = $x[0];
+            $xout[1] = $x[1];
         }
     }
 
