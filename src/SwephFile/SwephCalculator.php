@@ -53,6 +53,9 @@ final class SwephCalculator
     ): int {
         $swed = SwedState::getInstance();
 
+        // Sync ephemeris path from State
+        $swed->ephepath = \Swisseph\State::getEphePath();
+
         $ipl = $ipli;
         if ($ipli > Constants::SE_AST_OFFSET) {
             $ipl = SwephConstants::SEI_ANYBODY;

@@ -68,8 +68,15 @@ final class SwephReader
      */
     private static function findFile(string $fname, string $ephepath): ?string
     {
-        // Split path by semicolon or colon
-        $paths = preg_split('/[;:]/', $ephepath);
+        // Split path by semicolon (or colon on Unix, but not on Windows drive letters)
+        // On Windows, C:\path contains : which should not be split
+        if (DIRECTORY_SEPARATOR === '\\') {
+            // Windows: only split by semicolon
+            $paths = explode(';', $ephepath);
+        } else {
+            // Unix: split by semicolon or colon
+            $paths = preg_split('/[;:]/', $ephepath);
+        }
 
         foreach ($paths as $dir) {
             $dir = trim($dir);

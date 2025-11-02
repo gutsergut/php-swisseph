@@ -163,7 +163,7 @@ final class StarCalculator
         // C: Earth/Sun for parallax, light deflection, and aberration
         if (!($iflag & Constants::SEFLG_BARYCTR) && (!($iflag & Constants::SEFLG_HELCTR) || !($iflag & Constants::SEFLG_MOSEPH))) {
             // C: main_planet_bary(tjd - dt, SEI_EARTH, epheflag, iflag, NO_SAVE, xearth_dt, xearth_dt, xsun_dt, NULL, serr)
-            $retc = \Swisseph\Swe\Functions\PlanetFunctions::calc(
+            $retc = \Swisseph\Swe\Functions\PlanetsFunctions::calc(
                 $tjd - self::DT,
                 Constants::SE_EARTH,
                 $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR,
@@ -173,7 +173,7 @@ final class StarCalculator
             if ($retc < 0) return Constants::SE_ERR;
 
             // C: main_planet_bary(tjd, SEI_EARTH, epheflag, iflag, DO_SAVE, xearth, xearth, xsun, NULL, serr)
-            $retc = \Swisseph\Swe\Functions\PlanetFunctions::calc(
+            $retc = \Swisseph\Swe\Functions\PlanetsFunctions::calc(
                 $tjd,
                 Constants::SE_EARTH,
                 $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR,
@@ -183,7 +183,7 @@ final class StarCalculator
             if ($retc < 0) return Constants::SE_ERR;
 
             // Get Sun positions
-            $retc = \Swisseph\Swe\Functions\PlanetFunctions::calc(
+            $retc = \Swisseph\Swe\Functions\PlanetsFunctions::calc(
                 $tjd - self::DT,
                 Constants::SE_SUN,
                 $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR,
@@ -192,7 +192,7 @@ final class StarCalculator
             );
             if ($retc < 0) return Constants::SE_ERR;
 
-            $retc = \Swisseph\Swe\Functions\PlanetFunctions::calc(
+            $retc = \Swisseph\Swe\Functions\PlanetsFunctions::calc(
                 $tjd,
                 Constants::SE_SUN,
                 $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR,
