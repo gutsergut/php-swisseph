@@ -149,11 +149,12 @@ final class Constants
     public const J2000_TO_J = -1;  // Precess from J2000 to date
     public const J_TO_J2000 = 1;   // Precess from date to J2000
 
-    // Azimuth/Altitude conversion modes (compatible with Swiss Ephemeris semantics)
-    public const SE_EQU2HOR = 0; // input is equatorial (RA/Dec) -> output horizontal (Az/Alt)
-    public const SE_ECL2HOR = 1; // input is ecliptic (lon/lat) -> output horizontal (Az/Alt)
-    public const SE_HOR2EQU = 2; // input is horizontal (Az/Alt) -> output equatorial (RA/Dec)
-    public const SE_HOR2ECL = 3; // input is horizontal (Az/Alt) -> output ecliptic (lon/lat)
+    // Azimuth/Altitude conversion modes (from swephexp.h:363-368)
+    // Note: ECL and EQU have same values for forward/reverse to match C API
+    public const SE_ECL2HOR = 0; // input is ecliptic (lon/lat) -> output horizontal (Az/Alt)
+    public const SE_EQU2HOR = 1; // input is equatorial (RA/Dec) -> output horizontal (Az/Alt)
+    public const SE_HOR2ECL = 0; // input is horizontal (Az/Alt) -> output ecliptic (lon/lat)
+    public const SE_HOR2EQU = 1; // input is horizontal (Az/Alt) -> output equatorial (RA/Dec)
 
     // Refraction direction
     public const SE_TRUE_TO_APP = 0; // true altitude -> apparent altitude
