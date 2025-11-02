@@ -154,10 +154,15 @@ final class StarTransforms
 
         // Q = planet_bary(t-tau) - sun_bary(t-tau) = planet_helio
         // Compute sun_bary(t-tau) by backward extrapolation
+        // C: for (i = 0; i <= 2; i++) xsun[i] = psdp->x[i] - dt * psdp->x[i+3];
+        // C: for (i = 3; i <= 5; i++) xsun[i] = psdp->x[i];
         $xsun_tau = [
-            $xsun[0] - $dt * $xsun[3],
+            $xsun[0] - $dt * $xsun[3],  // Position with time correction
             $xsun[1] - $dt * $xsun[4],
-            $xsun[2] - $dt * $xsun[5]
+            $xsun[2] - $dt * $xsun[5],
+            $xsun[3],                   // Velocity without correction (just copy)
+            $xsun[4],
+            $xsun[5]
         ];
 
         $q = [

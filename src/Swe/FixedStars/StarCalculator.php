@@ -176,8 +176,6 @@ final class StarCalculator
                 $serr
             );
             if ($retc < 0) return Constants::SE_ERR;
-            // DEBUG
-            error_log("StarCalculator: xearth_dt count=" . count($xearth_dt));
 
             // C: main_planet_bary(tjd, SEI_EARTH, epheflag, iflag, DO_SAVE, xearth, xearth, xsun, NULL, serr)
             $retc = \Swisseph\Swe\Functions\PlanetsFunctions::calc(
@@ -188,7 +186,6 @@ final class StarCalculator
                 $serr
             );
             if ($retc < 0) return Constants::SE_ERR;
-            error_log("StarCalculator: xearth count=" . count($xearth));
 
             // Get Sun positions
             $retc = \Swisseph\Swe\Functions\PlanetsFunctions::calc(
@@ -199,7 +196,6 @@ final class StarCalculator
                 $serr
             );
             if ($retc < 0) return Constants::SE_ERR;
-            error_log("StarCalculator: xsun_dt count=" . count($xsun_dt));
 
             $retc = \Swisseph\Swe\Functions\PlanetsFunctions::calc(
                 $tjd,
@@ -209,7 +205,6 @@ final class StarCalculator
                 $serr
             );
             if ($retc < 0) return Constants::SE_ERR;
-            error_log("StarCalculator: xsun count=" . count($xsun));
         }
 
         // C: Observer: geocenter or topocenter
