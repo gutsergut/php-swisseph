@@ -94,9 +94,12 @@ final class StarCalculator
         // In PHP: Calculate obliquity and nutation directly
         $obliq2000 = Obliquity::calc(Constants::J2000);
         $obliqDate = Obliquity::calc($tjd);
-        $nutData = null;
+
+        // Calculate nutation if needed
+        $dpsi = 0.0;
+        $deps = 0.0;
         if (!($iflag & Constants::SEFLG_NONUT)) {
-            $nutData = Nutation::calc($tjd, $iflag);
+            [$dpsi, $deps] = Nutation::calc($tjd);
         }
 
         // C: sprintf(star, "%s,%s", stardata->starname, stardata->starbayer);
@@ -168,40 +171,45 @@ final class StarCalculator
             $retc = \Swisseph\Swe\Functions\PlanetsFunctions::calc(
                 $tjd - self::DT,
                 Constants::SE_EARTH,
-                $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR,
+                $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR | Constants::SEFLG_SPEED,
                 $xearth_dt,
                 $serr
             );
             if ($retc < 0) return Constants::SE_ERR;
+            // DEBUG
+            error_log("StarCalculator: xearth_dt count=" . count($xearth_dt));
 
             // C: main_planet_bary(tjd, SEI_EARTH, epheflag, iflag, DO_SAVE, xearth, xearth, xsun, NULL, serr)
             $retc = \Swisseph\Swe\Functions\PlanetsFunctions::calc(
                 $tjd,
                 Constants::SE_EARTH,
-                $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR,
+                $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR | Constants::SEFLG_SPEED,
                 $xearth,
                 $serr
             );
             if ($retc < 0) return Constants::SE_ERR;
+            error_log("StarCalculator: xearth count=" . count($xearth));
 
             // Get Sun positions
             $retc = \Swisseph\Swe\Functions\PlanetsFunctions::calc(
                 $tjd - self::DT,
                 Constants::SE_SUN,
-                $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR,
+                $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR | Constants::SEFLG_SPEED,
                 $xsun_dt,
                 $serr
             );
             if ($retc < 0) return Constants::SE_ERR;
+            error_log("StarCalculator: xsun_dt count=" . count($xsun_dt));
 
             $retc = \Swisseph\Swe\Functions\PlanetsFunctions::calc(
                 $tjd,
                 Constants::SE_SUN,
-                $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR,
+                $epheflag | Constants::SEFLG_J2000 | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR | Constants::SEFLG_SPEED,
                 $xsun,
                 $serr
             );
             if ($retc < 0) return Constants::SE_ERR;
+            error_log("StarCalculator: xsun count=" . count($xsun));
         }
 
         // C: Observer: geocenter or topocenter
@@ -290,8 +298,28 @@ final class StarCalculator
 
         // C: Nutation
         if (!($iflag & Constants::SEFLG_NONUT)) {
+            // Build nutation matrices
+            // Get appropriate obliquity for nutation matrix
+            $oeForNut = ($iflag & Constants::SEFLG_J2000)
+                ? ['eps' => $obliq2000, 'seps' => sin($obliq2000), 'ceps' => cos($obliq2000)]
+                : ['eps' => $obliqDate, 'seps' => sin($obliqDate), 'ceps' => cos($obliqDate)];
+
+            // Create EpsilonData for StarTransforms::buildNutationMatrix
+            $oecForNut = new \Swisseph\EpsilonData();
+            $oecForNut->eps = $oeForNut['eps'];
+            $oecForNut->seps = $oeForNut['seps'];
+            $oecForNut->ceps = $oeForNut['ceps'];
+
+            $nutMatrix = \Swisseph\Swe\FixedStars\StarTransforms::buildNutationMatrix($dpsi, $deps, $oecForNut);
+
+            // Build velocity matrix if speed requested
+            $nutMatrixVelocity = null;
+            if ($iflag & Constants::SEFLG_SPEED) {
+                $nutMatrixVelocity = \Swisseph\Swe\FixedStars\StarTransforms::buildNutationMatrix($dpsi, $deps, $oecForNut);
+            }
+
             // C: swi_nutate(x, iflag, FALSE);
-            Coordinates::nutate($x, $iflag, false, $serr);
+            Coordinates::nutate($x, $nutMatrix, $nutMatrixVelocity, $iflag, false);
         }
 
         // C: Transformation to ecliptic
@@ -306,9 +334,10 @@ final class StarCalculator
                 $x[5] = $xSpeed[2];
             }
             // C: if (!(iflag & SEFLG_NONUT)) { swi_coortrf2(x, x, swed.nut.snut, swed.nut.cnut); ... }
-            if (!($iflag & Constants::SEFLG_NONUT) && $nutData !== null) {
-                $snut = sin($nutData['nutlo']);
-                $cnut = cos($nutData['nutlo']);
+            if (!($iflag & Constants::SEFLG_NONUT)) {
+                // C: swed.nut.snut = sin(dpsi), swed.nut.cnut = cos(dpsi)
+                $snut = sin($dpsi);
+                $cnut = cos($dpsi);
                 Coordinates::coortrf2($x, $x, $snut, $cnut);
                 if ($iflag & Constants::SEFLG_SPEED) {
                     $xSpeed = array_slice($x, 3, 3);
