@@ -1157,3 +1157,160 @@ if (!function_exists('swe_gauquelin_sector')) {
         );
     }
 }
+
+// ============================================================================
+// Centisec (centiseconds) utility functions
+// ============================================================================
+
+if (!function_exists('swe_csnorm')) {
+    /**
+     * Normalize centisec into interval [0..360°[
+     * C API: centisec swe_csnorm(centisec p);
+     *
+     * @param int $p Angle in centisec (1° = 360000 centisec)
+     * @return int Normalized angle in [0, 129600000[
+     */
+    function swe_csnorm(int $p): int
+    {
+        return \Swisseph\Swe\Functions\CentisecFunctions::csnorm($p);
+    }
+}
+
+if (!function_exists('swe_difcsn')) {
+    /**
+     * Distance in centisec p1 - p2, normalized to [0..360[
+     * C API: centisec swe_difcsn(centisec p1, centisec p2);
+     *
+     * @param int $p1 First angle in centisec
+     * @param int $p2 Second angle in centisec
+     * @return int Normalized difference
+     */
+    function swe_difcsn(int $p1, int $p2): int
+    {
+        return \Swisseph\Swe\Functions\CentisecFunctions::difcsn($p1, $p2);
+    }
+}
+
+if (!function_exists('swe_difdegn')) {
+    /**
+     * Distance in degrees p1 - p2, normalized to [0..360[
+     * C API: double swe_difdegn(double p1, double p2);
+     *
+     * @param float $p1 First angle in degrees
+     * @param float $p2 Second angle in degrees
+     * @return float Normalized difference
+     */
+    function swe_difdegn(float $p1, float $p2): float
+    {
+        return \Swisseph\Swe\Functions\CentisecFunctions::difdegn($p1, $p2);
+    }
+}
+
+if (!function_exists('swe_difcs2n')) {
+    /**
+     * Distance in centisec p1 - p2, normalized to [-180..180[
+     * C API: centisec swe_difcs2n(centisec p1, centisec p2);
+     *
+     * @param int $p1 First angle in centisec
+     * @param int $p2 Second angle in centisec
+     * @return int Normalized difference in [-64800000, 64800000[
+     */
+    function swe_difcs2n(int $p1, int $p2): int
+    {
+        return \Swisseph\Swe\Functions\CentisecFunctions::difcs2n($p1, $p2);
+    }
+}
+
+if (!function_exists('swe_difdeg2n')) {
+    /**
+     * Distance in degrees p1 - p2, normalized to [-180..180[
+     * C API: double swe_difdeg2n(double p1, double p2);
+     *
+     * @param float $p1 First angle in degrees
+     * @param float $p2 Second angle in degrees
+     * @return float Normalized difference
+     */
+    function swe_difdeg2n(float $p1, float $p2): float
+    {
+        return \Swisseph\Swe\Functions\CentisecFunctions::difdeg2n($p1, $p2);
+    }
+}
+
+if (!function_exists('swe_difrad2n')) {
+    /**
+     * Distance in radians p1 - p2, normalized to [-π..π[
+     * C API: double swe_difrad2n(double p1, double p2);
+     *
+     * @param float $p1 First angle in radians
+     * @param float $p2 Second angle in radians
+     * @return float Normalized difference
+     */
+    function swe_difrad2n(float $p1, float $p2): float
+    {
+        return \Swisseph\Swe\Functions\CentisecFunctions::difrad2n($p1, $p2);
+    }
+}
+
+if (!function_exists('swe_csroundsec')) {
+    /**
+     * Round centisec to seconds, but at 29°59'59" always round down
+     * C API: centisec swe_csroundsec(centisec x);
+     *
+     * Special behavior: Prevents rounding up to next zodiac sign
+     *
+     * @param int $x Angle in centisec
+     * @return int Rounded to full seconds (nearest 100 centisec)
+     */
+    function swe_csroundsec(int $x): int
+    {
+        return \Swisseph\Swe\Functions\CentisecFunctions::csroundsec($x);
+    }
+}
+
+if (!function_exists('swe_cs2timestr')) {
+    /**
+     * Convert centisec time to HH:MM:SS string
+     * C API: char *swe_cs2timestr(CSEC t, int sep, AS_BOOL suppressZero, char *a);
+     *
+     * @param int $t Time in centisec (24h = 8640000 centisec)
+     * @param int $sep Separator character code (e.g. ord(':') = 58)
+     * @param bool $suppressZero If true, omit ":00" seconds
+     * @return string Formatted time "HH:MM:SS" or "HH:MM"
+     */
+    function swe_cs2timestr(int $t, int $sep = 58, bool $suppressZero = false): string
+    {
+        return \Swisseph\Swe\Functions\CentisecFunctions::cs2timestr($t, $sep, $suppressZero);
+    }
+}
+
+if (!function_exists('swe_cs2lonlatstr')) {
+    /**
+     * Convert centisec angle to DDDEmm'ss" format (longitude/latitude)
+     * C API: char *swe_cs2lonlatstr(CSEC t, char pchar, char mchar, char *s);
+     *
+     * @param int $t Angle in centisec
+     * @param string $pchar Positive direction char (e.g. 'E', 'N')
+     * @param string $mchar Negative direction char (e.g. 'W', 'S')
+     * @return string Formatted angle "DDDEmm'ss" or "DDDWmm'ss"
+     */
+    function swe_cs2lonlatstr(int $t, string $pchar, string $mchar): string
+    {
+        return \Swisseph\Swe\Functions\CentisecFunctions::cs2lonlatstr($t, $pchar, $mchar);
+    }
+}
+
+if (!function_exists('swe_cs2degstr')) {
+    /**
+     * Convert centisec angle to DD°mm'ss format (zodiac degree)
+     * C API: char *swe_cs2degstr(CSEC t, char *a);
+     *
+     * Truncates to [0..30[ degrees (one zodiac sign)
+     *
+     * @param int $t Angle in centisec
+     * @return string Formatted angle "DD°mm'ss\""
+     */
+    function swe_cs2degstr(int $t): string
+    {
+        return \Swisseph\Swe\Functions\CentisecFunctions::cs2degstr($t);
+    }
+}
