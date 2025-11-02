@@ -9,7 +9,7 @@ final class State
     private static float $topoLon = 0.0;   // degrees east
     private static float $topoLat = 0.0;   // degrees north
     private static float $topoAlt = 0.0;   // meters
-    private static float $tidAcc = 0.0;    // placeholder; not used yet in delta-T
+    private static float $tidAcc = -25.80;    // SE_TIDAL_DEFAULT (DE431) in arcsec/cy^2
     // Sidereal/Ayanamsha settings
     private static int $sidMode = \Swisseph\Constants::SE_SIDM_FAGAN_BRADLEY;
     private static int $sidOpts = 0; // option bits

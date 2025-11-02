@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Swisseph\Swe\Functions;
 
+use Swisseph\State;
+
 /**
  * Miscellaneous utility functions
  *
@@ -11,6 +13,11 @@ namespace Swisseph\Swe\Functions;
  */
 final class MiscUtilityFunctions
 {
+    /** Whether user-defined Delta-T is set */
+    private static bool $deltaTUserDefined = false;
+
+    /** User-defined Delta-T value in days */
+    private static float $deltaTValue = 0.0;
     /**
      * Convert double to int32 with rounding (no overflow check)
      * Port from swephlib.c:3848-3855
@@ -97,6 +104,62 @@ final class MiscUtilityFunctions
             return Constants::OK;
         } else {
             return Constants::ERR;
+        }
+    }
+
+    /**
+     * Get current tidal acceleration value
+     * Port from swephlib.c:3154-3158
+     *
+     * Returns the current tidal acceleration of the Moon in arcsec/cy^2.
+     * Default value is SE_TIDAL_DEFAULT (-25.80).
+     *
+     * @return float Tidal acceleration in arcsec/cy^2
+     */
+    public static function getTidAcc(): float
+    {
+        return State::getTidAcc();
+    }
+
+    /**
+     * Set tidal acceleration of the Moon
+     * Port from swephlib.c:3165-3174
+     *
+     * Sets the tidal acceleration value used in lunar calculations.
+     * Can be either:
+     * - A specific value in arcsec/cy^2 (e.g., -25.8)
+     * - SE_TIDAL_AUTOMATIC (999999) to use automatic ephemeris-specific value
+     *
+     * @param float $t_acc Tidal acceleration value or SE_TIDAL_AUTOMATIC
+     * @return void
+     */
+    public static function setTidAcc(float $t_acc): void
+    {
+        if (abs($t_acc - 999999.0) < 0.0001) { // SE_TIDAL_AUTOMATIC
+            State::setTidAcc(-25.80); // SE_TIDAL_DEFAULT (DE431)
+        } else {
+            State::setTidAcc($t_acc);
+        }
+    }
+
+    /**
+     * Set user-defined Delta-T value
+     * Port from swephlib.c:3176-3184
+     *
+     * Overrides automatic Delta-T calculation with a user-defined value.
+     * Pass SE_DELTAT_AUTOMATIC (-1e-10) to restore automatic calculation.
+     *
+     * @param float $dt Delta-T value in days, or SE_DELTAT_AUTOMATIC for automatic
+     * @return void
+     */
+    public static function setDeltaTUserdef(float $dt): void
+    {
+        if (abs($dt - (-1e-10)) < 1e-11) { // SE_DELTAT_AUTOMATIC
+            self::$deltaTUserDefined = false;
+            self::$deltaTValue = 0.0;
+        } else {
+            self::$deltaTUserDefined = true;
+            self::$deltaTValue = $dt;
         }
     }
 }

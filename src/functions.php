@@ -82,9 +82,24 @@ if (!function_exists('swe_set_topo')) {
     }
 }
 if (!function_exists('swe_set_tid_acc')) {
-    function swe_set_tid_acc(float $tacc): void
+    /**
+     * Set tidal acceleration (used in Delta-T calculation)
+     * C API: void swe_set_tid_acc(double t_acc);
+     *
+     * Sets the tidal acceleration value used in automatic Delta-T calculation.
+     * Pass SE_TIDAL_AUTOMATIC (999999.0) to restore default value (-25.80).
+     *
+     * Values from JPL Ephemerides:
+     * - DE200: -23.8946
+     * - DE403/DE404/DE405/DE406: -25.826
+     * - DE430/DE431: -25.80 (current default)
+     *
+     * @param float $t_acc Tidal acceleration in arcsec/cy^2, or SE_TIDAL_AUTOMATIC
+     * @return void
+     */
+    function swe_set_tid_acc(float $t_acc): void
     {
-        State::setTidAcc($tacc);
+        \Swisseph\Swe\Functions\MiscUtilityFunctions::setTidAcc($t_acc);
     }
 }
 
@@ -1383,5 +1398,41 @@ if (!function_exists('swe_date_conversion')) {
             $calendar,
             $tjd
         );
+    }
+}
+
+if (!function_exists('swe_get_tid_acc')) {
+    /**
+     * Get tidal acceleration (used in Delta-T calculation)
+     * C API: double swe_get_tid_acc(void);
+     *
+     * Returns the tidal acceleration value in arcsec/cy^2.
+     * Default value is -25.80 (DE431).
+     *
+     * @return float Tidal acceleration in arcsec/cy^2
+     */
+    function swe_get_tid_acc(): float
+    {
+        return \Swisseph\Swe\Functions\MiscUtilityFunctions::getTidAcc();
+    }
+}
+
+if (!function_exists('swe_set_delta_t_userdef')) {
+    /**
+     * Set user-defined Delta-T value
+     * C API: void swe_set_delta_t_userdef(double dt);
+     *
+     * Overrides automatic Delta-T calculation with a user-defined value.
+     * Pass SE_DELTAT_AUTOMATIC (-1e-10) to restore automatic calculation.
+     *
+     * Delta-T is the difference between Terrestrial Time (TT) and Universal Time (UT):
+     * Delta-T = TT - UT
+     *
+     * @param float $dt Delta-T value in days, or SE_DELTAT_AUTOMATIC for automatic
+     * @return void
+     */
+    function swe_set_delta_t_userdef(float $dt): void
+    {
+        \Swisseph\Swe\Functions\MiscUtilityFunctions::setDeltaTUserdef($dt);
     }
 }
