@@ -257,4 +257,40 @@ final class Constants
     // Fixed star catalog filenames (swephexp.h:386-387)
     public const SE_STARFILE_OLD = 'fixstars.cat';  // Old binary format
     public const SE_STARFILE = 'sefstars.txt';      // New text format
+
+    // Eclipse computation constants (swephexp.h:307-330)
+    // Eclipse types
+    public const SE_ECL_CENTRAL = 1;
+    public const SE_ECL_NONCENTRAL = 2;
+    public const SE_ECL_TOTAL = 4;
+    public const SE_ECL_ANNULAR = 8;
+    public const SE_ECL_PARTIAL = 16;
+    public const SE_ECL_ANNULAR_TOTAL = 32;
+    public const SE_ECL_HYBRID = 32;  // = annular-total
+    public const SE_ECL_PENUMBRAL = 64;
+
+    // Eclipse type combinations
+    public const SE_ECL_ALLTYPES_SOLAR = self::SE_ECL_CENTRAL | self::SE_ECL_NONCENTRAL |
+                                          self::SE_ECL_TOTAL | self::SE_ECL_ANNULAR |
+                                          self::SE_ECL_PARTIAL | self::SE_ECL_ANNULAR_TOTAL;
+    public const SE_ECL_ALLTYPES_LUNAR = self::SE_ECL_TOTAL | self::SE_ECL_PARTIAL |
+                                          self::SE_ECL_PENUMBRAL;
+
+    // Eclipse visibility flags
+    public const SE_ECL_VISIBLE = 128;
+    public const SE_ECL_MAX_VISIBLE = 256;
+    public const SE_ECL_1ST_VISIBLE = 512;       // begin of partial eclipse
+    public const SE_ECL_PARTBEG_VISIBLE = 512;   // begin of partial eclipse
+    public const SE_ECL_2ND_VISIBLE = 1024;      // begin of total eclipse
+    public const SE_ECL_TOTBEG_VISIBLE = 1024;   // begin of total eclipse
+    public const SE_ECL_3RD_VISIBLE = 2048;      // end of total eclipse
+    public const SE_ECL_TOTEND_VISIBLE = 2048;   // end of total eclipse
+    public const SE_ECL_4TH_VISIBLE = 4096;      // end of partial eclipse
+    public const SE_ECL_PARTEND_VISIBLE = 4096;  // end of partial eclipse
+    public const SE_ECL_PENUMBBEG_VISIBLE = 8192;   // begin of penumbral eclipse
+    public const SE_ECL_PENUMBEND_VISIBLE = 16384;  // end of penumbral eclipse
+    public const SE_ECL_OCC_BEG_DAYLIGHT = 8192;    // occultation begins during the day
+    public const SE_ECL_OCC_END_DAYLIGHT = 16384;   // occultation ends during the day
+    public const SE_ECL_ONE_TRY = 32768;  // check only next conjunction, don't search further
 }
+
