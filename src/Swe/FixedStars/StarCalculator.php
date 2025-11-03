@@ -210,9 +210,30 @@ final class StarCalculator
         // C: Observer: geocenter or topocenter
         if ($iflag & Constants::SEFLG_TOPOCTR) {
             // C: swi_get_observer(tjd - dt, iflag | SEFLG_NONUT, NO_SAVE, xobs_dt, serr)
-            // TODO: Implement swi_get_observer for topocentric
-            $serr = 'Topocentric positions for fixed stars not yet implemented';
-            return Constants::SE_ERR;
+            $retc = \Swisseph\Swe\Observer\ObserverCalculator::getObserver(
+                $tjd - self::DT,
+                $iflag | Constants::SEFLG_NONUT,
+                false, // NO_SAVE
+                $xobs_dt,
+                $serr
+            );
+            if ($retc < 0) return Constants::SE_ERR;
+
+            // C: swi_get_observer(tjd, iflag | SEFLG_NONUT, NO_SAVE, xobs, serr)
+            $retc = \Swisseph\Swe\Observer\ObserverCalculator::getObserver(
+                $tjd,
+                $iflag | Constants::SEFLG_NONUT,
+                false, // NO_SAVE
+                $xobs,
+                $serr
+            );
+            if ($retc < 0) return Constants::SE_ERR;
+
+            // C: barycentric position of observer: xobs[i] = xobs[i] + xearth[i]
+            for ($i = 0; $i <= 5; $i++) {
+                $xobs[$i] = $xobs[$i] + $xearth[$i];
+                $xobs_dt[$i] = $xobs_dt[$i] + $xearth_dt[$i];
+            }
         } elseif (!($iflag & Constants::SEFLG_BARYCTR) && (!($iflag & Constants::SEFLG_HELCTR) || !($iflag & Constants::SEFLG_MOSEPH))) {
             // C: for (i = 0; i <= 5; i++) { xobs[i] = xearth[i]; xobs_dt[i] = xearth_dt[i]; }
             for ($i = 0; $i <= 5; $i++) {

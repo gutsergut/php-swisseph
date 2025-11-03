@@ -283,10 +283,14 @@ final class Coordinates
      * @param array $polar [longitude_rad, latitude_rad, radius, ...]
      * @return array [x, y, z, ...]
      */
-    public static function polarToCartesian(array $polar): array
+    public static function polarToCartesian(array $polar, bool $withSpeed = false): array
     {
         $result = [];
-        self::polCart($polar, $result);
+        if ($withSpeed) {
+            self::polCartSp($polar, $result);
+        } else {
+            self::polCart($polar, $result);
+        }
         return $result;
     }
 
@@ -336,6 +340,24 @@ final class Coordinates
         }
 
         return $result;
+    }
+
+    /**
+     * Rotate coordinates (in place) using precomputed sin/cos.
+     * Port of swi_coortrf2() from swephlib.c:299-309
+     *
+     * @param array &$xpn Coordinates to rotate [x, y, z, ...] (modified in place)
+     * @param float $sineps Sine of rotation angle
+     * @param float $coseps Cosine of rotation angle
+     */
+    public static function rotate(array &$xpn, float $sineps, float $coseps): void
+    {
+        $x0 = $xpn[0];
+        $x1 = $xpn[1] * $coseps + $xpn[2] * $sineps;
+        $x2 = -$xpn[1] * $sineps + $xpn[2] * $coseps;
+        $xpn[0] = $x0;
+        $xpn[1] = $x1;
+        $xpn[2] = $x2;
     }
 }
 

@@ -183,6 +183,8 @@ final class Constants
     public const AUNIT = 1.49597870700e+11;         // AU in meters (DE431)
     public const CLIGHT = 2.99792458e+8;            // Speed of light in m/s (AA 1996 K6)
     public const EARTH_RADIUS = 6378136.6;          // Earth radius in meters (AA 2006 K6)
+    public const EARTH_OBLATENESS = 0.0033528106647474807; // 1.0 / 298.25642 (AA 2006 K6)
+    public const EARTH_ROT_SPEED = 6.30038061277862; // 7.2921151467e-5 * 86400 (rad/day)
     public const RADTODEG = 57.2957795130823;       // Radians to degrees conversion
     public const DEGTORAD = 0.0174532925199433;     // Degrees to radians conversion
     public const SE_LAPSE_RATE = 0.0065;            // Temperature lapse rate (deg K/m) for refraction
