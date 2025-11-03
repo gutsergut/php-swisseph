@@ -253,4 +253,8 @@ final class Constants
     public const SEMOD_BIAS_IAU2000 = 2;        // IAU 2000 frame bias
     public const SEMOD_BIAS_IAU2006 = 3;        // IAU 2006 frame bias
     public const SEMOD_BIAS_DEFAULT = self::SEMOD_BIAS_IAU2006;
+
+    // Fixed star catalog filenames (swephexp.h:386-387)
+    public const SE_STARFILE_OLD = 'fixstars.cat';  // Old binary format
+    public const SE_STARFILE = 'sefstars.txt';      // New text format
 }
