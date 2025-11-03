@@ -86,8 +86,8 @@ final class StarCalculator
         $epheflag = $iflag & Constants::SEFLG_EPHMASK;
 
         // C: if (iflag & SEFLG_SIDEREAL && !swed.ayana_is_set)
-        if (($iflag & Constants::SEFLG_SIDEREAL) && !State::isSiderealModeSet()) {
-            State::setSiderealMode(Constants::SE_SIDM_FAGAN_BRADLEY, 0.0, 0.0);
+        if (($iflag & Constants::SEFLG_SIDEREAL) && !\Swisseph\SiderealMode::isSet()) {
+            \Swisseph\SiderealMode::set(Constants::SE_SIDM_FAGAN_BRADLEY, 0, 0.0, 0.0);
         }
 
         // C: swi_check_ecliptic(tjd, iflag); swi_check_nutation(tjd, iflag);
@@ -367,9 +367,57 @@ final class StarCalculator
 
         // C: Sidereal positions
         if ($iflag & Constants::SEFLG_SIDEREAL) {
-            // TODO: Port sidereal transformations from C
-            $serr = 'Sidereal mode not yet implemented for fixstar2';
-            return Constants::SE_ERR;
+            $sidMode = \Swisseph\State::getSidMode()[0];
+
+            // C: Rigorous algorithm (SE_SIDBIT_ECL_T0)
+            if ($sidMode & Constants::SE_SIDBIT_ECL_T0) {
+                // C: swi_trop_ra2sid_lon(xxsv, x, xxsv, iflag)
+                $retc = \Swisseph\Swe\Functions\SiderealFunctions::tropRa2SidLon($xxsv, $x, $xxsv, $iflag);
+                if ($retc != Constants::SE_OK) {
+                    return Constants::SE_ERR;
+                }
+
+                // C: if (iflag & SEFLG_EQUATORIAL) for (i = 0; i <= 5; i++) x[i] = xxsv[i];
+                if ($iflag & Constants::SEFLG_EQUATORIAL) {
+                    for ($i = 0; $i <= 5; $i++) {
+                        $x[$i] = $xxsv[$i];
+                    }
+                }
+            }
+            // C: Project onto solar system plane (SE_SIDBIT_SSY_PLANE)
+            elseif ($sidMode & Constants::SE_SIDBIT_SSY_PLANE) {
+                // C: swi_trop_ra2sid_lon_sosy(xxsv, x, iflag)
+                $retc = \Swisseph\Swe\Functions\SiderealFunctions::tropRa2SidLonSosy($xxsv, $x, $iflag);
+                if ($retc != Constants::SE_OK) {
+                    return Constants::SE_ERR;
+                }
+
+                // C: if (iflag & SEFLG_EQUATORIAL) for (i = 0; i <= 5; i++) x[i] = xxsv[i];
+                if ($iflag & Constants::SEFLG_EQUATORIAL) {
+                    for ($i = 0; $i <= 5; $i++) {
+                        $x[$i] = $xxsv[$i];
+                    }
+                }
+            }
+            // C: Traditional algorithm - subtract ayanamsha
+            else {
+                // C: swi_cartpol_sp(x, x);
+                Coordinates::cartPolSp($x, $x);
+
+                // C: swi_get_ayanamsa_with_speed(tjd, iflag, daya, serr)
+                $daya = [0.0, 0.0];
+                $retc = \Swisseph\Sidereal::getAyanamsaWithSpeed($tjd, $iflag, $daya, $serr);
+                if ($retc == Constants::SE_ERR) {
+                    return Constants::SE_ERR;
+                }
+
+                // C: x[0] -= daya[0] * DEGTORAD; x[3] -= daya[1] * DEGTORAD;
+                $x[0] -= $daya[0] * Constants::DEGTORAD;
+                $x[3] -= $daya[1] * Constants::DEGTORAD;
+
+                // C: swi_polcart_sp(x, x);
+                Coordinates::polCartSp($x, $x);
+            }
         }
 
         // C: Transformation to polar coordinates

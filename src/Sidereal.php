@@ -617,4 +617,43 @@ final class Sidereal
 
         return $dadd;
     }
+
+    /**
+     * Get ayanamsha with speed (rate of change).
+     * Port of swi_get_ayanamsa_with_speed() from sweph.c:3209-3223
+     *
+     * @param float $tjdEt Julian Day Ephemeris Time
+     * @param int $iflag Calculation flags
+     * @param array &$daya Output: [ayanamsha_degrees, speed_deg_per_day]
+     * @param string|null &$serr Error message
+     * @return int OK or ERR
+     */
+    public static function getAyanamsaWithSpeed(
+        float $tjdEt,
+        int $iflag,
+        array &$daya,
+        ?string &$serr = null
+    ): int {
+        $tintv = 0.001; // Time interval for speed calculation (days)
+
+        // Calculate ayanamsha at t - interval
+        $t2 = $tjdEt - $tintv;
+        $daya_t2 = 0.0;
+
+        // For simplicity, use ayanamshaDegFromJdTT
+        // Full implementation would use swi_get_ayanamsa_ex
+        try {
+            $daya_t2 = self::ayanamshaDegFromJdTT($t2);
+            $daya[0] = self::ayanamshaDegFromJdTT($tjdEt);
+
+            // Calculate speed as finite difference
+            $daya[1] = ($daya[0] - $daya_t2) / $tintv;
+
+            return Constants::SE_OK;
+        } catch (\Exception $e) {
+            $serr = $e->getMessage();
+            return Constants::SE_ERR;
+        }
+    }
 }
+
