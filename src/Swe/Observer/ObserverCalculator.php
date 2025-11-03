@@ -52,7 +52,7 @@ final class ObserverCalculator
         [$geolon, $geolat, $geoalt] = State::getTopo();
         if (!$swed->geoposIsSet && ($geolon == 0.0 && $geolat == 0.0 && $geoalt == 0.0)) {
             $serr = "geographic position has not been set";
-            return Constants::ERR;
+            return Constants::SE_ERR;
         }
 
         // Update SwedState with current topo data
@@ -77,8 +77,8 @@ final class ObserverCalculator
             $eps = $swed->oec->eps;
             $nutlo = [$swed->dpsi, $swed->deps];
         } else {
-            // Calculate epsilon (obliquity)
-            $eps = \Swisseph\Epsilon::calc($tjd, $iflag);
+            // Calculate epsilon (obliquity) - returns value in radians
+            $eps = \Swisseph\Obliquity::calc($tjd, $iflag);
 
             // Calculate nutation if needed
             if (!($iflag & Constants::SEFLG_NONUT)) {
@@ -172,12 +172,10 @@ final class ObserverCalculator
         }
 
         /* Precess to J2000 */
-        Coordinates::precess($xobs, $tjd, $iflag, true); // J_TO_J2000 = true
+        \Swisseph\Precession::precess($xobs, $tjd, $iflag, 1); // J_TO_J2000 = 1
 
         // Precess speed
-        Coordinates::precessSpeed($xobs, $tjd, $iflag, true);
-
-        /* Neglect frame bias (displacement of 45cm) */
+        \Swisseph\Precession::precessSpeed($xobs, $tjd, $iflag, 1); // J_TO_J2000 = 1        /* Neglect frame bias (displacement of 45cm) */
 
         /* Save */
         if ($doSave) {
@@ -188,6 +186,7 @@ final class ObserverCalculator
             $swed->tjdUt = $tjd_ut;
         }
 
-        return Constants::OK;
+        return Constants::SE_OK;
     }
 }
+
