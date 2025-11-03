@@ -58,9 +58,9 @@ final class StarRegistry
     {
         $serr = '';
 
-        // Already loaded?
+        // Already loaded? Return OK, not error
         if (self::$loaded) {
-            return -2;
+            return Constants::SE_OK;
         }
 
         // Get ephemeris path

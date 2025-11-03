@@ -32,6 +32,7 @@ use Swisseph\Swe\Functions\NodesApsidesFunctions;
 use Swisseph\Swe\Functions\OrbitalElementsFunctions;
 use Swisseph\Swe\Functions\PhenoFunctions;
 use Swisseph\Swe\Functions\FixstarFunctions;
+use Swisseph\Swe\Functions\StarFunctions;
 
 if (!function_exists('swe_julday')) {
     /**
@@ -1434,5 +1435,78 @@ if (!function_exists('swe_set_delta_t_userdef')) {
     function swe_set_delta_t_userdef(float $dt): void
     {
         \Swisseph\Swe\Functions\MiscUtilityFunctions::setDeltaTUserdef($dt);
+    }
+}
+
+// ============================================================================
+// Fixed Stars API - swe_fixstar2* functions
+// ============================================================================
+
+if (!function_exists('swe_fixstar2')) {
+    /**
+     * Calculate fixed star position for Ephemeris Time.
+     *
+     * Port of C function: int32 swe_fixstar2(char *star, double tjd, int32 iflag, double *xx, char *serr)
+     *
+     * @param string &$star Input: star name or number; Output: formatted "tradname,nomenclature"
+     * @param float $tjd Julian Day Ephemeris Time
+     * @param int $iflag Calculation flags (SEFLG_*)
+     * @param array &$xx Output: 6 doubles [lon/ra, lat/dec, dist, dlon, dlat, ddist]
+     * @param string|null &$serr Error message
+     * @return int iflag on success, SE_ERR on error
+     */
+    function swe_fixstar2(
+        string &$star,
+        float $tjd,
+        int $iflag,
+        array &$xx,
+        ?string &$serr = null
+    ): int {
+        return \Swisseph\Swe\Functions\StarFunctions::fixstar2($star, $tjd, $iflag, $xx, $serr);
+    }
+}
+
+if (!function_exists('swe_fixstar2_ut')) {
+    /**
+     * Calculate fixed star position for Universal Time.
+     *
+     * Converts UT to ET using Delta T, then calls swe_fixstar2().
+     * Port of C function: int32 swe_fixstar2_ut(char *star, double tjd_ut, int32 iflag, double *xx, char *serr)
+     *
+     * @param string &$star Input: star name or number; Output: formatted "tradname,nomenclature"
+     * @param float $tjdUt Julian Day Universal Time
+     * @param int $iflag Calculation flags (SEFLG_*)
+     * @param array &$xx Output: 6 doubles [lon/ra, lat/dec, dist, dlon, dlat, ddist]
+     * @param string|null &$serr Error message
+     * @return int iflag on success, SE_ERR on error
+     */
+    function swe_fixstar2_ut(
+        string &$star,
+        float $tjdUt,
+        int $iflag,
+        array &$xx,
+        ?string &$serr = null
+    ): int {
+        return \Swisseph\Swe\Functions\StarFunctions::fixstar2Ut($star, $tjdUt, $iflag, $xx, $serr);
+    }
+}
+
+if (!function_exists('swe_fixstar2_mag')) {
+    /**
+     * Get fixed star magnitude.
+     *
+     * Port of C function: int32 swe_fixstar2_mag(char *star, double *mag, char *serr)
+     *
+     * @param string &$star Input: star name or number; Output: formatted "tradname,nomenclature"
+     * @param float &$mag Output: star magnitude
+     * @param string|null &$serr Error message
+     * @return int SE_OK on success, SE_ERR on error
+     */
+    function swe_fixstar2_mag(
+        string &$star,
+        float &$mag,
+        ?string &$serr = null
+    ): int {
+        return \Swisseph\Swe\Functions\StarFunctions::fixstar2Mag($star, $mag, $serr);
     }
 }

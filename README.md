@@ -7,7 +7,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 70/200+ implemented (35%)
+**Core Functions**: 73/200+ implemented (37%)
 
 ```
 Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
@@ -18,7 +18,7 @@ Rise/Set/Transit       ████████████████░░░
 Time & Conversions     ████████████████████  11/11 (100%)
 Coordinate Transform   ████████████████████  7/7   (100%)
 Orbital Elements       ███████████████░░░░░  3/4   (75%)
-Stars & Fixed Objects  ███████████░░░░░░░░░  3/5   (60%)
+Stars & Fixed Objects  ████████████████████  5/5   (100%)
 Eclipses & Phenomena   ███░░░░░░░░░░░░░░░░░  3/15  (20%)
 Heliacal Phenomena     ░░░░░░░░░░░░░░░░░░░░  0/8   (0%)
 Misc Utilities         ████████████████████  24/24 (100%)
@@ -151,14 +151,15 @@ Misc Utilities         ███████████████████
 <details>
 <summary><b>Not Yet Implemented (149+)</b></summary>
 
-**Stars & Fixed Objects (8)**
-- ⬜ `swe_fixstar` - Fixed star positions
-- ⬜ `swe_fixstar_ut` - Fixed star (UT)
-- ⬜ `swe_fixstar2` - Fixed star v2
-- ⬜ `swe_fixstar2_ut` - Fixed star v2 (UT)
-- ⬜ `swe_fixstar_mag` - Fixed star magnitude
-- ⬜ `swe_fixstar2_mag` - Fixed star v2 magnitude
-- ⬜ And more...
+**Stars & Fixed Objects (5)**
+- ✅ `swe_fixstar2` - Fixed star positions with full transformations
+- ✅ `swe_fixstar2_ut` - Fixed star v2 (UT)
+- ✅ `swe_fixstar2_mag` - Fixed star v2 magnitude
+
+**Legacy Star Functions (3)**
+- ⬜ `swe_fixstar` - Legacy fixed star API
+- ⬜ `swe_fixstar_ut` - Legacy fixed star (UT)
+- ⬜ `swe_fixstar_mag` - Legacy fixed star magnitude
 
 **Eclipses & Phenomena (15)**
 - ⬜ `swe_sol_eclipse_when_loc` - Solar eclipse for location

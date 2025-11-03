@@ -82,7 +82,7 @@
 ## Не реализовано (43+ функций из swephexp.h)
 
 ### Фиксированные звёзды
-- ✅ `swe_fixstar`, `swe_fixstar_ut` — **полная реализация** позиций звёзд (реализовано 01.11.2025)
+- ✅ `swe_fixstar2`, `swe_fixstar2_ut` — **полная реализация v2** позиций звёзд (реализовано 16.01.2025)
   - Каталог sefstars.txt (2935 звёзд по именам/обозначениям/номерам)
   - Proper motion, parallax, radial velocity
   - FK4 (B1950) → FK5 (J2000) conversion для старых каталогов
@@ -91,11 +91,13 @@
   - Nutation (IAU 1980, IAU 2000A/2000B)
   - Relativistic light deflection by Sun (мэфф при прохождении солнечного диска)
   - Annual aberration of light (релятивистская формула)
+  - Topocentric coordinates (SEFLG_TOPOCTR) с ObserverCalculator
   - Equatorial → ecliptic transformations
   - Sidereal positions (ECL_T0, SSY_PLANE, traditional mode)
-  - Точность: <0.001° tropical, <0.001° sidereal
-  - Верификация: Spica 204.189° at 2025-01-01 (tropical)
-- ✅ `swe_fixstar_mag` — визуальная magnitude звезды
+  - Точность: 2-40 arcsec (ecliptic/equatorial)
+  - Верификация: Sirius 104.085° at J2000.0 (tropical)
+- ✅ `swe_fixstar2_mag` — визуальная magnitude звезды
+- ⬜ `swe_fixstar`, `swe_fixstar_ut`, `swe_fixstar_mag` — legacy API (для совместимости)
 
 ### Helper classes (внутренняя архитектура)
 - ✅ `Bias` — ICRS ↔ J2000 frame bias (IAU 2000/2006, JPL Horizons corrections)
