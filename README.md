@@ -7,7 +7,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 73/200+ implemented (37%)
+**Core Functions**: 76/200+ implemented (38%)
 
 ```
 Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
@@ -18,7 +18,7 @@ Rise/Set/Transit       ████████████████░░░
 Time & Conversions     ████████████████████  11/11 (100%)
 Coordinate Transform   ████████████████████  7/7   (100%)
 Orbital Elements       ███████████████░░░░░  3/4   (75%)
-Stars & Fixed Objects  ████████████████████  5/5   (100%)
+Stars & Fixed Objects  ████████████████████  8/8   (100%)
 Eclipses & Phenomena   ███░░░░░░░░░░░░░░░░░  3/15  (20%)
 Heliacal Phenomena     ░░░░░░░░░░░░░░░░░░░░  0/8   (0%)
 Misc Utilities         ████████████████████  24/24 (100%)
@@ -302,9 +302,11 @@ php scripts/bench.php
 - **Sidereal astrology**:
   - `swe_set_sid_mode()` sets ayanamsha mode (Fagan/Bradley, Lahiri, etc.)
   - `swe_get_ayanamsa_ex()` returns current ayanamsha value
-- **Fixed stars**: `swe_fixstar()`/`swe_fixstar_ut()` calculate positions for 3000+ stars with proper motion
+- **Fixed stars**: Two APIs available:
+  - **NEW API** (recommended): `swe_fixstar2()`/`swe_fixstar2_ut()`/`swe_fixstar2_mag()` — loads all stars once (10-100x faster)
+  - **LEGACY API**: `swe_fixstar()`/`swe_fixstar_ut()`/`swe_fixstar_mag()` — reads file on each call (backward compatible)
   - Supports traditional names (e.g., "Sirius"), Bayer designations (e.g., ",alCMa"), sequential numbers
-  - `swe_fixstar_mag()` returns visual magnitude with caching
+  - 3000+ stars with proper motion, parallax, FK4→FK5 conversion, precession, nutation
 
 ## 🌙 Examples
 
