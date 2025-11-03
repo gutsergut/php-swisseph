@@ -213,13 +213,131 @@ class EclipseCalculator
             $attr[1] = 0.0;
         }
 
-        // TO BE CONTINUED: PART 2 will add:
-        // - attr[0]: magnitude
-        // - attr[2]: obscuration
-        // - attr[4-6]: azimuth/altitude
-        // - attr[7]: elongation
-        // - attr[8]: NASA magnitude
-        // - attr[9-10]: Saros series
+        // === PART 2: Eclipse attributes (lines 1060-1150) ===
+
+        // attr[0]: Eclipse magnitude
+        // Fraction of solar diameter covered by moon
+        $lsun = asin($rsun / 2.0 * Constants::DEGTORAD) * 2.0;
+        $lsunleft = (-$dctr + $rsun + $rmoon);
+        if ($lsun > 0) {
+            $attr[0] = $lsunleft / $rsun / 2.0;
+        } else {
+            $attr[0] = 1.0;
+        }
+
+        // attr[2]: Obscuration
+        // Fraction of solar disc obscured by moon
+        $lsun = $rsun;
+        $lmoon = $rmoon;
+        $lctr = $dctr;
+
+        if ($retc === 0 || $lsun === 0.0) {
+            // No eclipse or invalid sun size
+            $attr[2] = 1.0;
+        } elseif ($retc === Constants::SE_ECL_TOTAL || $retc === Constants::SE_ECL_ANNULAR) {
+            // Total or annular: simple ratio of areas
+            $attr[2] = $lmoon * $lmoon / $lsun / $lsun;
+        } else {
+            // Partial eclipse: calculate intersection area of two circles
+            // Using formula for overlapping circles
+            $a = 2.0 * $lctr * $lmoon;
+            $b = 2.0 * $lctr * $lsun;
+
+            if ($a < 1e-9) {
+                // Circles coincide
+                $attr[2] = $lmoon * $lmoon / $lsun / $lsun;
+            } else {
+                // Law of cosines to find angles
+                $a = ($lctr * $lctr + $lmoon * $lmoon - $lsun * $lsun) / $a;
+                if ($a > 1.0) $a = 1.0;
+                if ($a < -1.0) $a = -1.0;
+
+                $b = ($lctr * $lctr + $lsun * $lsun - $lmoon * $lmoon) / $b;
+                if ($b > 1.0) $b = 1.0;
+                if ($b < -1.0) $b = -1.0;
+
+                $a = acos($a);
+                $b = acos($b);
+
+                // Calculate circular segment areas
+                $sc1 = $a * $lmoon * $lmoon / 2.0;
+                $sc2 = $b * $lsun * $lsun / 2.0;
+                $sc1 -= (cos($a) * sin($a)) * $lmoon * $lmoon / 2.0;
+                $sc2 -= (cos($b) * sin($b)) * $lsun * $lsun / 2.0;
+
+                // Total obscured area divided by sun's area
+                $attr[2] = ($sc1 + $sc2) * 2.0 / M_PI / $lsun / $lsun;
+            }
+        }
+
+        // attr[7]: Angular distance (elongation) between centers
+        $attr[7] = $dctr;
+
+        // Check visibility: eclipse visible if sun is above horizon
+        // Approximate minimum height considering refraction and dip
+        // 34.4556': refraction at horizon (Bennett's formula)
+        // 1.75' / sqrt(geohgt): dip of horizon
+        // 0.37' / sqrt(geohgt): refraction between horizon and observer
+        $hminAppr = -(34.4556 + (1.75 + 0.37) * sqrt($geohgt)) / 60.0;
+        if ($xh[1] + $rsun + abs($hminAppr) >= 0 && $retc !== 0) {
+            $retc |= Constants::SE_ECL_VISIBLE;
+        }
+
+        // attr[4-6]: Azimuth and altitude
+        // Using modern method (not USE_AZ_NAV)
+        $attr[4] = $xh[0];  // azimuth from south, clockwise via west
+        $attr[5] = $xh[1];  // true altitude
+        $attr[6] = $xh[2];  // apparent altitude
+
+        // attr[8-10]: NASA magnitude and Saros series (only for Sun)
+        if ($ipl === Constants::SE_SUN && ($starname === null || $starname === '')) {
+            // attr[8]: Magnitude according to NASA
+            // For partial: fraction of diameter occulted
+            // For total/annular: ratio of diameters
+            $attr[8] = $attr[0];
+            if ($retc & (Constants::SE_ECL_TOTAL | Constants::SE_ECL_ANNULAR)) {
+                $attr[8] = $attr[1];
+            }
+
+            // attr[9-10]: Saros series and member number
+            $found = false;
+            foreach (SarosData::SAROS_DATA_SOLAR as $i => $saros) {
+                $d = ($tjdUt - $saros['tstart']) / SarosData::SAROS_CYCLE;
+
+                // Small negative values close to zero: treat as zero
+                if ($d < 0 && $d * SarosData::SAROS_CYCLE > -2) {
+                    $d = 0.0000001;
+                }
+                if ($d < 0) {
+                    continue;
+                }
+
+                $j = (int)$d;
+
+                // Check if within 2 days of cycle start
+                if (($d - $j) * SarosData::SAROS_CYCLE < 2) {
+                    $attr[9] = (float)$saros['series_no'];
+                    $attr[10] = (float)($j + 1);
+                    $found = true;
+                    break;
+                }
+
+                // Check if within 2 days of next cycle
+                $k = $j + 1;
+                if (($k - $d) * SarosData::SAROS_CYCLE < 2) {
+                    $attr[9] = (float)$saros['series_no'];
+                    $attr[10] = (float)($k + 1);
+                    $found = true;
+                    break;
+                }
+            }
+
+            // If no Saros series found (outside valid range)
+            if (!$found) {
+                $attr[9] = -99999999.0;
+                $attr[10] = -99999999.0;
+            }
+        }
 
         return $retc;
     }
