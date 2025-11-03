@@ -30,6 +30,33 @@ class EclipseUtils
     public const SEI_ECL_GEOALT_MIN = -500000.0;  // -500 km
     public const SEI_ECL_GEOALT_MAX = 50000000.0; // 50000 km
 
+    // Planet diameters in meters (from sweph.h:315-331)
+    // Index corresponds to SE_SUN, SE_MOON, SE_MERCURY, etc.
+    // NDIAM = SE_VESTA + 1
+    public const PLA_DIAM = [
+        1392000000.0,      // 0: SE_SUN
+        3475000.0,         // 1: SE_MOON
+        2439400.0 * 2,     // 2: SE_MERCURY
+        6051800.0 * 2,     // 3: SE_VENUS
+        3389500.0 * 2,     // 4: SE_MARS
+        69911000.0 * 2,    // 5: SE_JUPITER
+        58232000.0 * 2,    // 6: SE_SATURN
+        25362000.0 * 2,    // 7: SE_URANUS
+        24622000.0 * 2,    // 8: SE_NEPTUNE
+        1188300.0 * 2,     // 9: SE_PLUTO
+        0,                 // 10: SE_MEAN_NODE
+        0,                 // 11: SE_TRUE_NODE
+        0,                 // 12: SE_MEAN_APOG
+        0,                 // 13: SE_OSCU_APOG
+        6371008.4 * 2,     // 14: SE_EARTH
+        271370.0,          // 15: SE_CHIRON
+        290000.0,          // 16: SE_PHOLUS
+        939400.0,          // 17: SE_CERES
+        545000.0,          // 18: SE_PALLAS
+        246596.0,          // 19: SE_JUNO
+        525400.0,          // 20: SE_VESTA
+    ];
+
     /**
      * Find maximum of parabola through 3 points
      * Ported from swecl.c:4133-4147

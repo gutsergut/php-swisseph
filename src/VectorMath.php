@@ -139,4 +139,43 @@ class VectorMath
             $v1[2] - $v2[2],
         ];
     }
+
+    /**
+     * Dot product of two unit (normalized) vectors
+     * Ported from swephlib.c:453-462 (swi_dot_prod_unit)
+     *
+     * Computes dot product of normalized vectors:
+     * 1. Calculate dot product: dop = x·y
+     * 2. Normalize by magnitudes: dop / |x| / |y|
+     * 3. Clamp to [-1, 1] to avoid numerical issues with acos()
+     *
+     * Used for calculating angular distances between position vectors.
+     *
+     * @param array $x First vector [x, y, z]
+     * @param array $y Second vector [x, y, z]
+     * @return float Dot product of unit vectors (range [-1, 1])
+     */
+    public static function dotProductUnit(array $x, array $y): float
+    {
+        // Calculate dot product
+        $dop = $x[0] * $y[0] + $x[1] * $y[1] + $x[2] * $y[2];
+
+        // Calculate magnitudes
+        $e1 = sqrt($x[0] * $x[0] + $x[1] * $x[1] + $x[2] * $x[2]);
+        $e2 = sqrt($y[0] * $y[0] + $y[1] * $y[1] + $y[2] * $y[2]);
+
+        // Normalize
+        $dop /= $e1;
+        $dop /= $e2;
+
+        // Clamp to [-1, 1] for numerical stability with acos()
+        if ($dop > 1.0) {
+            $dop = 1.0;
+        }
+        if ($dop < -1.0) {
+            $dop = -1.0;
+        }
+
+        return $dop;
+    }
 }
