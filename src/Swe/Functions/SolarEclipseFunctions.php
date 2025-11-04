@@ -133,4 +133,98 @@ class SolarEclipseFunctions
 
         return $retflag;
     }
+
+    /**
+     * Find next solar eclipse at a given geographic location
+     * Ported from swecl.c:2019-2039 (swe_sol_eclipse_when_loc)
+     *
+     * Searches for the next (or previous) solar eclipse visible from a specific location.
+     * Returns eclipse type, contact times, and attributes.
+     *
+     * @param float $tjdStart Start time for search (JD UT)
+     * @param int $ifl Ephemeris flags (SEFLG_SWIEPH, SEFLG_JPLEPH, etc.)
+     * @param array $geopos Geographic position [longitude, latitude, height]
+     *   - geopos[0]: longitude in degrees (east positive)
+     *   - geopos[1]: latitude in degrees (north positive)
+     *   - geopos[2]: height in meters above sea level
+     * @param array &$tret Output: eclipse times [0-6]
+     *   - tret[0]: time of maximum eclipse (UT)
+     *   - tret[1]: time of first contact (UT)
+     *   - tret[2]: time of second contact (totality begins, UT) - 0 if partial
+     *   - tret[3]: time of third contact (totality ends, UT) - 0 if partial
+     *   - tret[4]: time of fourth contact (UT)
+     *   - tret[5]: time of sunrise during eclipse (UT) - 0 if not applicable
+     *   - tret[6]: time of sunset during eclipse (UT) - 0 if not applicable
+     * @param array &$attr Output: eclipse attributes [0-10] (same as how())
+     * @param int $backward 1 for backward search, 0 for forward
+     * @param string|null &$serr Output: error message
+     * @return int Eclipse type flags + visibility flags:
+     *   - SE_ECL_TOTAL: total eclipse
+     *   - SE_ECL_ANNULAR: annular eclipse
+     *   - SE_ECL_PARTIAL: partial eclipse
+     *   - SE_ECL_VISIBLE: at least one phase visible
+     *   - SE_ECL_MAX_VISIBLE: maximum phase visible
+     *   - SE_ECL_1ST_VISIBLE: first contact visible
+     *   - SE_ECL_2ND_VISIBLE: second contact visible
+     *   - SE_ECL_3RD_VISIBLE: third contact visible
+     *   - SE_ECL_4TH_VISIBLE: fourth contact visible
+     *   - SE_ECL_CENTRAL: eclipse is central (requires eclipse_where - TODO)
+     *   - SE_ECL_NONCENTRAL: eclipse is non-central (requires eclipse_where - TODO)
+     *   Returns 0 if no eclipse found, SE_ERR on error
+     */
+    public static function whenLoc(
+        float $tjdStart,
+        int $ifl,
+        array $geopos,
+        array &$tret,
+        array &$attr,
+        int $backward = 0,
+        ?string &$serr = null
+    ): int {
+        // Validate altitude (from swecl.c:2024-2028)
+        if ($geopos[2] < EclipseUtils::SEI_ECL_GEOALT_MIN || $geopos[2] > EclipseUtils::SEI_ECL_GEOALT_MAX) {
+            if ($serr !== null) {
+                $serr = sprintf(
+                    "location for eclipses must be between %.0f and %.0f m above sea",
+                    EclipseUtils::SEI_ECL_GEOALT_MIN,
+                    EclipseUtils::SEI_ECL_GEOALT_MAX
+                );
+            }
+            return Constants::SE_ERR;
+        }
+
+        $ifl &= Constants::SEFLG_EPHMASK;
+        // Note: C code calls swi_set_tid_acc() here - we skip as not ported yet
+
+        // Call internal eclipse_when_loc function (from swecl.c:2032)
+        $retflag = EclipseCalculator::eclipseWhenLoc(
+            $tjdStart,
+            $ifl,
+            $geopos,
+            $tret,
+            $attr,
+            $backward,
+            $serr
+        );
+
+        if ($retflag <= 0) {
+            return $retflag;
+        }
+
+        // TODO: Get diameter of core shadow using eclipse_where()
+        // From swecl.c:2033-2036
+        // This would also set SE_ECL_CENTRAL or SE_ECL_NONCENTRAL flag
+        // For now, attr[3] remains 0 from eclipse_how()
+
+        // $geopos2 = array_fill(0, 20, 0.0);
+        // $dcore = array_fill(0, 10, 0.0);
+        // $retflag2 = EclipseCalculator::eclipseWhere($tret[0], Constants::SE_SUN, null, $ifl, $geopos2, $dcore, $serr);
+        // if ($retflag2 === Constants::SE_ERR) {
+        //     return $retflag2;
+        // }
+        // $retflag |= ($retflag2 & Constants::SE_ECL_NONCENTRAL);
+        // $attr[3] = $dcore[0];
+
+        return $retflag;
+    }
 }

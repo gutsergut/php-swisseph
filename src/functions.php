@@ -1632,3 +1632,71 @@ if (!function_exists('swe_sol_eclipse_how')) {
         return SolarEclipseFunctions::how($tjd_ut, $ifl, $geopos, $attr, $serr);
     }
 }
+
+if (!function_exists('swe_sol_eclipse_when_loc')) {
+    /**
+     * Find the next solar eclipse visible from a geographic location.
+     *
+     * Port of C function: int32 swe_sol_eclipse_when_loc(double tjd_start, int32 ifl, double *geopos, double *tret, double *attr, int32 backward, char *serr)
+     * From swecl.c lines 2019-2039
+     *
+     * Searches for the next (or previous if backward=1) solar eclipse visible from the
+     * specified geographic location. Returns eclipse type, all contact times, and
+     * attributes at maximum.
+     *
+     * @param float $tjd_start Start time for search (Julian Day in UT)
+     * @param int $ifl Ephemeris flags (SEFLG_SWIEPH, SEFLG_JPLEPH, etc.)
+     * @param array $geopos Geographic position [longitude, latitude, altitude_m]
+     *                      longitude: degrees, eastern positive
+     *                      latitude: degrees, northern positive
+     *                      altitude: meters above sea level
+     *                      Must be between -10000 and +20000 meters
+     * @param array &$tret Output: array of 7 eclipse times (all in UT)
+     *                     tret[0]: time of maximum eclipse
+     *                     tret[1]: time of first contact (eclipse begins)
+     *                     tret[2]: time of second contact (totality begins) - 0 if partial
+     *                     tret[3]: time of third contact (totality ends) - 0 if partial
+     *                     tret[4]: time of fourth contact (eclipse ends)
+     *                     tret[5]: time of sunrise during eclipse - 0 if not applicable (TODO: needs swe_rise_trans)
+     *                     tret[6]: time of sunset during eclipse - 0 if not applicable (TODO: needs swe_rise_trans)
+     * @param array &$attr Output: array of 11 eclipse attributes (same as swe_sol_eclipse_how)
+     *                     attr[0]: fraction of solar diameter covered (magnitude)
+     *                     attr[1]: ratio of lunar diameter to solar one
+     *                     attr[2]: fraction of solar disc covered (obscuration)
+     *                     attr[3]: diameter of core shadow in km (TODO: requires eclipse_where)
+     *                     attr[4]: azimuth of sun at maximum
+     *                     attr[5]: true altitude of sun above horizon at maximum
+     *                     attr[6]: apparent altitude of sun above horizon at maximum
+     *                     attr[7]: elongation of moon in degrees
+     *                     attr[8]: magnitude acc. to NASA
+     *                     attr[9]: saros series number (-99999999 if not found)
+     *                     attr[10]: saros series member number (-99999999 if not found)
+     * @param int $backward 0 for forward search (default), 1 for backward search
+     * @param string|null &$serr Error message
+     * @return int Eclipse type flags (combination of):
+     *             SE_ECL_TOTAL (4): total eclipse
+     *             SE_ECL_ANNULAR (8): annular eclipse
+     *             SE_ECL_PARTIAL (16): partial eclipse
+     *             SE_ECL_VISIBLE (128): at least one phase visible
+     *             SE_ECL_MAX_VISIBLE (256): maximum phase visible
+     *             SE_ECL_1ST_VISIBLE (512): first contact visible
+     *             SE_ECL_2ND_VISIBLE (1024): second contact visible
+     *             SE_ECL_3RD_VISIBLE (2048): third contact visible
+     *             SE_ECL_4TH_VISIBLE (4096): fourth contact visible
+     *             SE_ECL_CENTRAL (1): eclipse is central (TODO: requires eclipse_where)
+     *             SE_ECL_NONCENTRAL (2): eclipse is non-central (TODO: requires eclipse_where)
+     *             Returns 0 if no eclipse found
+     *             Returns SE_ERR (-1) on error
+     */
+    function swe_sol_eclipse_when_loc(
+        float $tjd_start,
+        int $ifl,
+        array $geopos,
+        array &$tret,
+        array &$attr,
+        int $backward = 0,
+        ?string &$serr = null
+    ): int {
+        return SolarEclipseFunctions::whenLoc($tjd_start, $ifl, $geopos, $tret, $attr, $backward, $serr);
+    }
+}
