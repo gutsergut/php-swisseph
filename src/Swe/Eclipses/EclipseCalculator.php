@@ -712,7 +712,99 @@ class EclipseCalculator
             $tret[3] -= Functions::swe_deltat_ex($tret[3], $ifl, $serr);
         }
 
-        // PART 4 will continue from line 2288: contacts 1 and 4
+        // PART 4: Contacts 1 and 4 (eclipse begin/end)
+        // From swecl.c:2288-2345
+
+        // Initial estimate: when rsplusrm = dctr
+        // From swecl.c:2289
+        $dc[1] = $rsplusrm - $dctrmin;
+
+        // Sample 3 points: 2 hours before and after maximum
+        // From swecl.c:2290-2307
+        for ($i = 0, $t = $tjd - $twohr; $i <= 2; $i += 2, $t = $tjd + $twohr) {
+            if (Functions::swe_calc($t, Constants::SE_SUN, $iflagcart, $xs, $serr) === Constants::SE_ERR) {
+                return Constants::SE_ERR;
+            }
+            if (Functions::swe_calc($t, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::SE_ERR) {
+                return Constants::SE_ERR;
+            }
+
+            $dm = sqrt(EclipseUtils::squareSum($xm));
+            $ds = sqrt(EclipseUtils::squareSum($xs));
+
+            $rmoon = asin(EclipseUtils::RMOON / $dm) * Constants::RADTODEG;
+            $rsun = asin(EclipseUtils::RSUN / $ds) * Constants::RADTODEG;
+            $rsplusrm = $rsun + $rmoon;
+
+            for ($k = 0; $k < 3; $k++) {
+                $x1[$k] = $xs[$k] / $ds;
+                $x2[$k] = $xm[$k] / $dm;
+            }
+
+            $dctr = acos(VectorMath::dotProductUnit($x1, $x2)) * Constants::RADTODEG;
+            $dc[$i] = $rsplusrm - $dctr;
+        }
+
+        // Find zero crossings for contacts 1 and 4
+        // From swecl.c:2308-2310
+        EclipseUtils::findZero($dc[0], $dc[1], $dc[2], $twohr, $dt1, $dt2);
+        $tret[1] = $tjd + $dt1 + $twohr;
+        $tret[4] = $tjd + $dt2 + $twohr;
+
+        // Refine using velocities (three iterations: 10min, 1min, 6s)
+        // From swecl.c:2311-2336
+        for ($m = 0, $dt = $tenmin; $m < 3; $m++, $dt /= 10) {
+            // Only refine contacts 1 and 4 (j += 3 gives 1, 4)
+            for ($j = 1; $j <= 4; $j += 3) {
+                // Get positions with velocities
+                if (Functions::swe_calc($tret[$j], Constants::SE_SUN,
+                                       $iflagcart | Constants::SEFLG_SPEED, $xs, $serr) === Constants::SE_ERR) {
+                    return Constants::SE_ERR;
+                }
+                if (Functions::swe_calc($tret[$j], Constants::SE_MOON,
+                                       $iflagcart | Constants::SEFLG_SPEED, $xm, $serr) === Constants::SE_ERR) {
+                    return Constants::SE_ERR;
+                }
+
+                // Calculate dc[0] at current time and dc[1] at time - dt
+                for ($i = 0; $i < 2; $i++) {
+                    if ($i == 1) {
+                        // Subtract velocity * dt to get earlier position
+                        for ($k = 0; $k < 3; $k++) {
+                            $xs[$k] -= $xs[$k+3] * $dt;
+                            $xm[$k] -= $xm[$k+3] * $dt;
+                        }
+                    }
+
+                    $dm = sqrt(EclipseUtils::squareSum($xm));
+                    $ds = sqrt(EclipseUtils::squareSum($xs));
+
+                    $rmoon = asin(EclipseUtils::RMOON / $dm) * Constants::RADTODEG;
+                    $rsun = asin(EclipseUtils::RSUN / $ds) * Constants::RADTODEG;
+                    $rsplusrm = $rsun + $rmoon;
+
+                    for ($k = 0; $k < 3; $k++) {
+                        $x1[$k] = $xs[$k] / $ds;
+                        $x2[$k] = $xm[$k] / $dm;
+                    }
+
+                    $dctr = acos(VectorMath::dotProductUnit($x1, $x2)) * Constants::RADTODEG;
+                    $dc[$i] = abs($rsplusrm) - $dctr;
+                }
+
+                // Linear interpolation to zero
+                // From swecl.c:2335
+                $dt1 = -$dc[0] / (($dc[0] - $dc[1]) / $dt);
+                $tret[$j] += $dt1;
+            }
+        }
+
+        // Convert ET to UT
+        // From swecl.c:2338-2339
+        $tret[1] -= Functions::swe_deltat_ex($tret[1], $ifl, $serr);
+        $tret[4] -= Functions::swe_deltat_ex($tret[4], $ifl, $serr);
+
+        // PART 5 will continue from line 2340: visibility checks
         // TO BE CONTINUED...
 
         return $retflag;
