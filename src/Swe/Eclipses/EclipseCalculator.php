@@ -804,8 +804,82 @@ class EclipseCalculator
         $tret[1] -= Functions::swe_deltat_ex($tret[1], $ifl, $serr);
         $tret[4] -= Functions::swe_deltat_ex($tret[4], $ifl, $serr);
 
-        // PART 5 will continue from line 2340: visibility checks
-        // TO BE CONTINUED...
+        // PART 5: Visibility checks
+        // From swecl.c:2340-2414
+
+        // Check visibility for each contact (reverse order to preserve attr[0])
+        // From swecl.c:2345-2365
+        for ($i = 4; $i >= 0; $i--) {
+            if ($tret[$i] == 0) {
+                continue;
+            }
+
+            // Calculate eclipse attributes at this time
+            if (self::eclipseHow($tret[$i], Constants::SE_SUN, null, $ifl,
+                                 $geopos[0], $geopos[1], $geopos[2], $attr, $serr) === Constants::SE_ERR) {
+                return Constants::SE_ERR;
+            }
+
+            // Check if sun is above horizon (using apparent altitude attr[6])
+            // From swecl.c:2353-2363
+            if ($attr[6] > 0) {
+                $retflag |= Constants::SE_ECL_VISIBLE;
+                switch ($i) {
+                    case 0:
+                        $retflag |= Constants::SE_ECL_MAX_VISIBLE;
+                        break;
+                    case 1:
+                        $retflag |= Constants::SE_ECL_1ST_VISIBLE;
+                        break;
+                    case 2:
+                        $retflag |= Constants::SE_ECL_2ND_VISIBLE;
+                        break;
+                    case 3:
+                        $retflag |= Constants::SE_ECL_3RD_VISIBLE;
+                        break;
+                    case 4:
+                        $retflag |= Constants::SE_ECL_4TH_VISIBLE;
+                        break;
+                }
+            }
+        }
+
+        // If no phase is visible, try next Saros cycle
+        // From swecl.c:2365-2372
+        if (!($retflag & Constants::SE_ECL_VISIBLE)) {
+            if ($backward) {
+                $K--;
+            } else {
+                $K++;
+            }
+            goto next_try;
+        }
+
+        // TODO: Sunrise/sunset adjustments require swe_rise_trans() implementation
+        // From swecl.c:2373-2413
+        //
+        // The C code checks:
+        // 1. Calculate sunrise (tjdr) and sunset (tjds) for tret[1] - 0.001
+        // 2. Handle circumpolar sun (retc == -2)
+        // 3. If sunset before 1st contact or (sunset > sunrise && sunrise > 4th):
+        //    try next Saros cycle
+        // 4. If sunrise between 1st and 4th contact:
+        //    - Set tret[5] = tjdr
+        //    - If max not visible: recalculate attr at sunrise, update tret[0] and type
+        // 5. If sunset between 1st and 4th contact:
+        //    - Set tret[6] = tjds
+        //    - If max not visible: recalculate attr at sunset, update tret[0] and type
+        //
+        // For now, we skip this refinement. Eclipse will still be found, but:
+        // - tret[5] and tret[6] will remain 0
+        // - For eclipses where max is below horizon, tret[0] won't be adjusted
+        //   to sunrise/sunset time
+        //
+        // This is acceptable for initial implementation. Full accuracy requires
+        // porting swe_rise_trans() (~500 lines in swecl.c:3800-4300)
+
+        $tret[5] = 0.0; // Sunrise time (placeholder)
+        $tret[6] = 0.0; // Sunset time (placeholder)
 
         return $retflag;
     }
