@@ -34,6 +34,7 @@ use Swisseph\Swe\Functions\PhenoFunctions;
 use Swisseph\Swe\Functions\FixstarFunctions;
 use Swisseph\Swe\Functions\StarFunctions;
 use Swisseph\Swe\Functions\LegacyStarFunctions;
+use Swisseph\Swe\Functions\SolarEclipseFunctions;
 
 if (!function_exists('swe_julday')) {
     /**
@@ -1591,5 +1592,43 @@ if (!function_exists('swe_fixstar2_mag')) {
         ?string &$serr = null
     ): int {
         return \Swisseph\Swe\Functions\StarFunctions::fixstar2Mag($star, $mag, $serr);
+    }
+}
+
+if (!function_exists('swe_sol_eclipse_how')) {
+    /**
+     * Calculate solar eclipse attributes for a given geographic location and time.
+     *
+     * Port of C function: int32 swe_sol_eclipse_how(double tjd_ut, int32 ifl, double *geopos, double *attr, char *serr)
+     * From swecl.c lines 924-965
+     *
+     * @param float $tjd_ut Julian Day in Universal Time
+     * @param int $ifl Calculation flags (ephemeris flags SEFLG_SWIEPH, SEFLG_JPLEPH, etc.)
+     * @param array $geopos Geographic position [longitude, latitude, altitude_m]
+     * @param array &$attr Output: array of 11 attributes [0-10]
+     *                     attr[0]: fraction of solar diameter covered by moon (magnitude)
+     *                     attr[1]: ratio of lunar diameter to solar one
+     *                     attr[2]: fraction of solar disc covered by moon (obscuration)
+     *                     attr[3]: diameter of core shadow in km (requires eclipse_where, not yet implemented)
+     *                     attr[4]: azimuth of sun at tjd
+     *                     attr[5]: true altitude of sun above horizon at tjd
+     *                     attr[6]: apparent altitude of sun above horizon at tjd
+     *                     attr[7]: elongation of moon in degrees
+     *                     attr[8]: magnitude acc. to NASA catalog
+     *                     attr[9]: saros series number (if available, otherwise -99999999)
+     *                     attr[10]: saros series member number (if available, otherwise -99999999)
+     * @param string|null &$serr Error message
+     * @return int Eclipse type flags (SE_ECL_TOTAL | SE_ECL_ANNULAR | SE_ECL_PARTIAL | SE_ECL_VISIBLE)
+     *             Returns 0 if no eclipse or sun is below horizon
+     *             Returns SE_ERR on error
+     */
+    function swe_sol_eclipse_how(
+        float $tjd_ut,
+        int $ifl,
+        array $geopos,
+        array &$attr,
+        ?string &$serr = null
+    ): int {
+        return SolarEclipseFunctions::how($tjd_ut, $ifl, $geopos, $attr, $serr);
     }
 }
