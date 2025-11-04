@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace Swisseph\Swe\Eclipses;
 
 use Swisseph\Constants;
+use Swisseph\Math;
+use Swisseph\VectorMath;
+use function swe_calc;
+use function swe_set_topo;
+use function swe_deltat_ex;
 
 /**
  * Eclipse calculation functions
@@ -38,7 +43,7 @@ class EclipseCalculator
         array &$x,
         ?string &$serr = null
     ): int {
-        $retc = Constants::OK;
+        $retc = 0 /* OK */;
 
         // If starname is provided and not empty, calculate fixed star
         if ($starname !== null && $starname !== '') {
@@ -129,23 +134,23 @@ class EclipseCalculator
         $iflagcart = $iflag | Constants::SEFLG_XYZ;
 
         // Calculate planet/star position (equatorial)
-        if (self::calcPlanetStar($te, $ipl, $starname, $iflag, $ls, $serr) === Constants::ERR) {
-            return Constants::ERR;
+        if (self::calcPlanetStar($te, $ipl, $starname, $iflag, $ls, $serr) === Constants::SE_ERR) {
+            return Constants::SE_ERR;
         }
 
         // Calculate moon position (equatorial)
-        if (\swe_calc($te, Constants::SE_MOON, $iflag, $lm, $serr) === Constants::ERR) {
-            return Constants::ERR;
+        if (\swe_calc($te, Constants::SE_MOON, $iflag, $lm, $serr) === Constants::SE_ERR) {
+            return Constants::SE_ERR;
         }
 
         // Calculate planet/star position (cartesian)
-        if (self::calcPlanetStar($te, $ipl, $starname, $iflagcart, $xs, $serr) === Constants::ERR) {
-            return Constants::ERR;
+        if (self::calcPlanetStar($te, $ipl, $starname, $iflagcart, $xs, $serr) === Constants::SE_ERR) {
+            return Constants::SE_ERR;
         }
 
         // Calculate moon position (cartesian)
-        if (\swe_calc($te, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::ERR) {
-            return Constants::ERR;
+        if (\swe_calc($te, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::SE_ERR) {
+            return Constants::SE_ERR;
         }
 
         // Calculate radius of planet disk in AU
@@ -388,6 +393,19 @@ class EclipseCalculator
         $retflag = 0;
         $retc = 0;
 
+        // Variables for refinement loops
+        $dtint = 0.0;
+        $dctr = 0.0;
+        $dt1 = 0.0;
+        $dt2 = 0.0;
+        $dm = 0.0;
+        $ds = 0.0;
+        $rmoon = 0.0;
+        $rsun = 0.0;
+        $rsplusrm = 0.0;
+        $rsminusrm = 0.0;
+        $dctrmin = 0.0;
+
         // Time intervals
         $twomin = 2.0 / 24.0 / 60.0;
         $tensec = 10.0 / 24.0 / 60.0 / 60.0;
@@ -399,7 +417,7 @@ class EclipseCalculator
         $iflagcart = $iflag | Constants::SEFLG_XYZ;
 
         // Set topocentric location
-        Functions::swe_set_topo($geopos[0], $geopos[1], $geopos[2]);
+        swe_set_topo($geopos[0], $geopos[1], $geopos[2]);
 
         // Calculate Saros cycle number K
         // From swecl.c:2109
@@ -423,7 +441,7 @@ class EclipseCalculator
 
         // Moon's argument of latitude (F)
         // From swecl.c:2113-2117, Meeus formula
-        $Ff = $F = Math::degNorm(160.7108 + 390.67050274 * $K
+        $Ff = $F = EclipseUtils::degNorm(160.7108 + 390.67050274 * $K
                    - 0.0016341 * $T2
                    - 0.00000227 * $T3
                    + 0.000000011 * $T4);
@@ -453,13 +471,13 @@ class EclipseCalculator
 
         // Sun's mean anomaly
         // From swecl.c:2129-2131
-        $M = Math::degNorm(2.5534 + 29.10535669 * $K
+        $M = EclipseUtils::degNorm(2.5534 + 29.10535669 * $K
                             - 0.0000218 * $T2
                             - 0.00000011 * $T3);
 
         // Moon's mean anomaly
         // From swecl.c:2132-2135
-        $Mm = Math::degNorm(201.5643 + 385.81693528 * $K
+        $Mm = EclipseUtils::degNorm(201.5643 + 385.81693528 * $K
                             + 0.1017438 * $T2
                             + 0.00001239 * $T3
                             + 0.000000058 * $T4);
@@ -480,7 +498,7 @@ class EclipseCalculator
                     + 0.1721 * $E * sin($M);
 
         // Reset topocentric location (from C code line 2151)
-        Functions::swe_set_topo($geopos[0], $geopos[1], $geopos[2]);
+        swe_set_topo($geopos[0], $geopos[1], $geopos[2]);
 
         // PART 2: Iterative refinement to find exact maximum
         // From swecl.c:2152-2220
@@ -506,19 +524,19 @@ class EclipseCalculator
             for ($i = 0, $t = $tjd - $dt; $i <= 2; $i++, $t += $dt) {
                 // Calculate Sun position (cartesian and equatorial)
                 // From swecl.c:2163-2164
-                if (Functions::swe_calc($t, Constants::SE_SUN, $iflagcart, $xs, $serr) === Constants::SE_ERR) {
+                if (swe_calc($t, Constants::SE_SUN, $iflagcart, $xs, $serr) === Constants::SE_ERR) {
                     return Constants::SE_ERR;
                 }
-                if (Functions::swe_calc($t, Constants::SE_SUN, $iflag, $ls, $serr) === Constants::SE_ERR) {
+                if (swe_calc($t, Constants::SE_SUN, $iflag, $ls, $serr) === Constants::SE_ERR) {
                     return Constants::SE_ERR;
                 }
 
                 // Calculate Moon position (cartesian and equatorial)
                 // From swecl.c:2167-2168
-                if (Functions::swe_calc($t, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::SE_ERR) {
+                if (swe_calc($t, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::SE_ERR) {
                     return Constants::SE_ERR;
                 }
-                if (Functions::swe_calc($t, Constants::SE_MOON, $iflag, $lm, $serr) === Constants::SE_ERR) {
+                if (swe_calc($t, Constants::SE_MOON, $iflag, $lm, $serr) === Constants::SE_ERR) {
                     return Constants::SE_ERR;
                 }
 
@@ -547,16 +565,16 @@ class EclipseCalculator
 
         // Calculate final positions at refined maximum time
         // From swecl.c:2181-2190
-        if (Functions::swe_calc($tjd, Constants::SE_SUN, $iflagcart, $xs, $serr) === Constants::SE_ERR) {
+        if (swe_calc($tjd, Constants::SE_SUN, $iflagcart, $xs, $serr) === Constants::SE_ERR) {
             return Constants::SE_ERR;
         }
-        if (Functions::swe_calc($tjd, Constants::SE_SUN, $iflag, $ls, $serr) === Constants::SE_ERR) {
+        if (swe_calc($tjd, Constants::SE_SUN, $iflag, $ls, $serr) === Constants::SE_ERR) {
             return Constants::SE_ERR;
         }
-        if (Functions::swe_calc($tjd, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::SE_ERR) {
+        if (swe_calc($tjd, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::SE_ERR) {
             return Constants::SE_ERR;
         }
-        if (Functions::swe_calc($tjd, Constants::SE_MOON, $iflag, $lm, $serr) === Constants::SE_ERR) {
+        if (swe_calc($tjd, Constants::SE_MOON, $iflag, $lm, $serr) === Constants::SE_ERR) {
             return Constants::SE_ERR;
         }
 
@@ -582,8 +600,8 @@ class EclipseCalculator
 
         // Convert ET to UT for tret[0] (maximum time)
         // From swecl.c:2202-2203 (iterative delta T correction)
-        $tret[0] = $tjd - Functions::swe_deltat_ex($tjd, $ifl, $serr);
-        $tret[0] = $tjd - Functions::swe_deltat_ex($tret[0], $ifl, $serr);
+        $tret[0] = $tjd - swe_deltat_ex($tjd, $ifl, $serr);
+        $tret[0] = $tjd - swe_deltat_ex($tret[0], $ifl, $serr);
 
         // Check if found eclipse is before/after start time
         // From swecl.c:2204-2210
@@ -624,10 +642,10 @@ class EclipseCalculator
             // Sample 3 points: 2 minutes before and after maximum
             // From swecl.c:2236-2254
             for ($i = 0, $t = $tjd - $twomin; $i <= 2; $i += 2, $t = $tjd + $twomin) {
-                if (Functions::swe_calc($t, Constants::SE_SUN, $iflagcart, $xs, $serr) === Constants::SE_ERR) {
+                if (swe_calc($t, Constants::SE_SUN, $iflagcart, $xs, $serr) === Constants::SE_ERR) {
                     return Constants::SE_ERR;
                 }
-                if (Functions::swe_calc($t, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::SE_ERR) {
+                if (swe_calc($t, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::SE_ERR) {
                     return Constants::SE_ERR;
                 }
 
@@ -662,11 +680,11 @@ class EclipseCalculator
             for ($m = 0, $dt = $tensec; $m < 2; $m++, $dt /= 10) {
                 for ($j = 2; $j <= 3; $j++) {
                     // Get positions with velocities
-                    if (Functions::swe_calc($tret[$j], Constants::SE_SUN,
+                    if (swe_calc($tret[$j], Constants::SE_SUN,
                                            $iflagcart | Constants::SEFLG_SPEED, $xs, $serr) === Constants::SE_ERR) {
                         return Constants::SE_ERR;
                     }
-                    if (Functions::swe_calc($tret[$j], Constants::SE_MOON,
+                    if (swe_calc($tret[$j], Constants::SE_MOON,
                                            $iflagcart | Constants::SEFLG_SPEED, $xm, $serr) === Constants::SE_ERR) {
                         return Constants::SE_ERR;
                     }
@@ -708,8 +726,8 @@ class EclipseCalculator
 
             // Convert ET to UT
             // From swecl.c:2285-2286
-            $tret[2] -= Functions::swe_deltat_ex($tret[2], $ifl, $serr);
-            $tret[3] -= Functions::swe_deltat_ex($tret[3], $ifl, $serr);
+            $tret[2] -= swe_deltat_ex($tret[2], $ifl, $serr);
+            $tret[3] -= swe_deltat_ex($tret[3], $ifl, $serr);
         }
 
         // PART 4: Contacts 1 and 4 (eclipse begin/end)
@@ -722,10 +740,10 @@ class EclipseCalculator
         // Sample 3 points: 2 hours before and after maximum
         // From swecl.c:2290-2307
         for ($i = 0, $t = $tjd - $twohr; $i <= 2; $i += 2, $t = $tjd + $twohr) {
-            if (Functions::swe_calc($t, Constants::SE_SUN, $iflagcart, $xs, $serr) === Constants::SE_ERR) {
+            if (swe_calc($t, Constants::SE_SUN, $iflagcart, $xs, $serr) === Constants::SE_ERR) {
                 return Constants::SE_ERR;
             }
-            if (Functions::swe_calc($t, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::SE_ERR) {
+            if (swe_calc($t, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::SE_ERR) {
                 return Constants::SE_ERR;
             }
 
@@ -757,11 +775,11 @@ class EclipseCalculator
             // Only refine contacts 1 and 4 (j += 3 gives 1, 4)
             for ($j = 1; $j <= 4; $j += 3) {
                 // Get positions with velocities
-                if (Functions::swe_calc($tret[$j], Constants::SE_SUN,
+                if (swe_calc($tret[$j], Constants::SE_SUN,
                                        $iflagcart | Constants::SEFLG_SPEED, $xs, $serr) === Constants::SE_ERR) {
                     return Constants::SE_ERR;
                 }
-                if (Functions::swe_calc($tret[$j], Constants::SE_MOON,
+                if (swe_calc($tret[$j], Constants::SE_MOON,
                                        $iflagcart | Constants::SEFLG_SPEED, $xm, $serr) === Constants::SE_ERR) {
                     return Constants::SE_ERR;
                 }
@@ -801,8 +819,8 @@ class EclipseCalculator
 
         // Convert ET to UT
         // From swecl.c:2338-2339
-        $tret[1] -= Functions::swe_deltat_ex($tret[1], $ifl, $serr);
-        $tret[4] -= Functions::swe_deltat_ex($tret[4], $ifl, $serr);
+        $tret[1] -= swe_deltat_ex($tret[1], $ifl, $serr);
+        $tret[4] -= swe_deltat_ex($tret[4], $ifl, $serr);
 
         // PART 5: Visibility checks
         // From swecl.c:2340-2414

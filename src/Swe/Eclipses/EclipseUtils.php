@@ -94,13 +94,14 @@ class EclipseUtils
         $y = (4.0 * $a * $c - $b * $b) / 4.0 / $a;
 
         // Convert to offset from center point
+        // C code uses (x - 1) * dx because it treats points as x=0,1,2
         $dxret = ($x - 1.0) * $dx;
 
         if ($yret !== null) {
             $yret = $y;
         }
 
-        return Constants::OK;
+        return 0; // OK
     }
 
     /**
@@ -148,7 +149,7 @@ class EclipseUtils
         $dxret = ($x1 - 1.0) * $dx;
         $dxret2 = ($x2 - 1.0) * $dx;
 
-        return Constants::OK;
+        return 0; // OK
     }
 
     /**
