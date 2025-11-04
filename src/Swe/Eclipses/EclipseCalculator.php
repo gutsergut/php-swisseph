@@ -609,7 +609,110 @@ class EclipseCalculator
 
         $dctrmin = $dctr;
 
-        // PART 3 will continue from line 2218: contacts 2 and 3
+        // PART 3: Contacts 2 and 3 (totality begin/end)
+        // From swecl.c:2218-2290
+
+        // For partial eclipses, no 2nd and 3rd contact
+        // From swecl.c:2232-2233
+        if ($dctr > abs($rsminusrm)) {
+            $tret[2] = $tret[3] = 0.0;
+        } else {
+            // Initial estimate: when |rsminusrm| = dctr
+            // From swecl.c:2235
+            $dc[1] = abs($rsminusrm) - $dctrmin;
+
+            // Sample 3 points: 2 minutes before and after maximum
+            // From swecl.c:2236-2254
+            for ($i = 0, $t = $tjd - $twomin; $i <= 2; $i += 2, $t = $tjd + $twomin) {
+                if (Functions::swe_calc($t, Constants::SE_SUN, $iflagcart, $xs, $serr) === Constants::SE_ERR) {
+                    return Constants::SE_ERR;
+                }
+                if (Functions::swe_calc($t, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::SE_ERR) {
+                    return Constants::SE_ERR;
+                }
+
+                $dm = sqrt(EclipseUtils::squareSum($xm));
+                $ds = sqrt(EclipseUtils::squareSum($xs));
+
+                // Moon radius with empirical correction factor
+                // From swecl.c:2244-2245
+                $rmoon = asin(EclipseUtils::RMOON / $dm) * Constants::RADTODEG;
+                $rmoon *= 0.99916; // Gives better accuracy for 2nd/3rd contacts
+
+                $rsun = asin(EclipseUtils::RSUN / $ds) * Constants::RADTODEG;
+                $rsminusrm = $rsun - $rmoon;
+
+                for ($k = 0; $k < 3; $k++) {
+                    $x1[$k] = $xs[$k] / $ds;
+                    $x2[$k] = $xm[$k] / $dm;
+                }
+
+                $dctr = acos(VectorMath::dotProductUnit($x1, $x2)) * Constants::RADTODEG;
+                $dc[$i] = abs($rsminusrm) - $dctr;
+            }
+
+            // Find zero crossings for contacts 2 and 3
+            // From swecl.c:2255-2257
+            EclipseUtils::findZero($dc[0], $dc[1], $dc[2], $twomin, $dt1, $dt2);
+            $tret[2] = $tjd + $dt1 + $twomin;
+            $tret[3] = $tjd + $dt2 + $twomin;
+
+            // Refine using velocities (two iterations: 10s, then 1s)
+            // From swecl.c:2258-2283
+            for ($m = 0, $dt = $tensec; $m < 2; $m++, $dt /= 10) {
+                for ($j = 2; $j <= 3; $j++) {
+                    // Get positions with velocities
+                    if (Functions::swe_calc($tret[$j], Constants::SE_SUN,
+                                           $iflagcart | Constants::SEFLG_SPEED, $xs, $serr) === Constants::SE_ERR) {
+                        return Constants::SE_ERR;
+                    }
+                    if (Functions::swe_calc($tret[$j], Constants::SE_MOON,
+                                           $iflagcart | Constants::SEFLG_SPEED, $xm, $serr) === Constants::SE_ERR) {
+                        return Constants::SE_ERR;
+                    }
+
+                    // Calculate dc[0] at current time and dc[1] at time - dt
+                    for ($i = 0; $i < 2; $i++) {
+                        if ($i == 1) {
+                            // Subtract velocity * dt to get earlier position
+                            for ($k = 0; $k < 3; $k++) {
+                                $xs[$k] -= $xs[$k+3] * $dt;
+                                $xm[$k] -= $xm[$k+3] * $dt;
+                            }
+                        }
+
+                        $dm = sqrt(EclipseUtils::squareSum($xm));
+                        $ds = sqrt(EclipseUtils::squareSum($xs));
+
+                        $rmoon = asin(EclipseUtils::RMOON / $dm) * Constants::RADTODEG;
+                        $rmoon *= 0.99916; // Empirical correction
+
+                        $rsun = asin(EclipseUtils::RSUN / $ds) * Constants::RADTODEG;
+                        $rsminusrm = $rsun - $rmoon;
+
+                        for ($k = 0; $k < 3; $k++) {
+                            $x1[$k] = $xs[$k] / $ds;
+                            $x2[$k] = $xm[$k] / $dm;
+                        }
+
+                        $dctr = acos(VectorMath::dotProductUnit($x1, $x2)) * Constants::RADTODEG;
+                        $dc[$i] = abs($rsminusrm) - $dctr;
+                    }
+
+                    // Linear interpolation to zero
+                    // From swecl.c:2282
+                    $dt1 = -$dc[0] / (($dc[0] - $dc[1]) / $dt);
+                    $tret[$j] += $dt1;
+                }
+            }
+
+            // Convert ET to UT
+            // From swecl.c:2285-2286
+            $tret[2] -= Functions::swe_deltat_ex($tret[2], $ifl, $serr);
+            $tret[3] -= Functions::swe_deltat_ex($tret[3], $ifl, $serr);
+        }
+
+        // PART 4 will continue from line 2288: contacts 1 and 4
         // TO BE CONTINUED...
 
         return $retflag;
