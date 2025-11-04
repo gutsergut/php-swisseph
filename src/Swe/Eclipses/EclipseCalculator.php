@@ -482,7 +482,134 @@ class EclipseCalculator
         // Reset topocentric location (from C code line 2151)
         Functions::swe_set_topo($geopos[0], $geopos[1], $geopos[2]);
 
-        // PART 2 will continue from line 2152: iterative refinement
+        // PART 2: Iterative refinement to find exact maximum
+        // From swecl.c:2152-2220
+
+        $dtdiv = 2.0;
+        $dtstart = 0.5;
+
+        // For early/late dates use larger initial step (delta t uncertainty)
+        // From swecl.c:2154-2155
+        if ($tjd < 1900000 || $tjd > 2500000) {
+            $dtstart = 2.0;
+        }
+
+        // Iterative refinement loop
+        // From swecl.c:2156-2197
+        for ($dt = $dtstart; $dt > 0.00001; $dt /= $dtdiv) {
+            // Increase division factor for fine refinement
+            if ($dt < 0.1) {
+                $dtdiv = 3.0;
+            }
+
+            // Sample 3 points: before, at, and after current tjd
+            for ($i = 0, $t = $tjd - $dt; $i <= 2; $i++, $t += $dt) {
+                // Calculate Sun position (cartesian and equatorial)
+                // From swecl.c:2163-2164
+                if (Functions::swe_calc($t, Constants::SE_SUN, $iflagcart, $xs, $serr) === Constants::SE_ERR) {
+                    return Constants::SE_ERR;
+                }
+                if (Functions::swe_calc($t, Constants::SE_SUN, $iflag, $ls, $serr) === Constants::SE_ERR) {
+                    return Constants::SE_ERR;
+                }
+
+                // Calculate Moon position (cartesian and equatorial)
+                // From swecl.c:2167-2168
+                if (Functions::swe_calc($t, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::SE_ERR) {
+                    return Constants::SE_ERR;
+                }
+                if (Functions::swe_calc($t, Constants::SE_MOON, $iflag, $lm, $serr) === Constants::SE_ERR) {
+                    return Constants::SE_ERR;
+                }
+
+                // Calculate distances from geocenter
+                // From swecl.c:2171-2172
+                $dm = sqrt(EclipseUtils::squareSum($xm));
+                $ds = sqrt(EclipseUtils::squareSum($xs));
+
+                // Normalize position vectors
+                // From swecl.c:2173-2176
+                for ($k = 0; $k < 3; $k++) {
+                    $x1[$k] = $xs[$k] / $ds;
+                    $x2[$k] = $xm[$k] / $dm;
+                }
+
+                // Angular distance between centers
+                // From swecl.c:2177
+                $dc[$i] = acos(VectorMath::dotProductUnit($x1, $x2)) * Constants::RADTODEG;
+            }
+
+            // Find maximum (minimum angular distance) using parabolic interpolation
+            // From swecl.c:2179
+            EclipseUtils::findMaximum($dc[0], $dc[1], $dc[2], $dt, $dtint, $dctr);
+            $tjd += $dtint + $dt;
+        }
+
+        // Calculate final positions at refined maximum time
+        // From swecl.c:2181-2190
+        if (Functions::swe_calc($tjd, Constants::SE_SUN, $iflagcart, $xs, $serr) === Constants::SE_ERR) {
+            return Constants::SE_ERR;
+        }
+        if (Functions::swe_calc($tjd, Constants::SE_SUN, $iflag, $ls, $serr) === Constants::SE_ERR) {
+            return Constants::SE_ERR;
+        }
+        if (Functions::swe_calc($tjd, Constants::SE_MOON, $iflagcart, $xm, $serr) === Constants::SE_ERR) {
+            return Constants::SE_ERR;
+        }
+        if (Functions::swe_calc($tjd, Constants::SE_MOON, $iflag, $lm, $serr) === Constants::SE_ERR) {
+            return Constants::SE_ERR;
+        }
+
+        // Calculate angular separation and radii at maximum
+        // From swecl.c:2191-2195
+        $dctr = acos(VectorMath::dotProductUnit($xs, $xm)) * Constants::RADTODEG;
+        $rmoon = asin(EclipseUtils::RMOON / $lm[2]) * Constants::RADTODEG;
+        $rsun = asin(EclipseUtils::RSUN / $ls[2]) * Constants::RADTODEG;
+        $rsplusrm = $rsun + $rmoon;
+        $rsminusrm = $rsun - $rmoon;
+
+        // Check if eclipse actually occurs
+        // From swecl.c:2196-2201
+        if ($dctr > $rsplusrm) {
+            // No eclipse - try next/previous cycle
+            if ($backward) {
+                $K--;
+            } else {
+                $K++;
+            }
+            goto next_try;
+        }
+
+        // Convert ET to UT for tret[0] (maximum time)
+        // From swecl.c:2202-2203 (iterative delta T correction)
+        $tret[0] = $tjd - Functions::swe_deltat_ex($tjd, $ifl, $serr);
+        $tret[0] = $tjd - Functions::swe_deltat_ex($tret[0], $ifl, $serr);
+
+        // Check if found eclipse is before/after start time
+        // From swecl.c:2204-2210
+        if (($backward && $tret[0] >= $tjdStart - 0.0001)
+            || (!$backward && $tret[0] <= $tjdStart + 0.0001)) {
+            if ($backward) {
+                $K--;
+            } else {
+                $K++;
+            }
+            goto next_try;
+        }
+
+        // Determine eclipse type
+        // From swecl.c:2211-2217
+        if ($dctr < $rsminusrm) {
+            $retflag = Constants::SE_ECL_ANNULAR;
+        } elseif ($dctr < abs($rsminusrm)) {
+            $retflag = Constants::SE_ECL_TOTAL;
+        } elseif ($dctr <= $rsplusrm) {
+            $retflag = Constants::SE_ECL_PARTIAL;
+        }
+
+        $dctrmin = $dctr;
+
+        // PART 3 will continue from line 2218: contacts 2 and 3
         // TO BE CONTINUED...
 
         return $retflag;
