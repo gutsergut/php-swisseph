@@ -341,4 +341,150 @@ class EclipseCalculator
 
         return $retc;
     }
+
+    /**
+     * Calculate solar eclipse times for a specific location.
+     * Port of eclipse_when_loc() from swecl.c:2096-2414
+     *
+     * PART 1: Initialization and approximate time (lines 2096-2170)
+     *
+     * @param float $tjdStart Start time for search (JD UT)
+     * @param int $ifl Ephemeris flags
+     * @param array $geopos Geographic position [longitude, latitude, altitude_m]
+     * @param array &$tret Output times array [7]:
+     *                    [0] time of maximum eclipse
+     *                    [1] time of first contact (eclipse begin)
+     *                    [2] time of second contact (totality begin)
+     *                    [3] time of third contact (totality end)
+     *                    [4] time of fourth contact (eclipse end)
+     *                    [5] time of sunrise (if max not visible)
+     *                    [6] time of sunset (if max not visible)
+     * @param array &$attr Output attributes from eclipse_how()
+     * @param int $backward 1 for backward search, 0 for forward
+     * @param string|null &$serr Error message
+     * @return int Eclipse type flags or 0 if no eclipse, SE_ERR on error
+     */
+    public static function eclipseWhenLoc(
+        float $tjdStart,
+        int $ifl,
+        array $geopos,
+        array &$tret,
+        array &$attr,
+        int $backward,
+        ?string &$serr = null
+    ): int {
+        // From swecl.c:2096-2414
+        // Initialize arrays
+        $xs = array_fill(0, 6, 0.0);
+        $xm = array_fill(0, 6, 0.0);
+        $ls = array_fill(0, 6, 0.0);
+        $lm = array_fill(0, 6, 0.0);
+        $x1 = array_fill(0, 6, 0.0);
+        $x2 = array_fill(0, 6, 0.0);
+        $dc = array_fill(0, 3, 0.0);
+
+        $tret = array_fill(0, 7, 0.0);
+
+        $retflag = 0;
+        $retc = 0;
+
+        // Time intervals
+        $twomin = 2.0 / 24.0 / 60.0;
+        $tensec = 10.0 / 24.0 / 60.0 / 60.0;
+        $twohr = 2.0 / 24.0;
+        $tenmin = 10.0 / 24.0 / 60.0;
+
+        // Flags for topocentric calculation
+        $iflag = Constants::SEFLG_EQUATORIAL | Constants::SEFLG_TOPOCTR | $ifl;
+        $iflagcart = $iflag | Constants::SEFLG_XYZ;
+
+        // Set topocentric location
+        Functions::swe_set_topo($geopos[0], $geopos[1], $geopos[2]);
+
+        // Calculate Saros cycle number K
+        // From swecl.c:2109
+        $K = (int)(($tjdStart - Constants::J2000) / 365.2425 * 12.3685);
+        if ($backward) {
+            $K++;
+        } else {
+            $K--;
+        }
+
+        // Main search loop - try successive Saros cycles until eclipse found
+        // From swecl.c:2110-2414
+        next_try:
+
+        // Time since J2000 in Julian centuries (of 36525 days)
+        // From swecl.c:2111-2112
+        $T = $K / 1236.85;
+        $T2 = $T * $T;
+        $T3 = $T2 * $T;
+        $T4 = $T3 * $T;
+
+        // Moon's argument of latitude (F)
+        // From swecl.c:2113-2117, Meeus formula
+        $Ff = $F = Math::degNorm(160.7108 + 390.67050274 * $K
+                   - 0.0016341 * $T2
+                   - 0.00000227 * $T3
+                   + 0.000000011 * $T4);
+
+        if ($Ff > 180) {
+            $Ff -= 180;
+        }
+
+        // No eclipse possible if F is not near node
+        // From swecl.c:2118-2123
+        if ($Ff > 21 && $Ff < 159) {
+            if ($backward) {
+                $K--;
+            } else {
+                $K++;
+            }
+            goto next_try;
+        }
+
+        // Approximate time of geocentric maximum eclipse
+        // Formula from Meeus, German, p. 381
+        // From swecl.c:2124-2128
+        $tjd = 2451550.09765 + 29.530588853 * $K
+                            + 0.0001337 * $T2
+                            - 0.000000150 * $T3
+                            + 0.00000000073 * $T4;
+
+        // Sun's mean anomaly
+        // From swecl.c:2129-2131
+        $M = Math::degNorm(2.5534 + 29.10535669 * $K
+                            - 0.0000218 * $T2
+                            - 0.00000011 * $T3);
+
+        // Moon's mean anomaly
+        // From swecl.c:2132-2135
+        $Mm = Math::degNorm(201.5643 + 385.81693528 * $K
+                            + 0.1017438 * $T2
+                            + 0.00001239 * $T3
+                            + 0.000000058 * $T4);
+
+        // Eccentricity correction
+        // From swecl.c:2139
+        $E = 1 - 0.002516 * $T - 0.0000074 * $T2;
+
+        // Convert to radians
+        // From swecl.c:2143-2145
+        $M *= Constants::DEGTORAD;
+        $Mm *= Constants::DEGTORAD;
+        $F *= Constants::DEGTORAD;
+
+        // Apply corrections to approximate eclipse time
+        // From swecl.c:2149-2150
+        $tjd = $tjd - 0.4075 * sin($Mm)
+                    + 0.1721 * $E * sin($M);
+
+        // Reset topocentric location (from C code line 2151)
+        Functions::swe_set_topo($geopos[0], $geopos[1], $geopos[2]);
+
+        // PART 2 will continue from line 2152: iterative refinement
+        // TO BE CONTINUED...
+
+        return $retflag;
+    }
 }
