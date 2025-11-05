@@ -57,6 +57,7 @@ final class ObserverCalculator
 
         // Update SwedState with current topo data
         if (!$swed->geoposIsSet || $swed->topd->geolon != $geolon || $swed->topd->geolat != $geolat || $swed->topd->geoalt != $geoalt) {
+            error_log(sprintf("[ObserverCalc] Setting topd: geolon=%.6f, geolat=%.6f, geoalt=%.1f", $geolon, $geolat, $geoalt));
             $swed->topd->geolon = $geolon;
             $swed->topd->geolat = $geolat;
             $swed->topd->geoalt = $geoalt;

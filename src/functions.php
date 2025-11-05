@@ -82,6 +82,21 @@ if (!function_exists('swe_set_topo')) {
     function swe_set_topo(float $lon, float $lat, float $alt): void
     {
         State::setTopo($lon, $lat, $alt);
+
+        // C API: swe_set_topo() directly sets swed.topd (sweph.c:7303-7318)
+        // Update SwedState immediately like C code does
+        $swed = \Swisseph\SwephFile\SwedState::getInstance();        // Only update if values changed (like C does at sweph.c:7306-7309)
+        if (!$swed->geoposIsSet
+            || $swed->topd->geolon != $lon
+            || $swed->topd->geolat != $lat
+            || $swed->topd->geoalt != $alt
+        ) {
+            $swed->topd->geolon = $lon;
+            $swed->topd->geolat = $lat;
+            $swed->topd->geoalt = $alt;
+            $swed->geoposIsSet = true;
+            $swed->topd->teval = 0.0; // Force recalculation (C does at sweph.c:7316)
+        }
     }
 }
 if (!function_exists('swe_set_tid_acc')) {
