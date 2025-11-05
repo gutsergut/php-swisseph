@@ -125,6 +125,52 @@ class PlanetsFunctions
                 return Constants::SE_ERR;
             }
 
+            // CRITICAL: Special handling for Moon with topocentric/light-time transformations
+            // From sweph.c:727: if ((retc = app_pos_etc_moon(iflag, serr)) != OK)
+            if (getenv('DEBUG_MOON')) {
+                error_log(sprintf("DEBUG [calc] Checking Moon: ipl=%d, SE_MOON=%d, match=%d",
+                    $ipl, Constants::SE_MOON, ($ipl === Constants::SE_MOON) ? 1 : 0));
+            }
+            if ($ipl === Constants::SE_MOON) {
+                if (getenv('DEBUG_MOON')) {
+                    error_log("DEBUG [calc] Entering MoonTransform::appPosEtc()");
+                }
+                // Moon requires full app_pos_etc_moon transformation
+                // This includes: topocentric correction, light-time, aberration, precession, coordinate conversion
+                $retc = \Swisseph\Swe\Moon\MoonTransform::appPosEtc($iflag, $serr);
+                if ($retc !== Constants::SE_OK) {
+                    return Constants::SE_ERR;
+                }
+
+                // Get result from pdp->xreturn (already filled by MoonTransform)
+                $swed = \Swisseph\SwephFile\SwedState::getInstance();
+                $pdp = &$swed->pldat[SwephConstants::SEI_MOON];
+
+                // Select appropriate slice from xreturn based on flags
+                $offset = 0;
+                if ($iflag & Constants::SEFLG_EQUATORIAL) {
+                    if ($iflag & Constants::SEFLG_XYZ) {
+                        $offset = 18; // Equatorial XYZ
+                    } else {
+                        $offset = 12; // Equatorial polar
+                    }
+                } else {
+                    if ($iflag & Constants::SEFLG_XYZ) {
+                        $offset = 6; // Ecliptic XYZ
+                    } else {
+                        $offset = 0; // Ecliptic polar
+                    }
+                }
+
+                // Copy result to output
+                for ($i = 0; $i < 6; $i++) {
+                    $xx[$i] = $pdp->xreturn[$offset + $i];
+                }
+
+                $serr = null;
+                return $iflag;
+            }
+
             // Copy barycentric result
             $xx = $xpret;
 

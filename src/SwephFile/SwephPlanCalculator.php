@@ -285,23 +285,22 @@ final class SwephPlanCalculator
                     sqrt($xpe[0]*$xpe[0] + $xpe[1]*$xpe[1] + $xpe[2]*$xpe[2])));
             }
 
-            // CRITICAL: Do NOT modify $xpm directly! It may be a reference to $pmdp->x!
-            // Create a copy for barycentric Moon computation
-            $xpm_bary = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-
-            // Convert geocentric Moon → barycentric Moon
-            for ($i = 0; $i <= 5; $i++) {
-                $xpm_bary[$i] = $xpm[$i] + $xpe[$i];  // barycentric = geocentric + Earth
-            }
+            // CRITICAL FIX: C code sweplan() returns GEOCENTRIC Moon for SE_MOON!
+            // sweph.c:1960: "xpret[i] = xp[i]" where xp points to xpm (geocentric)
+            //
+            // Barycentric conversion happens LATER in app_pos_etc_moon()
+            // See sweph.c:4183: "xx[i] += xe[i]" after light-time correction
+            //
+            // Previous PHP code was WRONG - added Earth here, causing double-addition!
 
             if (getenv('DEBUG_MOON')) {
-                error_log(sprintf("DEBUG Moon AFTER conversion: xpm_bary=[%.15f,%.15f,%.15f], dist=%.9f AU",
-                    $xpm_bary[0], $xpm_bary[1], $xpm_bary[2],
-                    sqrt($xpm_bary[0]*$xpm_bary[0] + $xpm_bary[1]*$xpm_bary[1] + $xpm_bary[2]*$xpm_bary[2])));
+                error_log(sprintf("DEBUG SwephPlanCalculator: returning GEOCENTRIC Moon xpm=[%.15f,%.15f,%.15f], dist=%.9f AU",
+                    $xpm[0], $xpm[1], $xpm[2],
+                    sqrt($xpm[0]*$xpm[0] + $xpm[1]*$xpm[1] + $xpm[2]*$xpm[2])));
             }
 
-            // Return barycentric Moon position (use copy, not original $xpm!)
-            $xp_result = $xpm_bary;
+            // Return GEOCENTRIC Moon (not barycentric!)
+            $xp_result = $xpm;
         } elseif ($iplExternal === Constants::SE_EARTH) {
             // C code sweph.c:1933-1935
             // Return Earth position (use external index to distinguish from SUN!)

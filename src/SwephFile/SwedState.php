@@ -61,14 +61,11 @@ final class SwedState
     /** Astronomical models configuration (precession, nutation, sidereal time, etc.) */
     public array $astroModels = [];
 
-    /** Topocentric data: observer position */
-    public float $geolon = 0.0;      // Geographic longitude (degrees)
-    public float $geolat = 0.0;      // Geographic latitude (degrees)
-    public float $geoalt = 0.0;      // Altitude above sea level (meters)
-    public bool $geoposIsSet = false; // Whether topocentric position was set
-    public float $teval = 0.0;       // Julian day for which observer position was calculated
-    public float $tjdUt = 0.0;       // UT Julian day for observer position
-    public array $xobs = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // Observer barycentric position/velocity
+    /** Topocentric observer data */
+    public TopoData $topd;
+
+    /** Whether topocentric position was set */
+    public bool $geoposIsSet = false;
 
     private function __construct()
     {
@@ -84,6 +81,9 @@ final class SwedState
 
         // Initialize general constants
         $this->gcdat = new GenConst();
+
+        // Initialize topocentric data
+        $this->topd = new TopoData();
 
         // Initialize nutation matrices (3x3 matrices as flat arrays)
         $this->nutMatrix = array_fill(0, 9, 0.0);

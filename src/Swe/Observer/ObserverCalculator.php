@@ -56,12 +56,12 @@ final class ObserverCalculator
         }
 
         // Update SwedState with current topo data
-        if (!$swed->geoposIsSet || $swed->geolon != $geolon || $swed->geolat != $geolat || $swed->geoalt != $geoalt) {
-            $swed->geolon = $geolon;
-            $swed->geolat = $geolat;
-            $swed->geoalt = $geoalt;
+        if (!$swed->geoposIsSet || $swed->topd->geolon != $geolon || $swed->topd->geolat != $geolat || $swed->topd->geoalt != $geoalt) {
+            $swed->topd->geolon = $geolon;
+            $swed->topd->geolat = $geolat;
+            $swed->topd->geoalt = $geoalt;
             $swed->geoposIsSet = true;
-            $swed->teval = 0.0; // Force recalculation
+            $swed->topd->teval = 0.0; // Force recalculation
         }
 
         /* Geocentric position of observer depends on sidereal time,
@@ -180,10 +180,10 @@ final class ObserverCalculator
         /* Save */
         if ($doSave) {
             for ($i = 0; $i <= 5; $i++) {
-                $swed->xobs[$i] = $xobs[$i];
+                $swed->topd->xobs[$i] = $xobs[$i];
             }
-            $swed->teval = $tjd;
-            $swed->tjdUt = $tjd_ut;
+            $swed->topd->teval = $tjd;
+            $swed->topd->tjd_ut = $tjd_ut;
         }
 
         return Constants::SE_OK;

@@ -30,7 +30,7 @@ x2 (normalized) = [0.943385584, 0.301880145, 0.137448240]
 
 ### Coordinate Differences
 - Δx = 0.000035 AU (~5200 km)
-- Δy = 0.000009 AU (~1400 km)  
+- Δy = 0.000009 AU (~1400 km)
 - Δz = 0.000023 AU (~3400 km)
 - **Total error: ~6600 km in 3D space**
 
