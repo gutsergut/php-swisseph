@@ -72,15 +72,66 @@ The difference is too large to be numerical precision - this is a logic error in
 - Occultations
 - Any topocentric Moon phenomena
 
+## PARTIAL FIX (2025-11-05)
+
+### Root Cause Found
+`SwephPlanCalculator::calculate()` was **incorrectly converting geocentric Moon to barycentric** by adding Earth position:
+```php
+// WRONG CODE (removed):
+$xpm_bary[$i] = $xpm[$i] + $xpe[$i];  // barycentric = geocentric + Earth
+$xp_result = $xpm_bary;
+```
+
+This caused **DOUBLE Earth addition**:
+1. SwephPlanCalculator adds Earth → barycentric Moon
+2. MoonTransform::appPosEtc() adds Earth again → wrong coordinates
+
+### The Fix
+C code `sweplan()` returns **GEOCENTRIC Moon** (not barycentric):
+- sweph.c:1960: `xpret[i] = xp[i]` where `xp = xpm` (geocentric)
+- Barycentric conversion happens LATER in `app_pos_etc_moon()`
+- sweph.c:4183: `xx[i] += xe[i]` after light-time correction
+
+Changed SwephPlanCalculator to return geocentric Moon:
+```php
+// CORRECT CODE:
+$xp_result = $xpm;  // Return GEOCENTRIC Moon
+```
+
+### Results After Fix
+- ✅ Returns correct magnitude (~0.002 AU topocentric instead of ~1 AU barycentric)
+- ✅ Topocentric correction now applies correctly
+- ⚠️ Remaining coordinate error: ~10,000 km (vs perfect C)
+- ❌ Eclipse test still finds wrong eclipse (2026-08-12 instead of 2024-04-08)
+
+### Remaining Issues
+Coordinate differences (PHP vs C):
+- ΔX ≈ 7,600 km
+- ΔY ≈ 4,400 km
+- ΔZ ≈ 3,500 km
+- Total ~10 km 3D error
+
+Likely causes:
+1. Precession/nutation differences
+2. Aberration calculation differences
+3. Light-time iteration convergence
+4. Observer position calculation
+
 ## Next Steps
 
-1. Review PHP port of topocentric correction in `swe_calc`
-2. Check Moon ephemeris calculation (`swemmoon.c` → PHP)
-3. Verify coordinate transformations (equatorial → cartesian with topocentric)
-4. Compare intermediate values step-by-step between C and PHP
+1. ✅ ~~Review PHP port of topocentric correction~~ - FIXED
+2. ✅ ~~SwephPlanCalculator Earth addition bug~~ - FIXED
+3. Compare precession implementation line-by-line with C
+4. Compare nutation implementation line-by-line with C
+5. Compare aberration calculation with C
+6. Compare Observer::getObserver() with C `swi_get_observer()`
+7. Verify light-time iteration convergence
 
-## Files to Investigate
-- `src/Swe/Functions/EphemerisFunctions.php` - Main `swe_calc` implementation
-- `src/Swe/Ephemeris/MoonCalculator.php` - Moon position calculation
-- `src/Swe/Coordinates/TopocentricCorrection.php` - Topocentric transformation
-- `src/Swe/Coordinates/EquatorialToCartesian.php` - Coordinate conversion
+## Files Modified
+- `src/SwephFile/SwephPlanCalculator.php` - Fixed Moon return value
+- `src/Swe/Moon/MoonTransform.php` - Added full app_pos_etc_moon port
+- `src/SwephFile/SwedState.php` - Added TopoData structure
+- `src/SwephFile/TopoData.php` - New class for observer data
+- `src/Swe/Observer/Observer.php` - Topocentric observer calculation
+- `src/Swe/Observer/ObserverCalculator.php` - Updated for TopoData
+- `src/Swe/Functions/PlanetsFunctions.php` - Added MoonTransform call
