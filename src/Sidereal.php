@@ -258,6 +258,11 @@ final class Sidereal
         $precModelShort = $swed->astroModels[Constants::SE_MODEL_PREC_SHORTTERM] ?? 0;
         $sidtModel = $swed->astroModels[Constants::SE_MODEL_SIDT] ?? 0;
 
+        if (getenv('DEBUG_OBSERVER')) {
+            error_log(sprintf("[Sidereal::sidtime0] tjd=%.10f, sidtModel=%d, precModelShort=%d",
+                $tjd, $sidtModel, $precModelShort));
+        }
+
         if ($precModelShort === 0) {
             $precModelShort = Constants::SEMOD_PREC_DEFAULT_SHORT;
         }
@@ -314,7 +319,10 @@ final class Sidereal
             $sidtModel === Constants::SEMOD_SIDT_LONGTERM
         ) {
             $jdrel = $tjd - Constants::J2000;
-            $tt = ($tjd + \Swisseph\DeltaT::deltaTSecondsFromJd($tjd) / 86400.0 - Constants::J2000) / 36525.0;
+            // CRITICAL: Must use swe_deltat_ex() like C does (swephlib.c:3503)
+            $serr = '';
+            $dt = \swe_deltat_ex($tjd, -1, $serr);
+            $tt = ($tjd + $dt - Constants::J2000) / 36525.0;
 
             // ERA-based Greenwich Sidereal Time
             $gmst = Math::normAngleDeg((0.7790572732640 + 1.00273781191135448 * $jdrel) * 360.0);
@@ -335,7 +343,10 @@ final class Sidereal
 
         } elseif ($sidtModel === Constants::SEMOD_SIDT_IAU_2006) {
             // IAU 2006 model
-            $tt = ($jd0 + \Swisseph\DeltaT::deltaTSecondsFromJd($jd0) / 86400.0 - Constants::J2000) / 36525.0;
+            // CRITICAL: Must use swe_deltat_ex() like C does (swephlib.c:3514)
+            $serr = '';
+            $dt = \swe_deltat_ex($jd0, -1, $serr);
+            $tt = ($jd0 + $dt - Constants::J2000) / 36525.0;
 
             $gmst = (((-0.000000002454 * $tt - 0.00000199708) * $tt - 0.0000002926) * $tt + 0.092772110) * $tt * $tt
                   + 307.4771013 * ($tt - $tu)
@@ -362,10 +373,22 @@ final class Sidereal
         // Local apparent sidereal time at given UT at Greenwich
         // Add equation of equinoxes
         $eqeq = 240.0 * $nut * cos($eps * Constants::DEGTORAD);
+
+        if (getenv('DEBUG_OBSERVER')) {
+            error_log(sprintf("[Sidereal::sidtime0] BEFORE eqeq: gmst=%.10f seconds, eqeq=%.10f seconds",
+                $gmst, $eqeq));
+        }
+
         $gmst = $gmst + $eqeq;
 
         // Sidereal seconds modulo 1 sidereal day
         $gmst = $gmst - 86400.0 * floor($gmst / 86400.0);
+
+        if (getenv('DEBUG_OBSERVER')) {
+            $hours = $gmst / 3600.0;
+            error_log(sprintf("[Sidereal::sidtime0] FINAL: gmst=%.10f seconds = %.15f hours = %.15f degrees",
+                $gmst, $hours, $hours * 15.0));
+        }
 
         // Return in hours
         return $gmst / 3600.0;

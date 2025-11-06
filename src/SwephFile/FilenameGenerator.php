@@ -6,16 +6,16 @@ use Swisseph\Constants;
 
 /**
  * Port of C swi_gen_filename() from swephlib.c:3610-3693
- * 
+ *
  * Generates Swiss Ephemeris file name based on Julian day and planet index.
- * 
+ *
  * File naming convention:
  * - Planets: sepl_XX.se1 (where XX = century: 00, 06, 12, 18, 24, m06, m12, etc.)
  * - Moon: semo_XX.se1
  * - Asteroids (main belt): seas_XX.se1
  * - Numbered asteroids: ast0/se00001.se1, ast1/se01234.se1, etc.
  * - Planetary moons: sat/sepm123.se1
- * 
+ *
  * Century files cover 600-year periods (NCTIES=6):
  * - sepl_18.se1: 1800-2399 (actual: often starts earlier like 1500)
  * - sepl_00.se1: 0-599 AD
@@ -29,28 +29,28 @@ final class FilenameGenerator
      * From C: #define NCTIES 6
      */
     private const NCTIES = 6;
-    
+
     /**
      * Gregorian calendar start: 1582-10-15 = JD 2299160.5
      * But C code uses 1600 as threshold: JD 2305447.5
      */
     private const GREGORIAN_START_JD = 2305447.5;
-    
+
     /**
      * Directory separator
      */
     private const DIR_GLUE = '/';
-    
+
     /**
      * File extension
      */
     private const FILE_SUFFIX = 'se1';
-    
+
     /**
      * Generate ephemeris filename for given Julian day and planet
-     * 
+     *
      * Port of C function swi_gen_filename() from swephlib.c:3610
-     * 
+     *
      * @param float $tjd Julian day
      * @param int $ipli Internal planet index (SEI_*)
      * @return string Filename (e.g., "sepl_18.se1", "semo_18.se1", "ast0/se00433.se1")
@@ -64,12 +64,12 @@ final class FilenameGenerator
             $moonNum = $ipli;
             return sprintf('sat%ssepm%d.%s', self::DIR_GLUE, $moonNum, self::FILE_SUFFIX);
         }
-        
+
         if ($ipli > Constants::SE_AST_OFFSET) {
             // Numbered asteroids: ast0/se00001.se1, ast1/se01234.se1, etc.
             $astNum = $ipli - Constants::SE_AST_OFFSET;
             $astDir = (int)($astNum / 1000);
-            
+
             if ($astNum > 99999) {
                 // 6-digit format for asteroids > 99999
                 return sprintf('ast%d%ss%06d.%s', $astDir, self::DIR_GLUE, $astNum, self::FILE_SUFFIX);
@@ -78,7 +78,7 @@ final class FilenameGenerator
                 return sprintf('ast%d%sse%05d.%s', $astDir, self::DIR_GLUE, $astNum, self::FILE_SUFFIX);
             }
         }
-        
+
         // Determine base filename prefix
         // C code lines 3619-3642
         $prefix = match($ipli) {
@@ -101,29 +101,29 @@ final class FilenameGenerator
             SwephConstants::SEI_PHOLUS => 'seas',
             default => 'sepl', // Default to planets file
         };
-        
+
         // For asteroids/moons, only one file covers 3000 BC - 3000 AD
         // Already handled above, but keeping this comment for clarity
-        
+
         // Convert Julian day to calendar date
         // C code lines 3655-3664
         $gregflag = $tjd >= self::GREGORIAN_START_JD;
         [$jyear, $jmon, $jday, $jut] = self::revjul($tjd, $gregflag);
-        
+
         // Calculate century of file containing tjd
         // C code lines 3666-3674
         $sgn = $jyear < 0 ? -1 : 1;
         $icty = (int)($jyear / 100);
-        
+
         if ($sgn < 0 && $jyear % 100 !== 0) {
             $icty -= 1;
         }
-        
+
         // Round down to start of NCTIES-century period
         while ($icty % self::NCTIES !== 0) {
             $icty--;
         }
-        
+
         // Build filename: prefix + ("m" for BC or "_" for AD) + century + extension
         // C code lines 3681-3686
         if ($icty < 0) {
@@ -131,15 +131,15 @@ final class FilenameGenerator
         } else {
             $fname = $prefix . '_' . sprintf('%02d', $icty) . '.' . self::FILE_SUFFIX;
         }
-        
+
         return $fname;
     }
-    
+
     /**
      * Reverse Julian day to calendar date
-     * 
+     *
      * Port of swe_revjul() - converts JD to Gregorian or Julian calendar
-     * 
+     *
      * @param float $jd Julian day
      * @param bool $gregflag TRUE for Gregorian, FALSE for Julian calendar
      * @return array [year, month, day, hour] where hour is decimal (0.0-24.0)
@@ -148,24 +148,24 @@ final class FilenameGenerator
     {
         // This is a simplified port - full implementation in swephlib.c
         // For now, use PHP DateTime which handles Gregorian calendar
-        
+
         // Adjust for Julian day epoch (JD 0 = 4713 BC January 1, 12:00 UT)
         $unixTime = ($jd - 2440587.5) * 86400; // Convert JD to Unix timestamp
-        
+
         $dt = new \DateTime('@' . (int)$unixTime, new \DateTimeZone('UTC'));
-        
+
         $year = (int)$dt->format('Y');
         $month = (int)$dt->format('m');
         $day = (int)$dt->format('d');
         $hour = (float)$dt->format('H') + (float)$dt->format('i') / 60.0 + (float)$dt->format('s') / 3600.0;
-        
+
         // For BC dates (year < 1), astronomical year numbering: 0 = 1 BC, -1 = 2 BC, etc.
         // PHP DateTime doesn't handle BC natively, so we need special handling for old dates
         if ($jd < 1721425.5) { // Before 0 AD
             // Use astronomical year numbering
             $year = -(int)abs($year) + 1;
         }
-        
+
         return [$year, $month, $day, $hour];
     }
 }

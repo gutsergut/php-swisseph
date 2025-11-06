@@ -57,6 +57,10 @@ class Observer
         $delt = \Swisseph\DeltaT::deltaTSecondsFromJd($tjd) / 86400.0;
         $tjd_ut = $tjd - $delt;
 
+        if (getenv('DEBUG_OBSERVER')) {
+            error_log(sprintf("[Observer] tjd=%.10f, delt=%.10f, tjd_ut=%.10f", $tjd, $delt, $tjd_ut));
+        }
+
         // Line 7351-7361: Get obliquity and nutation
         if ($swed->oec->teps === $tjd && $swed->nut->tnut === $tjd) {
             // Use cached values
@@ -88,6 +92,11 @@ class Observer
         // Line 7368-7370: Mean or apparent sidereal time
         $sidt = Sidereal::sidtime0($tjd_ut, $eps * Constants::RADTODEG, $nut * Constants::RADTODEG);
         $sidt *= 15.0;  // Convert hours to degrees
+
+        if (getenv('DEBUG_OBSERVER')) {
+            error_log(sprintf("[Observer] sidt=%.15f degrees, geolon=%.6f, geolon+sidt=%.15f",
+                $sidt, $swed->topd->geolon, $swed->topd->geolon + $sidt));
+        }
 
         // Line 7371-7390: Calculate observer position on ellipsoid
         // Length of position and speed vectors.
@@ -126,7 +135,7 @@ class Observer
         self::cartpol($xobs, $xobs);
 
         if (getenv('DEBUG_OBSERVER')) {
-            error_log(sprintf("[Observer] AFTER cartpol: xobs=[%.15f, %.15f, %.15f] (polar)",
+            error_log(sprintf("[Observer] AFTER cartpol: xobs=[%.15f, %.15f, %.15f] (lon/lat in rad, r in meters)",
                 $xobs[0], $xobs[1], $xobs[2]));
         }
 
@@ -199,31 +208,40 @@ class Observer
      */
     private static function cartpol(array $x, array &$xpol): void
     {
-        $rxy = $x[0] * $x[0] + $x[1] * $x[1];
-        $xyz = $rxy + $x[2] * $x[2];
-        $rxy = sqrt($rxy);
-        $xyz = sqrt($xyz);
+        // EXACT port of swi_cartpol from swephlib.c:314-340
+        // Returns [lon, lat, r] in RADIANS (not degrees!)
+        // NO CONVERSIONS - must match C exactly
 
-        if ($xyz === 0.0) {
+        $rxy = $x[0] * $x[0] + $x[1] * $x[1];
+        $ll = [0.0, 0.0, 0.0];
+
+        if ($x[0] === 0.0 && $x[1] === 0.0 && $x[2] === 0.0) {
             $xpol[0] = 0.0;
             $xpol[1] = 0.0;
             $xpol[2] = 0.0;
             return;
         }
 
-        if ($rxy === 0.0) {
-            $xpol[0] = $xyz;
-            $xpol[1] = ($x[2] >= 0.0) ? 90.0 : -90.0;
-            $xpol[2] = 0.0;
-            return;
+        $ll[2] = sqrt($rxy + $x[2] * $x[2]);  // r
+        $rxy = sqrt($rxy);
+        $ll[0] = atan2($x[1], $x[0]);  // lon in radians
+        if ($ll[0] < 0.0) {
+            $ll[0] += 2.0 * M_PI;  // TWOPI
         }
 
-        $xpol[0] = $xyz;
-        $xpol[1] = atan2($x[2], $rxy) * Constants::RADTODEG;
-        $xpol[2] = atan2($x[1], $x[0]) * Constants::RADTODEG;
-        if ($xpol[2] < 0.0) {
-            $xpol[2] += 360.0;
+        if ($rxy === 0.0) {
+            if ($x[2] >= 0.0) {
+                $ll[1] = M_PI / 2.0;
+            } else {
+                $ll[1] = -(M_PI / 2.0);
+            }
+        } else {
+            $ll[1] = atan($x[2] / $rxy);  // lat in radians
         }
+
+        $xpol[0] = $ll[0];  // lon (radians)
+        $xpol[1] = $ll[1];  // lat (radians)
+        $xpol[2] = $ll[2];  // r
     }
 
     /**
@@ -233,33 +251,50 @@ class Observer
      * @param array $xpol Input polar [r,theta,phi,dr,dtheta,dphi]
      * @param array $xcart Output cartesian [x,y,z,dx,dy,dz]
      */
-    private static function polcartSp(array $xpol, array &$xcart): void
+    private static function polcartSp(array $l, array &$x): void
     {
-        $r = $xpol[0];
-        $thetadeg = $xpol[1];
-        $phideg = $xpol[2];
-        $dr = $xpol[3];
-        $dthetadeg = $xpol[4];
-        $dphideg = $xpol[5];
+        // EXACT port of swi_polcart_sp from swephlib.c:420-453
+        // Input l[] is [lon, lat, r, dlon, dlat, dr] in RADIANS (not degrees!)
 
-        $theta = $thetadeg * Constants::DEGTORAD;
-        $phi = $phideg * Constants::DEGTORAD;
-        $dtheta = $dthetadeg * Constants::DEGTORAD;
-        $dphi = $dphideg * Constants::DEGTORAD;
+        $xx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 
-        $cth = cos($theta);
-        $sth = sin($theta);
-        $cph = cos($phi);
-        $sph = sin($phi);
+        // Zero speed case
+        if ($l[3] === 0.0 && $l[4] === 0.0 && $l[5] === 0.0) {
+            $x[3] = $x[4] = $x[5] = 0.0;
+            // swi_polcart for position only
+            $coslon = cos($l[0]);
+            $sinlon = sin($l[0]);
+            $coslat = cos($l[1]);
+            $sinlat = sin($l[1]);
+            $x[0] = $l[2] * $coslat * $coslon;
+            $x[1] = $l[2] * $coslat * $sinlon;
+            $x[2] = $l[2] * $sinlat;
+            return;
+        }
 
         // Position
-        $xcart[0] = $r * $cth * $cph;
-        $xcart[1] = $r * $cth * $sph;
-        $xcart[2] = $r * $sth;
+        $coslon = cos($l[0]);
+        $sinlon = sin($l[0]);
+        $coslat = cos($l[1]);
+        $sinlat = sin($l[1]);
+        $xx[0] = $l[2] * $coslat * $coslon;
+        $xx[1] = $l[2] * $coslat * $sinlon;
+        $xx[2] = $l[2] * $sinlat;
 
         // Speed
-        $xcart[3] = $dr * $cth * $cph - $r * $sth * $dtheta * $cph - $r * $cth * $sph * $dphi;
-        $xcart[4] = $dr * $cth * $sph - $r * $sth * $dtheta * $sph + $r * $cth * $cph * $dphi;
-        $xcart[5] = $dr * $sth + $r * $cth * $dtheta;
+        $rxyz = $l[2];
+        $rxy = sqrt($xx[0] * $xx[0] + $xx[1] * $xx[1]);
+        $xx[5] = $l[5];
+        $xx[4] = $l[4] * $rxyz;
+        $x[5] = $sinlat * $xx[5] + $coslat * $xx[4];  // speed z
+        $xx[3] = $coslat * $xx[5] - $sinlat * $xx[4];
+        $xx[4] = $l[3] * $rxy;
+        $x[3] = $coslon * $xx[3] - $sinlon * $xx[4];  // speed x
+        $x[4] = $sinlon * $xx[3] + $coslon * $xx[4];  // speed y
+
+        // Return position
+        $x[0] = $xx[0];
+        $x[1] = $xx[1];
+        $x[2] = $xx[2];
     }
 }

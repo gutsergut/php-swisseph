@@ -51,14 +51,19 @@ final class DeltaT
     }
 
     /**
-     * Estimate Delta T (seconds) from JD (UT), ignoring ephe flags for now.
+     * Estimate Delta T (seconds) from JD (UT), using full Bessel interpolation.
+     *
+     * This method now uses the complete C algorithm port (DeltaTFull) which includes:
+     * - Bessel 4th-order interpolation from table (1620-2028)
+     * - Tidal acceleration correction
+     * - Exact matching with Swiss Ephemeris C implementation
+     *
+     * Previous polynomial approximation is kept in estimateSecondsByYear() for reference only.
      */
     public static function deltaTSecondsFromJd(float $jd): float
     {
-        // Convert JD to decimal year approximately
-        $d = Julian::fromJulianDay($jd, Constants::SE_GREG_CAL);
-        $y = $d['y'];
-        $decYear = $y + ($d['m'] - 0.5)/12.0 + ($d['d'] - 1)/365.25 + ($d['ut']/24.0)/365.25;
-        return self::estimateSecondsByYear($decYear);
+        // Use full Bessel interpolation implementation (exact C port)
+        $dt_days = \Swisseph\Time\DeltaTFull::deltaTAA($jd, -1);
+        return $dt_days * 86400.0; // Convert days to seconds
     }
 }
