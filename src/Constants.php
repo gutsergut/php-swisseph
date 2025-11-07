@@ -194,6 +194,8 @@ final class Constants
     public const NODE_CALC_INTV = 0.0001;           // Interval for node calculation
     public const KM_S_TO_AU_CTY = 21.095;           // km/s to AU/century conversion factor
     public const PLAN_SPEED_INTV = 0.0001;          // 8.64 seconds (in days) for speed calculation
+    // Interval for nutation speed calculation (days), matches NUT_SPEED_INTV in C
+    public const NUT_SPEED_INTV = 0.0001;
     public const PARSEC_TO_AUNIT = 206264.8062471;  // Parsec to AU conversion (648000/PI, IAU 2016)
     public const SUN_RADIUS = 0.0046542827777777775; // 959.63 / 3600 * DEGTORAD (Meeus p.391)
     public const DEFL_SPEED_INTV = 0.0000005;       // Interval for light deflection speed calculation

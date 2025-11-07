@@ -98,7 +98,8 @@ final class SwedState
         // Initialize astronomical models array with defaults (NSE_MODELS = 8)
         $this->astroModels = array_fill(0, \Swisseph\Constants::NSE_MODELS, 0);
         // Set default models
-        $this->astroModels[\Swisseph\Constants::SE_MODEL_PREC_SHORTTERM] = \Swisseph\Constants::SEMOD_PREC_DEFAULT_SHORT;
+        $this->astroModels[\Swisseph\Constants::SE_MODEL_PREC_SHORTTERM] =
+            \Swisseph\Constants::SEMOD_PREC_DEFAULT_SHORT;
         $this->astroModels[\Swisseph\Constants::SE_MODEL_NUT] = \Swisseph\Constants::SEMOD_NUT_DEFAULT;
         $this->astroModels[\Swisseph\Constants::SE_MODEL_SIDT] = \Swisseph\Constants::SEMOD_SIDT_DEFAULT;
         $this->astroModels[\Swisseph\Constants::SE_MODEL_BIAS] = \Swisseph\Constants::SEMOD_BIAS_DEFAULT;
@@ -134,5 +135,47 @@ final class SwedState
     public function setPrecessionModel(int $model): void
     {
         $this->precessionModel = $model;
+    }
+
+    /**
+     * Ensure nutation state (dpsi, deps, matrices) is computed for given JD and flags.
+     * Mirrors C logic of caching swed.nut for the date.
+     */
+    public function ensureNutation(float $tjd, int $iflag, float $seps, float $ceps): void
+    {
+        if ($this->tnut === $tjd && !empty($this->nutMatrix)) {
+            return;
+        }
+        // Select model from flags and compute nutation
+        $model = \Swisseph\Nutation::selectModelFromFlags($iflag);
+        [$dpsi, $deps] = \Swisseph\Nutation::calc($tjd, $model, true);
+        $this->dpsi = $dpsi;
+        $this->deps = $deps;
+        $this->tnut = $tjd;
+
+        // Build nutation matrix using mean obliquity (seps/ceps)
+        $epsMean = atan2($seps, $ceps);
+        $this->nutMatrix = \Swisseph\NutationMatrix::build($dpsi, $deps, $epsMean, $seps, $ceps);
+        // Fallback small-angle rotation params
+        $this->snut = sin($dpsi);
+        $this->cnut = cos($dpsi);
+
+        // Compute nutation velocity matrix (matrix at t - NUT_SPEED_INTV)
+        // Port of logic from sweph.c around computation of xv for nutation speed correction.
+        $dt = \Swisseph\Constants::NUT_SPEED_INTV;
+        $tPrev = $tjd - $dt;
+        // Nutation at previous time
+        [$dpsiPrev, $depsPrev] = \Swisseph\Nutation::calc($tPrev, $model, true);
+        // Mean obliquity at previous time (do not overwrite global oec)
+        $epsMeanPrev = \Swisseph\Obliquity::calc($tPrev, $iflag);
+        $sepsPrev = sin($epsMeanPrev);
+        $cepsPrev = cos($epsMeanPrev);
+        $this->nutMatrixVelocity = \Swisseph\NutationMatrix::build(
+            $dpsiPrev,
+            $depsPrev,
+            $epsMeanPrev,
+            $sepsPrev,
+            $cepsPrev
+        );
     }
 }

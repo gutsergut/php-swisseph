@@ -312,18 +312,42 @@ class MoonTransform
 
         // Final transformations and coordinate conversions
         // From sweph.c:4257
-        if (getenv('DEBUG_MOON')) {
-            error_log(sprintf("DEBUG [MoonTransform] BEFORE appPosRest: xx=[%.15f, %.15f, %.15f]",
-                $xx[0], $xx[1], $xx[2]));
+        if (getenv('DEBUG_MOON_STEP')) {
+            error_log(sprintf("[MoonTransform] PRE appPosRest xyz=%.12f,%.12f,%.12f", $xx[0], $xx[1], $xx[2]));
         }
 
-        $retc = self::appPosRest($pdp, $iflag, $xx, $xxsv, $oe, $serr);
+        // Реальный обликвитет: ранее использовался $oe->eps (0.0 неинициализированный), что ломало
+        // поворот equatorial->ecliptic (отсутствие sin(eps)). Берём средний обликвитет даты.
+        // Unified obliquity source: use SwedState cached epsilon data
+        $swed = \Swisseph\SwephFile\SwedState::getInstance();
+        if ($iflag & Constants::SEFLG_J2000) {
+            // Use precomputed J2000 obliquity from oec2000
+            $seps = $swed->oec2000->seps;
+            $ceps = $swed->oec2000->ceps;
+            $eps  = $swed->oec2000->eps;
+        } else {
+            if ($swed->oec->needsUpdate($pdp->teval)) {
+                $swed->oec->calculate($pdp->teval, $iflag);
+            }
+            $seps = $swed->oec->seps;
+            $ceps = $swed->oec->ceps;
+            $eps  = $swed->oec->eps;
+        }
+        if (getenv('DEBUG_MOON_STEP')) {
+            error_log(sprintf("[MoonTransform] Obliquity (mean) eps=%.12f rad (%.9f°)", $eps, $eps * Constants::RADTODEG));
+        }
 
-        if (getenv('DEBUG_MOON')) {
-            error_log(sprintf("DEBUG [MoonTransform] AFTER appPosRest: pdp->xreturn[0-2]=[%.15f, %.15f, %.15f]",
-                $pdp->xreturn[0], $pdp->xreturn[1], $pdp->xreturn[2]));
-            error_log(sprintf("DEBUG [MoonTransform] AFTER appPosRest: pdp->xreturn[6-8]=[%.15f, %.15f, %.15f]",
-                $pdp->xreturn[6], $pdp->xreturn[7], $pdp->xreturn[8]));
+        // Вызываем CoordinateTransform напрямую (appPosRest обёртка упрощена)
+        \Swisseph\CoordinateTransform::appPosRest($pdp, $iflag, $xx, $seps, $ceps);
+        $pdp->xflgs = $iflag;
+        $pdp->iephe = $iflag & Constants::SEFLG_EPHMASK;
+        $retc = Constants::SE_OK;
+
+        if (getenv('DEBUG_MOON_STEP')) {
+            $lon = $pdp->xreturn[0];
+            $ra  = $pdp->xreturn[12];
+            $diffLonRa = ($lon - $ra) * 3600.0;
+            error_log(sprintf('[MoonTransform] POST appPosRest lon-ra diff=%.2f"', $diffLonRa));
         }
 
         return $retc;
@@ -339,14 +363,51 @@ class MoonTransform
 
     /**
      * Apply aberration of light
-     * Simplified version - full implementation in separate class
+     * Полный порт aberr_light() из sweph.c:3645-3660 без упрощений.
+     * Меняет только позицию (x,y,z). Скорость корректируется отдельно (см. блок после вызова).
      */
     private static function aberrLight(array &$xx, array $xobs, int $iflag): void
     {
-        // Simplified aberration calculation
-        // Full implementation would be in Aberration class
-        // For now, skip to avoid complexity
-        // TODO: Port swi_aberr_light() from swephlib.c:3645-3690
+        // Отключено флагами TRUEPOS / NOABERR (проверено до вызова)
+        // xobs содержит положение/скорость наблюдателя (земли или топо) в AU и AU/day.
+        // xx содержит положение Луны относительно корректного центра (в AU).
+
+        // Если радиус нулевой — ничего не делаем (защита от деления на ноль)
+        $ru = sqrt($xx[0]*$xx[0] + $xx[1]*$xx[1] + $xx[2]*$xx[2]);
+        if ($ru === 0.0) {
+            return;
+        }
+
+        // Скорость наблюдателя (земли) в долях скорости света.
+        // xobs[3..5] в AU/day. v/c = v(AU/day) * AUNIT(m) / (CLIGHT(m/s)*86400(s/day))
+        $v = [
+            $xobs[3] * Constants::AUNIT / (Constants::CLIGHT * 86400.0),
+            $xobs[4] * Constants::AUNIT / (Constants::CLIGHT * 86400.0),
+            $xobs[5] * Constants::AUNIT / (Constants::CLIGHT * 86400.0),
+        ];
+
+        $v2 = $v[0]*$v[0] + $v[1]*$v[1] + $v[2]*$v[2];
+        // Компонент sqrt(1 - β^2)
+        $b1 = sqrt(1.0 - $v2);
+
+        // Скалярное произведение направления на объект (u) и скорости наблюдателя
+        $f1 = ($xx[0]*$v[0] + $xx[1]*$v[1] + $xx[2]*$v[2]) / $ru;
+        $f2 = 1.0 + $f1 / (1.0 + $b1);
+
+        // Применяем релятивистскую формулу сложения скоростей к направлению
+        // xx' = (b1 * xx + f2 * |u| * v) / (1 + f1)
+        $denom = 1.0 + $f1;
+        // Защита от патологического случая (не должен возникнуть для реальных скоростей Земли ~10^-4)
+        if ($denom === 0.0) {
+            return;
+        }
+        for ($i = 0; $i <= 2; $i++) {
+            $xx[$i] = ($b1 * $xx[$i] + $f2 * $ru * $v[$i]) / $denom;
+        }
+
+        if (getenv('DEBUG_MOON_ABERR')) {
+            error_log(sprintf('DEBUG [MoonAberr] Applied annual aberration: b1=%.12f f1=%.12e f2=%.12e', $b1, $f1, $f2));
+        }
     }
 
     /**

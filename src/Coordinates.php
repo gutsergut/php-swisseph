@@ -255,19 +255,25 @@ final class Coordinates
 
             // Apparent motion due to change of nutation during day (makes 0.01" difference)
             // NUT_SPEED_INTV = 0.0001 (from C code)
-            $nutSpeedIntv = 0.0001;
-            for ($i = 0; $i <= 2; $i++) {
-                if ($backward) {
-                    $xv[$i] = $xx[0] * $nutMatrixVelocity[$i * 3 + 0] +
-                              $xx[1] * $nutMatrixVelocity[$i * 3 + 1] +
-                              $xx[2] * $nutMatrixVelocity[$i * 3 + 2];
-                } else {
-                    $xv[$i] = $xx[0] * $nutMatrixVelocity[0 * 3 + $i] +
-                              $xx[1] * $nutMatrixVelocity[1 * 3 + $i] +
-                              $xx[2] * $nutMatrixVelocity[2 * 3 + $i];
+            if (!empty($nutMatrixVelocity)) {
+                $nutSpeedIntv = 0.0001;
+                for ($i = 0; $i <= 2; $i++) {
+                    if ($backward) {
+                        $xv[$i] = $xx[0] * $nutMatrixVelocity[$i * 3 + 0] +
+                                  $xx[1] * $nutMatrixVelocity[$i * 3 + 1] +
+                                  $xx[2] * $nutMatrixVelocity[$i * 3 + 2];
+                    } else {
+                        $xv[$i] = $xx[0] * $nutMatrixVelocity[0 * 3 + $i] +
+                                  $xx[1] * $nutMatrixVelocity[1 * 3 + $i] +
+                                  $xx[2] * $nutMatrixVelocity[2 * 3 + $i];
+                    }
+                    // New speed = rotated speed + change in position due to nutation velocity
+                    $xx[3 + $i] = $x[3 + $i] + ($x[$i] - $xv[$i]) / $nutSpeedIntv;
                 }
-                // New speed = rotated speed + change in position due to nutation velocity
-                $xx[3 + $i] = $x[3 + $i] + ($x[$i] - $xv[$i]) / $nutSpeedIntv;
+            } else {
+                for ($i = 0; $i <= 2; $i++) {
+                    $xx[3 + $i] = $x[3 + $i];
+                }
             }
         }
 

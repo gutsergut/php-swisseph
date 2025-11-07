@@ -310,14 +310,18 @@ class PlanetsFunctions
                     $ipl, $result_slot, $xx[0], $xx[1], $xx[2]));
             }
 
-            // Get epsilon (obliquity) - use J2000 constant if J2000 flag set
+            // Get epsilon (obliquity) from centralized SwedState epsilon data
+            $swed = \Swisseph\SwephFile\SwedState::getInstance();
             if ($iflag & Constants::SEFLG_J2000) {
-                $eps = 0.40909280422232897; // J2000 obliquity in radians (23.4392911°)
+                $seps = $swed->oec2000->seps;
+                $ceps = $swed->oec2000->ceps;
             } else {
-                $eps = \Swisseph\Obliquity::meanObliquityRadFromJdTT($jd_tt);
+                if ($swed->oec->needsUpdate($jd_tt)) {
+                    $swed->oec->calculate($jd_tt, $iflag);
+                }
+                $seps = $swed->oec->seps;
+                $ceps = $swed->oec->ceps;
             }
-            $seps = sin($eps);
-            $ceps = cos($eps);
 
             // Call app_pos_rest to fill xreturn[24]
             // This populates:
@@ -400,7 +404,11 @@ class PlanetsFunctions
                     $xx[4] = ($y_p - $y_m) / (2 * $dt);
                     $xx[5] = ($z_p - $z_m) / (2 * $dt);
                 } elseif ($iflag & Constants::SEFLG_EQUATORIAL) {
-                    $eps = Obliquity::meanObliquityRadFromJdTT($jd_tt);
+                    $swed = \Swisseph\SwephFile\SwedState::getInstance();
+                    if ($swed->oec->needsUpdate($jd_tt)) {
+                        $swed->oec->calculate($jd_tt, $iflag);
+                    }
+                    $eps = $swed->oec->eps;
                     [$ra_p, $dec_p] = Coordinates::eclipticToEquatorialRad($lon_p, $lat_p, $dist_p, $eps);
                     [$ra_m, $dec_m] = Coordinates::eclipticToEquatorialRad($lon_m, $lat_m, $dist_m, $eps);
                     $dRa = Math::angleDiffRad($ra_p, $ra_m) / (2 * $dt);
@@ -457,7 +465,11 @@ class PlanetsFunctions
                     $xx[4] = ($y_p - $y_m) / (2 * $dt);
                     $xx[5] = ($z_p - $z_m) / (2 * $dt);
                 } elseif ($iflag & Constants::SEFLG_EQUATORIAL) {
-                    $eps = Obliquity::meanObliquityRadFromJdTT($jd_tt);
+                    $swed = \Swisseph\SwephFile\SwedState::getInstance();
+                    if ($swed->oec->needsUpdate($jd_tt)) {
+                        $swed->oec->calculate($jd_tt, $iflag);
+                    }
+                    $eps = $swed->oec->eps;
                     [$ra_p, $dec_p] = Coordinates::eclipticToEquatorialRad($lon_p, $lat_p, $dist_p, $eps);
                     [$ra_m, $dec_m] = Coordinates::eclipticToEquatorialRad($lon_m, $lat_m, $dist_m, $eps);
                     $dRa = Math::angleDiffRad($ra_p, $ra_m) / (2 * $dt);

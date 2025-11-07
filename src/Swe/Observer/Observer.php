@@ -61,24 +61,19 @@ class Observer
             error_log(sprintf("[Observer] tjd=%.10f, delt=%.10f, tjd_ut=%.10f", $tjd, $delt, $tjd_ut));
         }
 
-        // Line 7351-7361: Get obliquity and nutation
-        if ($swed->oec->teps === $tjd && $swed->nut->tnut === $tjd) {
-            // Use cached values
-            $eps = $swed->oec->eps;
-            $nutlo_1 = $swed->nut->nutlo[1];
-            $nutlo_0 = $swed->nut->nutlo[0];
+        // Line 7351-7361: Get obliquity and nutation (centralized via SwedState)
+        if ($swed->oec->needsUpdate($tjd)) {
+            $swed->oec->calculate($tjd, $iflag);
+        }
+        // Ensure nutation cache for this date
+        $swed->ensureNutation($tjd, $iflag, $swed->oec->seps, $swed->oec->ceps);
+        $eps = $swed->oec->eps;
+        if (!($iflag & Constants::SEFLG_NONUT)) {
+            $nutlo_0 = $swed->dpsi;  // dpsi
+            $nutlo_1 = $swed->deps;  // deps
         } else {
-            // Calculate new values
-            $eps = \Swisseph\Obliquity::calc($tjd, $iflag);
-            if (!($iflag & Constants::SEFLG_NONUT)) {
-                $nutlo = [0.0, 0.0];
-                \Swisseph\Nutation::calc($tjd, $iflag, $nutlo);
-                $nutlo_0 = $nutlo[0];
-                $nutlo_1 = $nutlo[1];
-            } else {
-                $nutlo_0 = 0.0;
-                $nutlo_1 = 0.0;
-            }
+            $nutlo_0 = 0.0;
+            $nutlo_1 = 0.0;
         }
 
         // Line 7362-7367: Apply nutation to obliquity
@@ -162,17 +157,15 @@ class Observer
                 $xobs[0], $xobs[1], $xobs[2]));
         }
 
-        // Line 7409-7414: Subtract nutation
+        // Line 7409-7414: Subtract nutation (apply backward nutation matrix)
         if (!($iflag & Constants::SEFLG_NONUT)) {
-            \Swisseph\Coordinates::coortrf2($xobs, $xobs, -$swed->nut->snut, $swed->nut->cnut);
-            // Speed is always required for aberration
-            $xobs_speed = array_slice($xobs, 3, 3);
-            $xobs_speed_out = [0.0, 0.0, 0.0];
-            \Swisseph\Coordinates::coortrf2($xobs_speed, $xobs_speed_out, -$swed->nut->snut, $swed->nut->cnut);
-            $xobs[3] = $xobs_speed_out[0];
-            $xobs[4] = $xobs_speed_out[1];
-            $xobs[5] = $xobs_speed_out[2];
-            \Swisseph\Nutation::nutate($xobs, $iflag | Constants::SEFLG_SPEED, true);
+            \Swisseph\Coordinates::nutate(
+                $xobs,
+                $swed->nutMatrix,
+                $swed->nutMatrixVelocity,
+                $iflag | Constants::SEFLG_SPEED,
+                true
+            );
         }
 
         // Line 7415-7417: Precess to J2000

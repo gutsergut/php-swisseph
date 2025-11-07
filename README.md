@@ -7,7 +7,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 76/200+ implemented (38%)
+**Core Functions**: 82/200+ implemented (41%)
 
 ```
 Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
@@ -201,7 +201,20 @@ Misc Utilities         ███████████████████
 - ✅ **Refraction models**: True altitude, apparent altitude, Bennett's formula
 - ✅ **Pure PHP**: No C extensions required, works on any PHP 8.1+ environment
 
-## � Recent Updates
+## 🌓 High-Precision Moon (Q4 2025)
+
+Achieved sub-arcsecond apparent geocentric accuracy for the Moon:
+
+- RA error ≈ 0.000"; Dec error ≈ 0.001" (vs `swetest64.exe` reference)
+- Full transformation chain ported: light-time, frame bias, precession, dual-stage nutation (matrix + velocity matrix at `t - 0.0001` d), relativistic annual aberration, topocentric parallax
+- Centralized obliquity via `EpsilonData` (`SwedState->oec` / `oec2000`) — no local ad-hoc obliquity calls
+- Nutation velocity matrix integrated in `SwedState::ensureNutation()` and applied in `Coordinates::nutate()` for speed correction
+- Topocentric parallax ratios (RA/Dec) within ±0.2% of reference (`MoonTopoParallaxTest.php`)
+- Diagnostic script `tests/diagnose_moon_steps.php` provides step-by-step parity checks (geo + topo, equatorial + ecliptic)
+
+Next steps to extend planetary precision: integrate VSOP87 and/or JPL DE ephemerides while preserving the current transformation order and caching architecture.
+
+## 🛰 Recent Updates
 
 ### v0.3.0 - Coordinate Transformation Fixes (January 2025)
 - **Critical fix**: `swe_cotrans()` now correctly works with polar coordinates (was using cartesian)
@@ -211,7 +224,7 @@ Misc Utilities         ███████████████████
 - **Impact**: All horizon transformations (azalt/azalt_rev) now perfectly accurate
 - See [docs/FIX-COTRANS-POLAR.md](docs/FIX-COTRANS-POLAR.md) for details
 
-## �🚀 Why PHP Swiss Ephemeris?
+## 🚀 Why PHP Swiss Ephemeris?
 
 Swiss Ephemeris is the **gold standard** for astronomical calculations, used by professional astrologers and astronomers worldwide. This PHP port brings that precision to web applications without requiring C extensions or external binaries.
 

@@ -163,7 +163,11 @@ final class PlanetHelper
         $latm = \atan2($gzm, \sqrt($gxm * $gxm + $gym * $gym));
 
         if ($iflag & Constants::SEFLG_EQUATORIAL) {
-            $eps = Obliquity::meanObliquityRadFromJdTT($jd_tt);
+            $swed = \Swisseph\SwephFile\SwedState::getInstance();
+            if ($swed->oec->needsUpdate($jd_tt)) {
+                $swed->oec->calculate($jd_tt, $iflag);
+            }
+            $eps = $swed->oec->eps;
             [$ra, $dec] = Coordinates::eclipticToEquatorialRad($lon, $lat, $dist, $eps);
             [$rap, $decp] = Coordinates::eclipticToEquatorialRad($lonp, $latp, $dist, $eps);
             [$ram, $decm] = Coordinates::eclipticToEquatorialRad($lonm, $latm, $dist, $eps);
