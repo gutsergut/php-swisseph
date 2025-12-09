@@ -16,15 +16,44 @@ class Vsop87Strategy implements EphemerisStrategy
 
     public function compute(float $jd_tt, int $ipl, int $iflag): StrategyResult
     {
-        // Проверка поддерживаемых планет (пока загружены только данные Mercury)
+        // Маппинг планет на директории с VSOP87 данными
         $base = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'vsop87';
         $planetDir = null;
+        $planetName = '';
+
         switch ($ipl) {
             case Constants::SE_MERCURY:
                 $planetDir = $base . DIRECTORY_SEPARATOR . 'mercury';
+                $planetName = 'Mercury';
                 break;
+            case Constants::SE_VENUS:
+                $planetName = 'Venus';
+                break;
+            case Constants::SE_MARS:
+                $planetName = 'Mars';
+                break;
+            case Constants::SE_JUPITER:
+                $planetName = 'Jupiter';
+                break;
+            case Constants::SE_SATURN:
+                $planetName = 'Saturn';
+                break;
+            case Constants::SE_URANUS:
+                $planetName = 'Uranus';
+                break;
+            case Constants::SE_NEPTUNE:
+                $planetName = 'Neptune';
+                break;
+            case Constants::SE_PLUTO:
+                // VSOP87 не включает Pluto (нет аналитического решения)
+                return StrategyResult::err('VSOP87 does not support Pluto (use SWIEPH)', Constants::SE_ERR);
             default:
-                return StrategyResult::err('VSOP87 data not yet ingested for this planet', Constants::SE_ERR);
+                return StrategyResult::err('Unsupported planet for VSOP87', Constants::SE_ERR);
+        }
+
+        // Проверяем, что данные загружены
+        if ($planetDir === null) {
+            return StrategyResult::err("VSOP87 data not yet ingested for $planetName (only Mercury available)", Constants::SE_ERR);
         }
 
         $loader = new \Swisseph\Domain\Vsop87\VsopSegmentedLoader();

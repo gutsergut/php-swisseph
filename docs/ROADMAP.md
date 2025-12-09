@@ -28,6 +28,14 @@
   - Поддержка: `SEFLG_RADIANS`, `SEFLG_EQUATORIAL`, `SEFLG_XYZ`, `SEFLG_SPEED`, `SEFLG_TOPOCTR`, `SEFLG_TRUEPOS`, `SEFLG_NOABERR`
   - Полные цепочки преобразований для Луны и фикс. звёзд: прецессия, две стадии нутации (матрица), годичная аберрация (релятивистская формула), frame bias, топоцентрический параллакс
   - Скорости: центральная разность и корректировка скоростей нутации (nutation velocity matrix)
+  - **Strategy Pattern Architecture (December 2025)**:
+    - `EphemerisStrategy` interface для подключаемых источников эфемерид
+    - `PlanetApparentPipeline` — централизованный пайплайн преобразований (light-time → geo/helio/bary → deflection → aberration → precession → appPosRest)
+    - `SwephStrategy` — SWIEPH путь (чтение .se1 файлов, MoonTransform для Луны)
+    - `Vsop87Strategy` — аналитический путь VSOP87 (только Mercury реализован, Venus-Neptune готовы к интеграции)
+    - `EphemerisStrategyFactory` — выбор стратегии по флагам (SEFLG_SWIEPH, SEFLG_VSOP87, SEFLG_JPLEPH)
+  - **VSOP87 Integration**: Mercury полностью реализован с точностью машинной точности (1e-12); Venus-Neptune архитектурно готовы, требуют данных
+  - **Тесты**: 57 тестов планет (SweCalc* + VSOP), все проходят
 
 ### Системы домов
 - ✅ `swe_houses` — 20+ систем домов (Placidus, Koch, Equal, Whole Sign, Gauquelin, APC, Sunshine, Savard-A и др.)
