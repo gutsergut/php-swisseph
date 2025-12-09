@@ -118,8 +118,11 @@ final class PlanetApparentPipeline
             }
         }
 
-        // 4) Аберрация (если не TRUEPOS и не выключено)
-        $do_aberr = !($iflag & Constants::SEFLG_TRUEPOS) && !($iflag & Constants::SEFLG_NOABERR);
+        // 4) Аберрация (если не TRUEPOS и не выключено, и не гелиоцентр/барицентр)
+        $do_aberr = !($iflag & Constants::SEFLG_TRUEPOS)
+                    && !($iflag & Constants::SEFLG_NOABERR)
+                    && !($iflag & Constants::SEFLG_HELCTR)
+                    && !($iflag & Constants::SEFLG_BARYCTR);
         if ($do_aberr && $earth_pd) {
             $dt_ab = Constants::PLAN_SPEED_INTV;
             $xe_now = [

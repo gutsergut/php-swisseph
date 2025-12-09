@@ -20,7 +20,8 @@ class Vsop87Strategy implements EphemerisStrategy
     public function compute(float $jd_tt, int $ipl, int $iflag): StrategyResult
     {
         // Маппинг планет на директории с VSOP87 данными
-        $base = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'vsop87';
+        // dirname(__DIR__, 3) от src/Swe/Planets/ дает php-swisseph/
+        $base = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'vsop87';
         $planetDir = null;
         $planetName = '';
 
