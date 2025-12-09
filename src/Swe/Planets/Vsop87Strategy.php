@@ -69,8 +69,11 @@ class Vsop87Strategy implements EphemerisStrategy
         $swed_plan = \Swisseph\SwephFile\SwedState::getInstance();
         $earth_pd = $swed_plan->pldat[\Swisseph\SwephFile\SwephConstants::SEI_EARTH] ?? null;
         $sunb_pd  = $swed_plan->pldat[\Swisseph\SwephFile\SwephConstants::SEI_SUNBARY] ?? null;
-        if (!$sunb_pd) {
-            return StrategyResult::err('Missing Sun barycenter in state', Constants::SE_ERR);
+
+        // Проверяем, что SunBary заполнен (teval установлен или x[0..2] ненулевые)
+        $sunbFilled = $sunb_pd && ($sunb_pd->teval !== 0.0 || $sunb_pd->x[0] !== 0.0 || $sunb_pd->x[1] !== 0.0 || $sunb_pd->x[2] !== 0.0);
+        if (!$sunbFilled) {
+            return StrategyResult::err('Sun barycenter not computed', Constants::SE_ERR);
         }
 
         $xpret = [
@@ -104,7 +107,9 @@ class Vsop87Strategy implements EphemerisStrategy
         $xh_m = $Rau_m * $cb_m * $cl_m;
         $yh_m = $Rau_m * $cb_m * $sl_m;
         $zh_m = $Rau_m * $sb_m;
-        $xps_plus = $xps_minus = null;
+        // Инициализируем массивы для получения SunBary позиций
+        $xps_plus = array_fill(0, 6, 0.0);
+        $xps_minus = array_fill(0, 6, 0.0);
         $ipliSunb = \Swisseph\SwephFile\SwephConstants::SEI_SUNBARY;
         $ret_sp = \Swisseph\SwephFile\SwephPlanCalculator::calculate(
             $jd_tt + $dt,
@@ -132,8 +137,8 @@ class Vsop87Strategy implements EphemerisStrategy
             $dummy,
             $serr
         );
-        if ($ret_sp < 0 || $ret_sm < 0 || $xps_plus === null || $xps_minus === null) {
-            return StrategyResult::err($serr ?? 'Sun barycenter error', Constants::SE_ERR);
+        if ($ret_sp < 0 || $ret_sm < 0) {
+            return StrategyResult::err($serr ?? 'Sun barycenter speed calculation failed', Constants::SE_ERR);
         }
         $xb_p = $xh_p + $xps_plus[0];
         $yb_p = $yh_p + $xps_plus[1];
