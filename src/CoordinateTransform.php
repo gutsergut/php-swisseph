@@ -95,8 +95,10 @@ final class CoordinateTransform
         $eqCart = array_slice($pdp->xreturn, 18, 6); $eqPol=[]; Coordinates::cartPolSp($eqCart,$eqPol); for($i=0;$i<=5;$i++){ $pdp->xreturn[12+$i]=$eqPol[$i]; }
         $eclCart = array_slice($pdp->xreturn, 6, 6); $eclPol=[]; Coordinates::cartPolSp($eclCart,$eclPol); for($i=0;$i<=5;$i++){ $pdp->xreturn[$i]=$eclPol[$i]; }
 
-        // 7. Convert rad->deg for angular elements (lon, lat, RA, Dec + speeds)
-        for ($i=0;$i<2;$i++) { $pdp->xreturn[$i]*=Constants::RADTODEG; $pdp->xreturn[$i+3]*=Constants::RADTODEG; $pdp->xreturn[$i+12]*=Constants::RADTODEG; $pdp->xreturn[$i+15]*=Constants::RADTODEG; }
+        // 7. Convert rad->deg for angular elements (lon, lat, RA, Dec + speeds), unless SEFLG_RADIANS
+        if (!($iflag & Constants::SEFLG_RADIANS)) {
+            for ($i=0;$i<2;$i++) { $pdp->xreturn[$i]*=Constants::RADTODEG; $pdp->xreturn[$i+3]*=Constants::RADTODEG; $pdp->xreturn[$i+12]*=Constants::RADTODEG; $pdp->xreturn[$i+15]*=Constants::RADTODEG; }
+        }
 
         $pdp->xflgs = $iflag; $pdp->iephe = $iflag & Constants::SEFLG_EPHMASK;
     }

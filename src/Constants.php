@@ -61,6 +61,9 @@ final class Constants
     public const SEFLG_JPLHOR_APPROX = (512*1024);  // approximate JPL Horizons 1962-today
     public const SEFLG_CENTER_BODY = (1024*1024);   // calculate position of center of body
     public const SEFLG_DEFAULTEPH = self::SEFLG_SWIEPH;
+    // Custom extension: use VSOP87 analytical series as source (exclusive with SWIEPH/JPLEPH/MOSEPH)
+    // Bit chosen outside original Swiss Ephemeris range to avoid collision
+    public const SEFLG_VSOP87 = (2048*1024); // 2097152
 
     // Rise/Set/Transit request bits (subset of Swiss Ephemeris RISE/SET interface)
     public const SE_CALC_RISE = 1;       // rising event

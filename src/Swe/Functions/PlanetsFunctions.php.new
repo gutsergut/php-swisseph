@@ -1,0 +1,3 @@
+<?php
+namespace Swisseph\Swe\Functions;
+class PlanetsFunctions { }
