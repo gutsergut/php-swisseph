@@ -31,9 +31,7 @@ final class CoordinateTransform
         float $seps,
         float $ceps
     ): void {
-        $swed = SwedState::getInstance();
-
-        // Ensure obliquity and nutation for current date are available
+        $swed = SwedState::getInstance();        // Ensure obliquity and nutation for current date are available
         $tjd = $pdp->teval ?: \Swisseph\Constants::J2000;
         // If seps/ceps passed are zeros (shouldn't), derive from oec or compute from date
         if (($seps === 0.0 && $ceps === 0.0)) {
