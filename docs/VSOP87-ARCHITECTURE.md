@@ -71,7 +71,7 @@ All transformations respect flags: `SEFLG_RADIANS`, `SEFLG_EQUATORIAL`, `SEFLG_X
 1. **Sun Barycenter Data**: Must be computed before planet calculation
    - Achieved by calling `SwephPlanCalculator::calculate()` for Earth
    - Earth calculation automatically fills `SwedState->pldat[SEI_SUNBARY]`
-   
+
 2. **Velocity Calculation**: Uses central difference
    - Requires Sun barycenter positions at `t±dt` (dt = PLAN_SPEED_INTV)
    - Arrays `$xps_plus`, `$xps_minus` must be initialized before passing to `calculate()`
@@ -159,7 +159,7 @@ For each new planet:
 ```json
 {
   "series": "L0",
-  "planet": "Mercury", 
+  "planet": "Mercury",
   "segments": [
     {
       "terms": [

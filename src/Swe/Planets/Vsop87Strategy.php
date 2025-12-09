@@ -6,6 +6,9 @@ use Swisseph\Constants;
 
 class Vsop87Strategy implements EphemerisStrategy
 {
+    /** @var array<int, \Swisseph\Domain\Vsop87\VsopPlanetModel> Кэш загруженных моделей планет */
+    private static array $modelCache = [];
+
     public function supports(int $ipl, int $iflag): bool
     {
         return (bool)($iflag & Constants::SEFLG_VSOP87)
@@ -27,21 +30,27 @@ class Vsop87Strategy implements EphemerisStrategy
                 $planetName = 'Mercury';
                 break;
             case Constants::SE_VENUS:
+                $planetDir = $base . DIRECTORY_SEPARATOR . 'venus';
                 $planetName = 'Venus';
                 break;
             case Constants::SE_MARS:
+                $planetDir = $base . DIRECTORY_SEPARATOR . 'mars';
                 $planetName = 'Mars';
                 break;
             case Constants::SE_JUPITER:
+                $planetDir = $base . DIRECTORY_SEPARATOR . 'jupiter';
                 $planetName = 'Jupiter';
                 break;
             case Constants::SE_SATURN:
+                $planetDir = $base . DIRECTORY_SEPARATOR . 'saturn';
                 $planetName = 'Saturn';
                 break;
             case Constants::SE_URANUS:
+                $planetDir = $base . DIRECTORY_SEPARATOR . 'uranus';
                 $planetName = 'Uranus';
                 break;
             case Constants::SE_NEPTUNE:
+                $planetDir = $base . DIRECTORY_SEPARATOR . 'neptune';
                 $planetName = 'Neptune';
                 break;
             case Constants::SE_PLUTO:
@@ -51,13 +60,15 @@ class Vsop87Strategy implements EphemerisStrategy
                 return StrategyResult::err('Unsupported planet for VSOP87', Constants::SE_ERR);
         }
 
-        // Проверяем, что данные загружены
-        if ($planetDir === null) {
-            return StrategyResult::err("VSOP87 data not yet ingested for $planetName (only Mercury available)", Constants::SE_ERR);
-        }
+        // Все данные теперь доступны - проверка не нужна
 
-        $loader = new \Swisseph\Domain\Vsop87\VsopSegmentedLoader();
-        $model = $loader->loadPlanet($planetDir);
+        // Загружаем модель с кэшированием
+        if (!isset(self::$modelCache[$ipl])) {
+            $loader = new \Swisseph\Domain\Vsop87\VsopSegmentedLoader();
+            self::$modelCache[$ipl] = $loader->loadPlanet($planetDir);
+        }
+        $model = self::$modelCache[$ipl];
+
         $calc = new \Swisseph\Domain\Vsop87\Vsop87Calculator();
         [$Ldeg, $Bdeg, $Rau] = $calc->compute($model, $jd_tt);
 
@@ -105,6 +116,9 @@ class Vsop87Strategy implements EphemerisStrategy
             return StrategyResult::err('Sun barycenter not computed', Constants::SE_ERR);
         }
 
+        // VSOP87 возвращает гелиоцентрические координаты
+        // Конвертируем в барицентрические добавлением SunBary
+        // Затем PlanetApparentPipeline сконвертирует в геоцентрические
         $xpret = [
             $xh + $sunb_pd->x[0],
             $yh + $sunb_pd->x[1],
