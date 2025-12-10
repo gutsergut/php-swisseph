@@ -73,12 +73,14 @@ final class SavardA implements HouseSystem
         $cusp[2] = Math::degToRad(self::asc1($th + 90.0 + $xh2, $fh2, $sine, $cose));
         $cusp[3] = Math::degToRad(self::asc1($th + 90.0 + $xh1, $fh1, $sine, $cose));
 
-        // Calculate opposite cusps (4-9 are 1-6 + 180°)
-        for ($i = 1; $i <= 6; $i++) {
-            $cusp[$i + 6] = Math::normAngleRad($cusp[$i] + Math::PI);
-        }
-
-        // Within polar circle: handle horizon/hemisphere adjustments (swehouse.c:1237-1246)
+        // Calculate opposite cusps (swehouse.c:1987-1992)
+        // cusp[4-9] = cusp[10-12,1-3] + 180°
+        $cusp[4] = Math::normAngleRad($cusp[10] + Math::PI);
+        $cusp[5] = Math::normAngleRad($cusp[11] + Math::PI);
+        $cusp[6] = Math::normAngleRad($cusp[12] + Math::PI);
+        $cusp[7] = Math::normAngleRad($cusp[1] + Math::PI);
+        $cusp[8] = Math::normAngleRad($cusp[2] + Math::PI);
+        $cusp[9] = Math::normAngleRad($cusp[3] + Math::PI);        // Within polar circle: handle horizon/hemisphere adjustments (swehouse.c:1237-1246)
         if (abs($fi) >= 90.0 - $ekl) {
             $acmc = self::difdeg2n($asc_deg, $mc_deg);
             if ($acmc < 0) {

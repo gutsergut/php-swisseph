@@ -105,7 +105,11 @@ final class HousesFunctions
         if ($hsys_norm === 'R') {
             $cusps_rad = CuspPost::forceAscMc($cusps_rad, $asc, $mc);
         }
-        $cusps_rad = CuspPost::withOpposites($cusps_rad);
+        // Add opposite cusps only for systems that don't calculate them (swehouse.c:1987)
+        // APC ('Y'), Gauquelin ('G'), and Sunshine ('I'/'i') calculate all 12 cusps directly
+        if ($hsys_norm !== 'G' && $hsys_norm !== 'Y' && strtoupper($hsys_norm) !== 'I') {
+            $cusps_rad = CuspPost::withOpposites($cusps_rad);
+        }
         // Перевод в градусы
         $cusp = array_fill(0, 13, 0.0);
         for ($i = 1; $i <= 12; $i++) {
@@ -260,7 +264,11 @@ final class HousesFunctions
         if ($hsys === 'R') {
             $cusps = CuspPost::forceAscMc($cusps, $asc, $mc);
         }
-        $cusps = CuspPost::withOpposites($cusps);
+        // Add opposite cusps only for systems that don't calculate them (swehouse.c:1987)
+        // APC ('Y'), Gauquelin ('G'), and Sunshine ('I'/'i') calculate all 12 cusps directly
+        if ($hsys !== 'G' && $hsys !== 'Y' && strtoupper($hsys) !== 'I') {
+            $cusps = CuspPost::withOpposites($cusps);
+        }
         $obj_lon = Math::degToRad(Math::normAngleDeg($xpin[0] ?? 0.0));
         if ($hsys === 'E') {
             // Встроенный расчёт позиции для Equal: 30°/дом от Asc
