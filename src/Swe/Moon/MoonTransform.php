@@ -269,12 +269,8 @@ class MoonTransform
          **********************************/
         // From sweph.c:4221-4237
         if (!($iflag & Constants::SEFLG_TRUEPOS) && !($iflag & Constants::SEFLG_NOABERR)) {
-            error_log(sprintf("DEBUG MoonTransform: BEFORE aberrLight, xx has %d elements", count($xx)));
-
             // Apply aberration
             self::aberrLight($xx, $xobs, $iflag);
-
-            error_log(sprintf("DEBUG MoonTransform: AFTER aberrLight, xx has %d elements", count($xx)));
 
             // Speed correction for aberration
             // From sweph.c:4231-4234
@@ -302,13 +298,6 @@ class MoonTransform
         // Save J2000 coordinates
         // From sweph.c:4246-4248
         $xxsv = array_fill(0, 6, 0.0);
-
-        // DEBUG: Check $xx array size before copying
-        error_log(sprintf("DEBUG MoonTransform: Before saving to xxsv, xx has %d elements: [%s]",
-            count($xx),
-            implode(', ', array_map(function($v) { return isset($v) ? sprintf("%.6f", $v) : 'UNDEF'; }, $xx))
-        ));
-
         for ($i = 0; $i <= 5; $i++) {
             $xxsv[$i] = $xx[$i];
         }
