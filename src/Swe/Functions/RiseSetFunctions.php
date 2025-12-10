@@ -489,11 +489,24 @@ final class RiseSetFunctions
     }
 
     /**
-     * Calculate meridian transits (upper and lower culminations)
-     * Stub - full implementation needed for complete functionality
-     * Port from swecl.c:4702-4833 (calc_mer_trans)
+     * Calculate meridian transits (upper and lower culmination)
+     * Full C port from swecl.c:4688-4755 (calc_mer_trans)
      *
-     * @return int -1 (not yet fully implemented)
+     * WITHOUT SIMPLIFICATIONS - complete algorithm:
+     * - Calculates sidereal time at observer location
+     * - Iterates to find when RA matches ARMC (or ARMC+180° for lower transit)
+     * - Handles both planets and fixed stars
+     * - 4 iterations for convergence
+     *
+     * @param float $tjd_ut     Starting time (UT)
+     * @param int $ipl          Planet number
+     * @param int $epheflag     Ephemeris flags
+     * @param int $rsmi         Rise/set flags (SE_CALC_MTRANSIT or SE_CALC_ITRANSIT)
+     * @param array $geopos     Geographic position [lon, lat, alt]
+     * @param string|null $starname Fixed star name (null for planets)
+     * @param float|null $tret  Output: time of transit
+     * @param string|null $serr Error string
+     * @return int              OK (0) or SE_ERR (-1)
      */
     private static function calcMerTrans(
         float $tjd_ut,
@@ -505,8 +518,97 @@ final class RiseSetFunctions
         ?float &$tret,
         ?string &$serr
     ): int {
-        $serr = 'Meridian transits not yet fully implemented';
-        return Constants::SE_ERR;
+        $tret = 0.0;
+        $serr = null;
+
+        // Ephemeris flags: equatorial + topocentric (swecl.c:4701-4702)
+        $iflag = $epheflag & Constants::SEFLG_EPHMASK;
+        $iflag |= (Constants::SEFLG_EQUATORIAL | Constants::SEFLG_TOPOCTR);
+
+        $do_fixstar = ($starname !== null && $starname !== '');
+
+        // Initial sidereal time at observer location (swecl.c:4703-4708)
+        $armc0 = \swe_sidtime($tjd_ut) + $geopos[0] / 15.0;
+        if ($armc0 >= 24.0) {
+            $armc0 -= 24.0;
+        }
+        if ($armc0 < 0.0) {
+            $armc0 += 24.0;
+        }
+        $armc0 *= 15.0; // convert hours to degrees
+
+        // Get initial position (swecl.c:4709-4716)
+        $tjd_et = $tjd_ut + \swe_deltat_ex($tjd_ut, $epheflag, $serr);
+        $x0 = [];
+
+        if ($do_fixstar) {
+            $rc = \swe_fixstar($starname, $tjd_et, $iflag, $x0, $serr);
+            if ($rc < 0) {
+                return Constants::SE_ERR;
+            }
+        } else {
+            $rc = \swe_calc($tjd_et, $ipl, $iflag, $x0, $serr);
+            if ($rc < 0) {
+                return Constants::SE_ERR;
+            }
+        }
+
+        // Meridian transits: iterate to find when RA = ARMC (swecl.c:4717-4744)
+        $x = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $x[0] = $x0[0]; // RA
+        $x[1] = $x0[1]; // Dec
+
+        $t = $tjd_ut;
+        $arxc = $armc0;
+
+        // For lower transit (ITRANSIT), use ARMC + 180° (swecl.c:4722-4723)
+        if ($rsmi & Constants::SE_CALC_ITRANSIT) {
+            $arxc = \swe_degnorm($arxc + 180.0);
+        }
+
+        // Iterate 4 times for convergence (swecl.c:4724-4744)
+        for ($i = 0; $i < 4; $i++) {
+            // Meridian distance: difference between RA and ARMC (swecl.c:4725)
+            $mdd = \swe_degnorm($x[0] - $arxc);
+
+            // After first iteration, avoid jumping to next day (swecl.c:4726-4727)
+            if ($i > 0 && $mdd > 180.0) {
+                $mdd -= 360.0;
+            }
+
+            // Advance time: ~361°/day (slightly more than 360° due to solar motion) (swecl.c:4728)
+            $t += $mdd / 361.0;
+
+            // Recalculate sidereal time at new time (swecl.c:4729-4733)
+            $armc = \swe_sidtime($t) + $geopos[0] / 15.0;
+            if ($armc >= 24.0) {
+                $armc -= 24.0;
+            }
+            if ($armc < 0.0) {
+                $armc += 24.0;
+            }
+            $armc *= 15.0; // hours to degrees
+
+            $arxc = $armc;
+
+            // For lower transit, add 180° (swecl.c:4735-4736)
+            if ($rsmi & Constants::SE_CALC_ITRANSIT) {
+                $arxc = \swe_degnorm($arxc + 180.0);
+            }
+
+            // Recalculate planet/star position (swecl.c:4737-4740)
+            // For fixed stars, position doesn't change significantly, so we skip recalc
+            if (!$do_fixstar) {
+                $te = $t + \swe_deltat_ex($t, $epheflag, $serr);
+                $rc = \swe_calc($te, $ipl, $iflag, $x, $serr);
+                if ($rc < 0) {
+                    return Constants::SE_ERR;
+                }
+            }
+        }
+
+        $tret = $t;
+        return 0; // OK
     }
 
     /**
