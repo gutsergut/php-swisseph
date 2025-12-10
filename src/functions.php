@@ -1672,8 +1672,8 @@ if (!function_exists('swe_sol_eclipse_when_loc')) {
      *                     tret[2]: time of second contact (totality begins) - 0 if partial
      *                     tret[3]: time of third contact (totality ends) - 0 if partial
      *                     tret[4]: time of fourth contact (eclipse ends)
-     *                     tret[5]: time of sunrise during eclipse - 0 if not applicable (TODO: needs swe_rise_trans)
-     *                     tret[6]: time of sunset during eclipse - 0 if not applicable (TODO: needs swe_rise_trans)
+     *                     tret[5]: time of sunrise during eclipse - 0 if not applicable
+     *                     tret[6]: time of sunset during eclipse - 0 if not applicable
      * @param array &$attr Output: array of 11 eclipse attributes (same as swe_sol_eclipse_how)
      *                     attr[0]: fraction of solar diameter covered (magnitude)
      *                     attr[1]: ratio of lunar diameter to solar one
