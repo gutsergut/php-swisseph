@@ -47,6 +47,10 @@ final class RiseSetFunctions
     /**
      * Calculate rise, set or transit times for celestial bodies
      * Port from swecl.c:4355-4382 (swe_rise_trans)
+     *
+     * Automatically selects fast or slow algorithm:
+     * - rise_set_fast() for planets Sun-True_Node at latitudes <60° (Moon) or <65° (Sun)
+     * - riseTransTrueHor() for extreme latitudes, fixed stars, or twilight
      */
     public static function riseTrans(
         float $tjd_ut,
@@ -61,7 +65,26 @@ final class RiseSetFunctions
         ?float &$tret = null,
         ?string &$serr = null
     ): int {
-        // Call full implementation with horhgt defaulting to 0.0
+        $do_fixstar = ($starname !== null && $starname !== '');
+
+        // Simple fast algorithm for risings and settings of
+        // - planets Sun, Moon, Mercury - Pluto + Lunar Nodes
+        // Does not work well for geographic latitudes
+        // > 65 N/S for the Sun
+        // > 60 N/S for the Moon and the planets
+        // Beyond these limits, some risings or settings may be missed.
+        // (swecl.c:4364-4381)
+        if (!$do_fixstar
+            && ($rsmi & (Constants::SE_CALC_RISE | Constants::SE_CALC_SET))
+            && !($rsmi & Constants::SE_BIT_FORCE_SLOW_METHOD)
+            && !($rsmi & (Constants::SE_BIT_CIVIL_TWILIGHT | Constants::SE_BIT_NAUTIC_TWILIGHT | Constants::SE_BIT_ASTRO_TWILIGHT))
+            && ($ipl >= Constants::SE_SUN && $ipl <= Constants::SE_TRUE_NODE)
+            && (abs($geopos[1]) <= 60.0 || ($ipl === Constants::SE_SUN && abs($geopos[1]) <= 65.0))
+        ) {
+            return self::riseSetFast($tjd_ut, $ipl, $epheflag, $rsmi, $geopos, $atpress, $attemp, $tret, $serr);
+        }
+
+        // Use slow accurate method for extreme latitudes and fixed stars
         return self::riseTransTrueHor(
             $tjd_ut, $ipl, $starname, $epheflag, $rsmi,
             $geopos, $atpress, $attemp, $horhgt ?? 0.0, $tret, $serr
@@ -651,6 +674,221 @@ final class RiseSetFunctions
             $rdi = 18.0;
         }
         return $rdi;
+    }
+
+    /**
+     * Calculate apparent radius plus refraction for Sun/Moon disc
+     * Port from swecl.c:4176-4194 (get_sun_rad_plus_refr)
+     *
+     * @param int $ipl Planet number
+     * @param float $dd Distance in AU
+     * @param int $rsmi Rise/set flags
+     * @param float $refr Refraction in degrees
+     * @return float Apparent radius in degrees (with sign adjustments)
+     */
+    private static function getSunRadPlusRefr(int $ipl, float $dd, int $rsmi, float $refr): float
+    {
+        $rdi = 0.0;
+
+        // Fixed disc size option (swecl.c:4179-4184)
+        if ($rsmi & Constants::SE_BIT_FIXED_DISC_SIZE) {
+            if ($ipl === Constants::SE_SUN) {
+                $dd = 1.0;
+            } elseif ($ipl === Constants::SE_MOON) {
+                $dd = 0.00257;
+            }
+        }
+
+        // Apparent radius of disc (swecl.c:4185-4187)
+        if (!($rsmi & Constants::SE_BIT_DISC_CENTER)) {
+            $diameter = self::PLA_DIAM[$ipl] ?? 0.0;
+            $rdi = asin($diameter / 2.0 / self::AUNIT / $dd) * self::RADTODEG;
+        }
+
+        // Disc bottom flag (swecl.c:4188-4189)
+        if ($rsmi & Constants::SE_BIT_DISC_BOTTOM) {
+            $rdi = -$rdi;
+        }
+
+        // Add refraction unless disabled (swecl.c:4190-4192)
+        if (!($rsmi & Constants::SE_BIT_NO_REFRACTION)) {
+            $rdi += $refr;
+        }
+
+        return $rdi;
+    }
+
+    /**
+     * Fast algorithm for rise/set of planets Sun-Pluto + Lunar Nodes
+     * Port from swecl.c:4203-4325 (rise_set_fast)
+     *
+     * Simple fast algorithm for risings and settings.
+     * Does not work well for geographic latitudes:
+     * > 65 N/S for the Sun
+     * > 60 N/S for the Moon and the planets
+     *
+     * Called only for latitudes smaller than this.
+     * Uses semi-diurnal arc and iterative refinement.
+     *
+     * WITHOUT SIMPLIFICATIONS - full C port with:
+     * - Semi-diurnal arc calculation
+     * - Sidereal time and meridian distance
+     * - Iterative refinement (2 loops for planets, 4 for Moon)
+     * - Refraction and disc size corrections
+     * - Second run if event is before start time
+     */
+    private static function riseSetFast(
+        float $tjd_ut,
+        int $ipl,
+        int $epheflag,
+        int $rsmi,
+        array $dgeo,
+        float $atpress,
+        float $attemp,
+        ?float &$tret = null,
+        ?string &$serr = null
+    ): int {
+        $tret = 0.0;
+        $serr = null;        // Extract ephemeris flags (swecl.c:4214)
+        $iflag = $epheflag & (Constants::SEFLG_JPLEPH | Constants::SEFLG_SWIEPH | Constants::SEFLG_MOSEPH);
+        $iflagtopo = $iflag | Constants::SEFLG_EQUATORIAL;
+
+        // Number of iterations: 2 for planets, 4 for Moon (swecl.c:4222-4225)
+        $nloop = ($ipl === Constants::SE_MOON) ? 4 : 2;
+
+        // Rise or set? (swecl.c:4226-4227)
+        $facrise = ($rsmi & Constants::SE_CALC_SET) ? -1 : 1;
+
+        // Setup topocentric flags (swecl.c:4228-4231)
+        if (!($rsmi & Constants::SE_BIT_GEOCTR_NO_ECL_LAT)) {
+            $iflagtopo |= Constants::SEFLG_TOPOCTR;
+            \swe_set_topo($dgeo[0], $dgeo[1], $dgeo[2]);
+        }
+
+        $tjd_ut0 = $tjd_ut;
+        $is_second_run = false;
+        $tr = 0.0;
+
+        // Main algorithm with retry loop (swecl.c:4232)
+        do {
+            // Get body position at start time (swecl.c:4233-4234)
+            $xx = [];
+            if (\swe_calc_ut($tjd_ut, $ipl, $iflagtopo, $xx, $serr) < 0) {
+                return Constants::SE_ERR;
+            }
+
+            // Declination (swecl.c:4241)
+            $decl = $xx[1];
+
+            // Semi-diurnal arc (swecl.c:4242-4252)
+            // The diurnal arc is a bit fuzzy:
+            // - because the object changes declination during the day
+            // - because there is refraction of light
+            // Nevertheless this works well as soon as the object is not
+            // circumpolar or near-circumpolar
+            $sda = -tan(deg2rad($dgeo[1])) * tan(deg2rad($decl));
+
+            if ($sda >= 1.0) {
+                // Actually sda = 0°, but we give it a value of 10°
+                // to account for refraction. Value 0 would cause problems (swecl.c:4244-4247)
+                $sda = 10.0;
+            } elseif ($sda <= -1.0) {
+                $sda = 180.0;
+            } else {
+                $sda = rad2deg(acos($sda));
+            }
+
+            // Sidereal time at tjd_ut (swecl.c:4253-4254)
+            $armc = \Swisseph\Math::normAngleDeg(\swe_sidtime($tjd_ut) * 15.0 + $dgeo[0]);
+
+            // Meridian distance of object (swecl.c:4255-4256)
+            $md = \Swisseph\Math::normAngleDeg($xx[0] - $armc);
+
+            // Meridian distance at rise/set (swecl.c:4257)
+            $mdrise = \Swisseph\Math::normAngleDeg($sda * $facrise);
+
+            // Delta meridian distance (swecl.c:4259)
+            $dmd = \Swisseph\Math::normAngleDeg($md - $mdrise);
+
+            // Avoid the risk of getting the event of next day (swecl.c:4260-4270)
+            if ($dmd > 358.0) {
+                $dmd -= 360.0;
+            }
+
+            // Rough subsequent rising/setting time (swecl.c:4271-4272)
+            $tr = $tjd_ut + $dmd / 360.0;
+
+            // Calculate refraction for horizon (swecl.c:4276-4286)
+            if ($atpress == 0.0) {
+                // Estimate atmospheric pressure (swecl.c:4280-4283)
+                $atpress = 1013.25 * pow(1.0 - 0.0065 * $dgeo[2] / 288.0, 5.255);
+            }
+
+            $xx_refr = [0.000001, 0.0]; // input: very small altitude
+            \swe_refrac_extended($xx_refr[0], 0.0, $atpress, $attemp, self::LAPSE_RATE, Constants::SE_APP_TO_TRUE, $xx_refr);
+            $refr = $xx_refr[1] - $xx_refr[0];
+
+            // Coordinate system flags (swecl.c:4287-4295)
+            if ($rsmi & Constants::SE_BIT_GEOCTR_NO_ECL_LAT) {
+                $tohor_flag = Constants::SE_ECL2HOR;
+                $iflagtopo = $iflag;
+            } else {
+                $tohor_flag = Constants::SE_EQU2HOR; // this is more efficient
+                $iflagtopo = $iflag | Constants::SEFLG_EQUATORIAL | Constants::SEFLG_TOPOCTR;
+                \swe_set_topo($dgeo[0], $dgeo[1], $dgeo[2]);
+            }
+
+            // Iterative refinement (swecl.c:4296-4315)
+            for ($i = 0; $i < $nloop; $i++) {
+                // Get body position at trial time (swecl.c:4297-4298)
+                if (\swe_calc_ut($tr, $ipl, $iflagtopo, $xx, $serr) < 0) {
+                    return Constants::SE_ERR;
+                }
+
+                // Zero ecliptic latitude if requested (swecl.c:4299-4300)
+                if ($rsmi & Constants::SE_BIT_GEOCTR_NO_ECL_LAT) {
+                    $xx[1] = 0.0;
+                }
+
+                // Get apparent radius plus refraction (swecl.c:4301)
+                $rdi = self::getSunRadPlusRefr($ipl, $xx[2], $rsmi, $refr);
+
+                // Calculate altitude at tr and tr+0.001 (swecl.c:4302-4303)
+                $xaz = [];
+                $xaz2 = [];
+                \swe_azalt($tr, $tohor_flag, $dgeo, $atpress, $attemp, $xx, $xaz);
+                \swe_azalt($tr + 0.001, $tohor_flag, $dgeo, $atpress, $attemp, $xx, $xaz2);
+
+                // Rate of altitude change (swecl.c:4304)
+                $dd = $xaz2[1] - $xaz[1];
+
+                // Altitude including disc radius (swecl.c:4305)
+                $dalt = $xaz[1] + $rdi;
+
+                // Time correction (swecl.c:4306)
+                $dt = $dalt / $dd / 1000.0;
+
+                // Limit correction (swecl.c:4307-4311)
+                if ($dt > 0.1) {
+                    $dt = 0.1;
+                } elseif ($dt < -0.1) {
+                    $dt = -0.1;
+                }
+
+                // Apply correction (swecl.c:4314)
+                $tr -= $dt;
+            }
+
+            // If the event found is before input time, search next event (swecl.c:4317-4322)
+            $need_retry = ($tr < $tjd_ut0 && !$is_second_run);
+            if ($need_retry) {
+                $tjd_ut += 0.5;
+                $is_second_run = true;
+            }
+        } while ($need_retry);
+
+        $tret = $tr;
+        return 0; // OK
     }
 
     /**
