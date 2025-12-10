@@ -1624,7 +1624,7 @@ if (!function_exists('swe_sol_eclipse_how')) {
      *                     attr[0]: fraction of solar diameter covered by moon (magnitude)
      *                     attr[1]: ratio of lunar diameter to solar one
      *                     attr[2]: fraction of solar disc covered by moon (obscuration)
-     *                     attr[3]: diameter of core shadow in km (requires eclipse_where, not yet implemented)
+     *                     attr[3]: diameter of core shadow in km
      *                     attr[4]: azimuth of sun at tjd
      *                     attr[5]: true altitude of sun above horizon at tjd
      *                     attr[6]: apparent altitude of sun above horizon at tjd
@@ -1678,7 +1678,7 @@ if (!function_exists('swe_sol_eclipse_when_loc')) {
      *                     attr[0]: fraction of solar diameter covered (magnitude)
      *                     attr[1]: ratio of lunar diameter to solar one
      *                     attr[2]: fraction of solar disc covered (obscuration)
-     *                     attr[3]: diameter of core shadow in km (TODO: requires eclipse_where)
+     *                     attr[3]: diameter of core shadow in km
      *                     attr[4]: azimuth of sun at maximum
      *                     attr[5]: true altitude of sun above horizon at maximum
      *                     attr[6]: apparent altitude of sun above horizon at maximum
@@ -1698,8 +1698,8 @@ if (!function_exists('swe_sol_eclipse_when_loc')) {
      *             SE_ECL_2ND_VISIBLE (1024): second contact visible
      *             SE_ECL_3RD_VISIBLE (2048): third contact visible
      *             SE_ECL_4TH_VISIBLE (4096): fourth contact visible
-     *             SE_ECL_CENTRAL (1): eclipse is central (TODO: requires eclipse_where)
-     *             SE_ECL_NONCENTRAL (2): eclipse is non-central (TODO: requires eclipse_where)
+     *             SE_ECL_CENTRAL (1): eclipse is central
+     *             SE_ECL_NONCENTRAL (2): eclipse is non-central
      *             Returns 0 if no eclipse found
      *             Returns SE_ERR (-1) on error
      */
