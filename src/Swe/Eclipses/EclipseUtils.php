@@ -137,7 +137,7 @@ class EclipseUtils
         // Check discriminant
         $discriminant = $b * $b - 4.0 * $a * $c;
         if ($discriminant < 0) {
-            return Constants::ERR;
+            return Constants::SE_ERR;
         }
 
         // Quadratic formula

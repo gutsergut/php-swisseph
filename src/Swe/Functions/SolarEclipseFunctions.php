@@ -78,7 +78,7 @@ class SolarEclipseFunctions
                     EclipseUtils::SEI_ECL_GEOALT_MAX
                 );
             }
-            return Constants::ERR;
+            return Constants::SE_ERR;
         }
 
         // Mask to ephemeris flags only
@@ -101,15 +101,33 @@ class SolarEclipseFunctions
             $serr
         );
 
-        if ($retflag === Constants::ERR) {
+        if ($retflag === Constants::SE_ERR) {
             return $retflag;
         }
 
-        // TODO: Call eclipse_where() to get:
+        // Call eclipse_where() to get:
         // - attr[3]: diameter of core shadow
         // - SE_ECL_CENTRAL or SE_ECL_NONCENTRAL flags
-        // For now, we skip this as eclipse_where() is not yet implemented
-        // This means attr[3] remains 0 and CENTRAL/NONCENTRAL flags are not set
+        $geopos2 = array_fill(0, 20, 0.0);
+        $dcoreWhere = array_fill(0, 10, 0.0);
+        $retflag2 = EclipseCalculator::eclipseWhere(
+            $tjdUt,
+            Constants::SE_SUN,
+            null,
+            $ifl,
+            $geopos2,
+            $dcoreWhere,
+            $serr
+        );
+        if ($retflag2 === Constants::SE_ERR) {
+            return $retflag2;
+        }
+
+        // Add CENTRAL/NONCENTRAL flags and set core shadow diameter
+        if ($retflag) {
+            $retflag |= ($retflag2 & (Constants::SE_ECL_CENTRAL | Constants::SE_ECL_NONCENTRAL));
+        }
+        $attr[3] = $dcoreWhere[0];
 
         // Note: In C code, after eclipse_where(), there's additional calculation
         // to override attr[4-6] with fresh swe_azalt() call.
@@ -211,19 +229,24 @@ class SolarEclipseFunctions
             return $retflag;
         }
 
-        // TODO: Get diameter of core shadow using eclipse_where()
+        // Get diameter of core shadow using eclipse_where()
         // From swecl.c:2033-2036
-        // This would also set SE_ECL_CENTRAL or SE_ECL_NONCENTRAL flag
-        // For now, attr[3] remains 0 from eclipse_how()
-
-        // $geopos2 = array_fill(0, 20, 0.0);
-        // $dcore = array_fill(0, 10, 0.0);
-        // $retflag2 = EclipseCalculator::eclipseWhere($tret[0], Constants::SE_SUN, null, $ifl, $geopos2, $dcore, $serr);
-        // if ($retflag2 === Constants::SE_ERR) {
-        //     return $retflag2;
-        // }
-        // $retflag |= ($retflag2 & Constants::SE_ECL_NONCENTRAL);
-        // $attr[3] = $dcore[0];
+        $geopos2 = array_fill(0, 20, 0.0);
+        $dcoreWhere = array_fill(0, 10, 0.0);
+        $retflag2 = EclipseCalculator::eclipseWhere(
+            $tret[0],
+            Constants::SE_SUN,
+            null,
+            $ifl,
+            $geopos2,
+            $dcoreWhere,
+            $serr
+        );
+        if ($retflag2 === Constants::SE_ERR) {
+            return $retflag2;
+        }
+        $retflag |= ($retflag2 & Constants::SE_ECL_NONCENTRAL);
+        $attr[3] = $dcoreWhere[0];
 
         return $retflag;
     }
