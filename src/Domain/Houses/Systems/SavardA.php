@@ -64,20 +64,21 @@ final class SavardA implements HouseSystem
         $fh1 = self::asind($sinfi * self::cosd($xs1));
         $fh2 = self::asind($sinfi * self::cosd($xs2));
 
-        // Куспы, как Asc1(th + 90 ± xh*, fh*)
+        // Calculate primary cusps using Asc1 (swehouse.c:1224-1227)
         $cusp = array_fill(0, 13, 0.0);
         $cusp[1] = Math::degToRad(Math::normAngleDeg($asc_deg));
         $cusp[10] = Math::degToRad(Math::normAngleDeg($mc_deg));
-        $c12 = self::asc1($th + 90.0 - $xh2, $fh2, $sine, $cose);
-        $c11 = self::asc1($th + 90.0 - $xh1, $fh1, $sine, $cose);
-        $c2  = self::asc1($th + 90.0 + $xh2, $fh2, $sine, $cose);
-        $c3  = self::asc1($th + 90.0 + $xh1, $fh1, $sine, $cose);
-        $cusp[12] = Math::degToRad($c12);
-        $cusp[11] = Math::degToRad($c11);
-        $cusp[2]  = Math::degToRad($c2);
-        $cusp[3]  = Math::degToRad($c3);
+        $cusp[12] = Math::degToRad(self::asc1($th + 90.0 - $xh2, $fh2, $sine, $cose));
+        $cusp[11] = Math::degToRad(self::asc1($th + 90.0 - $xh1, $fh1, $sine, $cose));
+        $cusp[2] = Math::degToRad(self::asc1($th + 90.0 + $xh2, $fh2, $sine, $cose));
+        $cusp[3] = Math::degToRad(self::asc1($th + 90.0 + $xh1, $fh1, $sine, $cose));
 
-        // Полярный разворот как в SWE: внутри полярного круга и если AC «позади» MC
+        // Calculate opposite cusps (4-9 are 1-6 + 180°)
+        for ($i = 1; $i <= 6; $i++) {
+            $cusp[$i + 6] = Math::normAngleRad($cusp[$i] + Math::PI);
+        }
+
+        // Within polar circle: handle horizon/hemisphere adjustments (swehouse.c:1237-1246)
         if (abs($fi) >= 90.0 - $ekl) {
             $acmc = self::difdeg2n($asc_deg, $mc_deg);
             if ($acmc < 0) {
@@ -85,14 +86,12 @@ final class SavardA implements HouseSystem
                 $mc_deg = Math::normAngleDeg($mc_deg + 180.0);
                 $cusp[1] = Math::degToRad($asc_deg);
                 $cusp[10] = Math::degToRad($mc_deg);
+                // Add 180° to all cusps except 4-9 (swehouse.c:1242-1243)
                 for ($i = 1; $i <= 12; $i++) {
                     if ($i >= 4 && $i < 10) {
-                        continue;
+                        continue; // Skip cusps 4-9
                     }
-                    if ($i === 1 || $i === 10) {
-                        continue;
-                    }
-                    $cusp[$i] = Math::degToRad(Math::normAngleDeg(Math::radToDeg($cusp[$i]) + 180.0));
+                    $cusp[$i] = Math::normAngleRad($cusp[$i] + Math::PI);
                 }
             }
         }

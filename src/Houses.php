@@ -28,6 +28,7 @@ final class Houses
 
     /**
      * Ascendant and Midheaven for given ARMC, latitude, obliquity.
+     * Uses Asc1() from Swiss Ephemeris for precise calculation.
      * @param float $armc_rad ARMC в радианах
      * @param float $geolat_rad широта в радианах
      * @param float $eps_rad наклон эклиптики в радианах
@@ -35,21 +36,19 @@ final class Houses
      */
     public static function ascMcFromArmc(float $armc_rad, float $geolat_rad, float $eps_rad): array
     {
-        // MC: ecliptic longitude where local meridian crosses ecliptic
-        $tan_mc = \cos($eps_rad) * \tan($armc_rad);
-        $mc = \atan($tan_mc);
-        if ($mc < 0) { $mc += Math::PI; }
-        // adjust quadrant using armc
-        if (\cos($armc_rad) < 0) { $mc += Math::PI; }
-        $mc = Math::normAngleRad($mc);
+        // Convert to degrees for formulas
+        $armc_deg = Math::radToDeg($armc_rad);
+        $geolat_deg = Math::radToDeg($geolat_rad);
+        $sine = \sin($eps_rad);
+        $cose = \cos($eps_rad);
 
-        // Ascendant formula (Meeus approximation)
-        $sin_eps = \sin($eps_rad); $cos_eps = \cos($eps_rad);
-        $sin_phi = \sin($geolat_rad); $cos_phi = \cos($geolat_rad);
-        $tan_phi = $sin_phi / ($cos_phi !== 0.0 ? $cos_phi : 1e-15);
-        $lambda = \atan2(-\cos($armc_rad), $sin_eps * $tan_phi + $cos_eps * \sin($armc_rad));
-        if ($lambda < 0) { $lambda += Math::TWO_PI; }
-        return [$lambda, $mc];
+        // Calculate Ascendant using Asc1 (swehouse.c:973)
+        $asc_deg = self::asc1($armc_deg + 90.0, $geolat_deg, $sine, $cose);
+
+        // Calculate MC using armc_to_mc formula (swehouse.c:860-888)
+        $mc_deg = self::armcToMc($armc_deg, $eps_rad);
+
+        return [Math::degToRad($asc_deg), Math::degToRad($mc_deg)];
     }
 
     // equalCusps/equalHousePosition перенесены в стратегию Equal
@@ -146,4 +145,125 @@ final class Houses
      * Returns cusp[1..12] in radians.
      */
     // alcabitiusCusps перенесён в стратегию Alcabitius
+
+    // =========================================================================
+    // Helper functions for Ascendant calculation (ported from swehouse.c)
+    // =========================================================================
+
+    /**
+     * Port of Asc1() from swehouse.c:2058-2089
+     * Calculate ecliptic longitude where great circle with pole height f
+     * intersects ecliptic, given equatorial x1.
+     * @param float $x1 equatorial position (degrees)
+     * @param float $f pole height / latitude (degrees)
+     * @param float $sine sin(obliquity)
+     * @param float $cose cos(obliquity)
+     * @return float ecliptic longitude (degrees)
+     */
+    private static function asc1(float $x1, float $f, float $sine, float $cose): float
+    {
+        $VERY_SMALL = 1e-10; // from swehouse.h:87
+        $x1 = Math::normAngleDeg($x1);
+        $n = (int) floor($x1 / 90.0) + 1; // quadrant 1..4
+
+        // Near poles
+        if (abs(90.0 - $f) < $VERY_SMALL) {
+            return 180.0; // north pole
+        }
+        if (abs(90.0 + $f) < $VERY_SMALL) {
+            return 0.0;   // south pole
+        }
+
+        // Calculate based on quadrant
+        if ($n === 1) {
+            $ass = self::asc2($x1, $f, $sine, $cose);
+        } elseif ($n === 2) {
+            $ass = 180.0 - self::asc2(180.0 - $x1, -$f, $sine, $cose);
+        } elseif ($n === 3) {
+            $ass = 180.0 + self::asc2($x1 - 180.0, -$f, $sine, $cose);
+        } else {
+            $ass = 360.0 - self::asc2(360.0 - $x1, $f, $sine, $cose);
+        }
+
+        $ass = Math::normAngleDeg($ass);
+
+        // Rounding fixes (swehouse.c:2081-2088)
+        foreach ([90.0, 180.0, 270.0, 360.0] as $fix) {
+            if (abs($ass - $fix) < $VERY_SMALL) {
+                $ass = ($fix == 360.0) ? 0.0 : $fix;
+                break;
+            }
+        }
+
+        return $ass;
+    }
+
+    /**
+     * Port of Asc2() from swehouse.c:2100-2129
+     * Helper for Asc1: calculate for x in range [0,90]
+     */
+    private static function asc2(float $x, float $f, float $sine, float $cose): float
+    {
+        $VERY_SMALL = 1e-10;
+
+        // From spherical trigonometry CT5
+        $ass = -\tan(Math::degToRad($f)) * $sine + $cose * \cos(Math::degToRad($x));
+        if (abs($ass) < $VERY_SMALL) {
+            $ass = 0.0;
+        }
+
+        $sinx = \sin(Math::degToRad($x));
+        if (abs($sinx) < $VERY_SMALL) {
+            $sinx = 0.0;
+        }
+
+        if ($sinx == 0.0) {
+            $ass = ($ass < 0) ? -$VERY_SMALL : $VERY_SMALL;
+        } elseif ($ass == 0.0) {
+            $ass = ($sinx < 0) ? -90.0 : 90.0;
+            return $ass;
+        } else {
+            $ass = Math::radToDeg(\atan($sinx / $ass));
+        }
+
+        if ($ass < 0) {
+            $ass = 180.0 + $ass;
+        }
+
+        return $ass;
+    }
+
+    /**
+     * Port of swi_armc_to_mc() from swehouse.c:873-888
+     * Calculate Midheaven (MC) from ARMC
+     * @param float $armc_deg ARMC in degrees
+     * @param float $eps_rad obliquity in radians
+     * @return float MC in degrees
+     */
+    private static function armcToMc(float $armc_deg, float $eps_rad): float
+    {
+        $VERY_SMALL = 1e-10;
+        $armc_deg = Math::normAngleDeg($armc_deg);
+
+        // swehouse.c:876-888
+        if (abs($armc_deg - 90.0) > $VERY_SMALL && abs($armc_deg - 270.0) > $VERY_SMALL) {
+            // General formula (swehouse.c:877-880)
+            $tant = \tan(Math::degToRad($armc_deg));
+            $mc_deg = Math::radToDeg(\atan($tant / \cos($eps_rad)));
+
+            // Quadrant adjustment (swehouse.c:880)
+            if ($armc_deg > 90.0 && $armc_deg <= 270.0) {
+                $mc_deg = Math::normAngleDeg($mc_deg + 180.0);
+            }
+            return $mc_deg;
+        } else {
+            // ARMC = 90° or 270° (swehouse.c:882-885)
+            if (abs($armc_deg - 90.0) <= $VERY_SMALL) {
+                return 90.0;
+            } else {
+                return 270.0;
+            }
+        }
+    }
 }
+
