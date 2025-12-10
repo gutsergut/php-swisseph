@@ -77,8 +77,10 @@ class Bias
         $hasSpeed = ($iflag & Constants::SEFLG_SPEED) && count($x) >= 6;
 
         // Apply transformation with JPL Horizons corrections
-        // Initialize result with same length as input (preserve structure)
-        $result = $hasSpeed ? [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] : [0.0, 0.0, 0.0];
+        // CRITICAL: Always initialize result with 6 elements to maintain array structure
+        // In C, coordinate arrays are double[6], so always have 6 elements
+        // In PHP, we must ensure this explicitly to prevent array size inconsistencies
+        $result = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 
         if ($backward) {
             // J2000 → ICRS

@@ -44,6 +44,13 @@ class MoonTransform
 
         // Copy coordinates to working array
         // From sweph.c:4106-4110
+        // CRITICAL: Ensure pdp->x always has 6 elements before copying
+        // In C, plan_data.x is double[6] so always has 6 elements
+        // In PHP, we must ensure this explicitly
+        while (count($pdp->x) < 6) {
+            $pdp->x[] = 0.0;
+        }
+
         $xx = array_fill(0, 6, 0.0);
         $xxm = array_fill(0, 6, 0.0);
         for ($i = 0; $i <= 5; $i++) {
@@ -262,8 +269,12 @@ class MoonTransform
          **********************************/
         // From sweph.c:4221-4237
         if (!($iflag & Constants::SEFLG_TRUEPOS) && !($iflag & Constants::SEFLG_NOABERR)) {
+            error_log(sprintf("DEBUG MoonTransform: BEFORE aberrLight, xx has %d elements", count($xx)));
+
             // Apply aberration
             self::aberrLight($xx, $xobs, $iflag);
+
+            error_log(sprintf("DEBUG MoonTransform: AFTER aberrLight, xx has %d elements", count($xx)));
 
             // Speed correction for aberration
             // From sweph.c:4231-4234
@@ -291,6 +302,13 @@ class MoonTransform
         // Save J2000 coordinates
         // From sweph.c:4246-4248
         $xxsv = array_fill(0, 6, 0.0);
+
+        // DEBUG: Check $xx array size before copying
+        error_log(sprintf("DEBUG MoonTransform: Before saving to xxsv, xx has %d elements: [%s]",
+            count($xx),
+            implode(', ', array_map(function($v) { return isset($v) ? sprintf("%.6f", $v) : 'UNDEF'; }, $xx))
+        ));
+
         for ($i = 0; $i <= 5; $i++) {
             $xxsv[$i] = $xx[$i];
         }

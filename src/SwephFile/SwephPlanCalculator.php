@@ -162,6 +162,10 @@ final class SwephPlanCalculator
 
             // Copy to output parameter if requested
             if ($xpsret !== null) {
+                // Ensure source has 6 elements
+                while (count($xps) < 6) {
+                    $xps[] = 0.0;
+                }
                 for ($i = 0; $i <= 5; $i++) {
                     $xpsret[$i] = $xps[$i];
                 }
@@ -205,6 +209,10 @@ final class SwephPlanCalculator
 
             // Copy to output parameter if requested
             if ($xpmret !== null) {
+                // Ensure source has 6 elements
+                while (count($xpm) < 6) {
+                    $xpm[] = 0.0;
+                }
                 for ($i = 0; $i <= 5; $i++) {
                     $xpmret[$i] = $xpm[$i];
                 }
@@ -256,6 +264,10 @@ final class SwephPlanCalculator
 
             // Copy to output parameter if requested
             if ($xperet !== null) {
+                // Ensure source has 6 elements
+                while (count($xpe) < 6) {
+                    $xpe[] = 0.0;
+                }
                 for ($i = 0; $i <= 5; $i++) {
                     $xperet[$i] = $xpe[$i];
                 }
@@ -385,6 +397,13 @@ final class SwephPlanCalculator
         // Copy to output parameter if requested
         // Use $xp_result which points to correct data (may be $xps for SUN!)
         if ($xpret !== null && $xp_result !== null) {
+            // CRITICAL: Ensure output array ALWAYS has exactly 6 elements
+            // In C, all coordinate arrays are double[6], so always have 6 elements
+            // In PHP, we must guarantee this explicitly to prevent "Undefined array key" warnings
+            while (count($xp_result) < 6) {
+                $xp_result[] = 0.0;
+            }
+
             for ($i = 0; $i <= 5; $i++) {
                 $xpret[$i] = $xp_result[$i];
             }

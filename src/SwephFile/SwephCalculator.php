@@ -213,6 +213,10 @@ final class SwephCalculator
         $needSpeed = $doSave || ($iflag & Constants::SEFLG_SPEED);
 
         // Interpolate position and velocity for each coordinate
+        // C code sweph.c:2307-2314
+        // CRITICAL: Always initialize ALL 6 elements (positions 0-2 and velocities 3-5)
+        // Even when !need_speed, velocities must be set to 0.0
+        // This ensures arrays are always complete for subsequent operations
         for ($i = 0; $i <= 2; $i++) {
             $coeffOffset = $i * $pdp->ncoe;
             $coeffArray = array_slice($pdp->segp, $coeffOffset, $pdp->ncoe);
@@ -235,6 +239,9 @@ final class SwephCalculator
                     error_log(sprintf("  Velocity result: %.15f AU/day", $xp[$i + 3]));
                 }
             } else {
+                // C code sweph.c:2313: "von Alois als billiger fix, evtl. illegal"
+                // BUT: This is CRITICAL! Must always initialize velocity elements
+                // to ensure arrays have exactly 6 elements for all subsequent code
                 $xp[$i + 3] = 0.0;
             }
         }
