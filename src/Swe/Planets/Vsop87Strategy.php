@@ -119,27 +119,26 @@ class Vsop87Strategy implements EphemerisStrategy
 
         // VSOP87D возвращает гелиоцентрические ЭКЛИПТИЧЕСКИЕ координаты J2000
         // Swiss Ephemeris требует барицентрические ЭКВАТОРИАЛЬНЫЕ J2000
-        // 1. Конвертируем helio → bary (добавляем SunBary)
-        // 2. Конвертируем ecliptic → equatorial (вращение на obliquity J2000)
+        // Порядок трансформации:
+        // 1. Конвертируем VSOP87 helio ecliptic → helio equatorial (rotation)
+        // 2. Добавляем SunBary (который уже в equatorial) → bary equatorial
 
-        // 1. Helio → Bary (эклиптические)
-        $x_bary_ecl = [
-            $xh + $sunb_pd->x[0],
-            $yh + $sunb_pd->x[1],
-            $zh + $sunb_pd->x[2],
-        ];
-
-        // 2. Ecliptic → Equatorial rotation
-        // Формула: x_eq = x_ecl, y_eq = y*cos(eps) - z*sin(eps), z_eq = y*sin(eps) + z*cos(eps)
         // Obliquity J2000.0 = 23.4392911° = 0.40909280422232897 rad
-        $eps_j2000 = 0.40909280422232897; // J2000 obliquity in radians
+        $eps_j2000 = 0.40909280422232897;
         $seps = sin($eps_j2000);
         $ceps = cos($eps_j2000);
 
+        // 1. Ecliptic → Equatorial rotation для гелиоцентрических координат VSOP87
+        // Формула: x_eq = x_ecl, y_eq = y*cos(eps) - z*sin(eps), z_eq = y*sin(eps) + z*cos(eps)
+        $xh_eq = $xh;
+        $yh_eq = $yh * $ceps - $zh * $seps;
+        $zh_eq = $yh * $seps + $zh * $ceps;
+
+        // 2. Helio (equatorial) + SunBary (equatorial) → Bary (equatorial)
         $xpret = [
-            $x_bary_ecl[0],
-            $x_bary_ecl[1] * $ceps - $x_bary_ecl[2] * $seps,
-            $x_bary_ecl[1] * $seps + $x_bary_ecl[2] * $ceps,
+            $xh_eq + $sunb_pd->x[0],
+            $yh_eq + $sunb_pd->x[1],
+            $zh_eq + $sunb_pd->x[2],
             0.0,  // speeds computed below
             0.0,
             0.0,
@@ -200,25 +199,26 @@ class Vsop87Strategy implements EphemerisStrategy
         if ($ret_sp < 0 || $ret_sm < 0) {
             return StrategyResult::err($serr ?? 'Sun barycenter speed calculation failed', Constants::SE_ERR);
         }
-        // VSOP87D helio → bary (ecliptic J2000)
-        $xb_p_ecl = $xh_p + $xps_plus[0];
-        $yb_p_ecl = $yh_p + $xps_plus[1];
-        $zb_p_ecl = $zh_p + $xps_plus[2];
-        $xb_m_ecl = $xh_m + $xps_minus[0];
-        $yb_m_ecl = $yh_m + $xps_minus[1];
-        $zb_m_ecl = $zh_m + $xps_minus[2];
 
-        // Ecliptic → Equatorial (J2000 obliquity = 23.4392911° = 0.40909280422232897 rad)
-        // x_eq = x_ecl, y_eq = y_ecl*cos(eps) - z_ecl*sin(eps), z_eq = y_ecl*sin(eps) + z_ecl*cos(eps)
-        $xb_p = $xb_p_ecl;
-        $yb_p = $yb_p_ecl * $ceps - $zb_p_ecl * $seps;
-        $zb_p = $yb_p_ecl * $seps + $zb_p_ecl * $ceps;
+        // Ecliptic → Equatorial rotation для t+dt и t-dt
+        $xh_p_eq = $xh_p;
+        $yh_p_eq = $yh_p * $ceps - $zh_p * $seps;
+        $zh_p_eq = $yh_p * $seps + $zh_p * $ceps;
 
-        $xb_m = $xb_m_ecl;
-        $yb_m = $yb_m_ecl * $ceps - $zb_m_ecl * $seps;
-        $zb_m = $yb_m_ecl * $seps + $zb_m_ecl * $ceps;
+        $xh_m_eq = $xh_m;
+        $yh_m_eq = $yh_m * $ceps - $zh_m * $seps;
+        $zh_m_eq = $yh_m * $seps + $zh_m * $ceps;
 
-        // Central difference velocity (now in equatorial J2000)
+        // Helio (equatorial) + SunBary (equatorial) → Bary (equatorial)
+        $xb_p = $xh_p_eq + $xps_plus[0];
+        $yb_p = $yh_p_eq + $xps_plus[1];
+        $zb_p = $zh_p_eq + $xps_plus[2];
+
+        $xb_m = $xh_m_eq + $xps_minus[0];
+        $yb_m = $yh_m_eq + $xps_minus[1];
+        $zb_m = $zh_m_eq + $xps_minus[2];
+
+        // Central difference velocity (in equatorial J2000)
         $xpret[3] = ($xb_p - $xb_m) / (2.0 * $dt);
         $xpret[4] = ($yb_p - $yb_m) / (2.0 * $dt);
         $xpret[5] = ($zb_p - $zb_m) / (2.0 * $dt);
