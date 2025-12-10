@@ -234,7 +234,7 @@ final class RiseSetFunctions
 
             // True height of center (swecl.c:4493)
             $xhii = [];
-            \swe_azalt($t, $tohor_flag, $xc, $geopos, $atpress, $attemp, $xhii, $serr);
+            \swe_azalt($t, $tohor_flag, $geopos, $atpress, $attemp, $xc, $xhii);
 
             // Adjust for disc edge (swecl.c:4495-4500)
             if ($rsmi & Constants::SE_BIT_DISC_BOTTOM) {
@@ -249,8 +249,8 @@ final class RiseSetFunctions
                 $h[$ii] = $xhii[1];
             } else {
                 // Apply refraction by round-trip conversion
-                \swe_azalt_rev($t, Constants::SE_HOR2EQU, $xhii, $geopos, $xc, $serr);
-                \swe_azalt($t, Constants::SE_EQU2HOR, $xc, $geopos, $atpress, $attemp, $xhii, $serr);
+                \swe_azalt_rev($t, Constants::SE_HOR2EQU, $geopos, $xhii, $xc);
+                \swe_azalt($t, Constants::SE_EQU2HOR, $geopos, $atpress, $attemp, $xc, $xhii);
                 $xhii[1] -= $horhgt;
                 $xhii[2] -= $horhgt;
                 $h[$ii] = $xhii[2];  // use refracted altitude
@@ -306,7 +306,7 @@ final class RiseSetFunctions
                             $xc[1] = 0.0;
                         }
                         $ah = [];
-                        \swe_azalt($tt, $tohor_flag, $xc, $geopos, $atpress, $attemp, $ah, $serr);
+                        \swe_azalt($tt, $tohor_flag, $geopos, $atpress, $attemp, $xc, $ah);
                         $ah[1] -= $horhgt;
                         $dc[$i] = $ah[1];
                     }
@@ -354,7 +354,7 @@ final class RiseSetFunctions
                     $rdi = asin($dd / 2.0 / self::AUNIT / $curdist) * self::RADTODEG;
 
                     $ah = [];
-                    \swe_azalt($tc[$j], $tohor_flag, $xc, $geopos, $atpress, $attemp, $ah, $serr);
+                    \swe_azalt($tc[$j], $tohor_flag, $geopos, $atpress, $attemp, $xc, $ah);
 
                     if ($rsmi & Constants::SE_BIT_DISC_BOTTOM) {
                         $ah[1] -= $rdi;
@@ -366,8 +366,8 @@ final class RiseSetFunctions
                         $ah[1] -= $horhgt;
                         $h[$j] = $ah[1];
                     } else {
-                        \swe_azalt_rev($tc[$j], Constants::SE_HOR2EQU, $ah, $geopos, $xc, $serr);
-                        \swe_azalt($tc[$j], Constants::SE_EQU2HOR, $xc, $geopos, $atpress, $attemp, $ah, $serr);
+                        \swe_azalt_rev($tc[$j], Constants::SE_HOR2EQU, $geopos, $ah, $xc);
+                        \swe_azalt($tc[$j], Constants::SE_EQU2HOR, $geopos, $atpress, $attemp, $xc, $ah);
                         $ah[1] -= $horhgt;
                         $ah[2] -= $horhgt;
                         $h[$j] = $ah[2];
@@ -437,7 +437,7 @@ final class RiseSetFunctions
                 $rdi = asin($dd / 2.0 / self::AUNIT / $curdist) * self::RADTODEG;
 
                 $ah = [];
-                \swe_azalt($t, $tohor_flag, $xc, $geopos, $atpress, $attemp, $ah, $serr);
+                \swe_azalt($t, $tohor_flag, $geopos, $atpress, $attemp, $xc, $ah);
 
                 if ($rsmi & Constants::SE_BIT_DISC_BOTTOM) {
                     $ah[1] -= $rdi;
@@ -449,8 +449,8 @@ final class RiseSetFunctions
                     $ah[1] -= $horhgt;
                     $aha = $ah[1];
                 } else {
-                    \swe_azalt_rev($t, Constants::SE_HOR2EQU, $ah, $geopos, $xc, $serr);
-                    \swe_azalt($t, Constants::SE_EQU2HOR, $xc, $geopos, $atpress, $attemp, $ah, $serr);
+                    \swe_azalt_rev($t, Constants::SE_HOR2EQU, $geopos, $ah, $xc);
+                    \swe_azalt($t, Constants::SE_EQU2HOR, $geopos, $atpress, $attemp, $xc, $ah);
                     $ah[1] -= $horhgt;
                     $ah[2] -= $horhgt;
                     $aha = $ah[2];
