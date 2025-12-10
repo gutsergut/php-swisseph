@@ -62,8 +62,8 @@ final class Sidereal
      *
      * Port of swi_get_ayanamsa_ex() from sweph.c
      *
-     * Note: "True" ayanamshas based on fixed stars (True Citra, True Revati, etc.)
-     * are not yet implemented and will fall back to simple model.
+     * Supports "True" ayanamshas based on fixed stars (True Citra, True Revati, True Pushya)
+     * which calculate ayanamsha from actual star positions via swe_fixstar().
      *
      * @param float $jd_tt Julian Day in TT
      * @return float Ayanamsha in degrees (can be negative or > 360°)
@@ -75,6 +75,59 @@ final class Sidereal
         // User-defined mode: return constant offset
         if ($sidMode === \Swisseph\Constants::SE_SIDM_USER) {
             return $ayan0User;
+        }
+
+        // TRUE ayanamshas based on fixed stars (sweph.c:3048-3074)
+        // These use swe_fixstar() to get current star position
+        if ($sidMode === \Swisseph\Constants::SE_SIDM_TRUE_CITRA) {
+            // True Citra (Spica): ayanamsha = Spica_longitude - 180°
+            $star = 'Spica';
+            $x = [];
+            $serr = null;
+            $iflag = \Swisseph\Constants::SEFLG_SWIEPH | \Swisseph\Constants::SEFLG_NONUT | \Swisseph\Constants::SEFLG_NOABERR;
+
+            $retflag = \swe_fixstar($star, $jd_tt, $iflag, $x, $serr);
+            if ($retflag < 0) {
+                // Error getting star position - return 0 as fallback
+                error_log("TRUE_CITRA ayanamsha error: " . ($serr ?? 'unknown'));
+                return 0.0;
+            }
+
+            return Math::normAngleDeg($x[0] - 180.0);
+        }
+
+        if ($sidMode === \Swisseph\Constants::SE_SIDM_TRUE_REVATI) {
+            // True Revati (ζ Psc): ayanamsha = zePsc_longitude - 359.8333°
+            $star = ',zePsc';
+            $x = [];
+            $serr = null;
+            $iflag = \Swisseph\Constants::SEFLG_SWIEPH | \Swisseph\Constants::SEFLG_NONUT | \Swisseph\Constants::SEFLG_NOABERR;
+
+            $retflag = \swe_fixstar($star, $jd_tt, $iflag, $x, $serr);
+            if ($retflag < 0) {
+                // Error getting star position - return 0 as fallback
+                error_log("TRUE_REVATI ayanamsha error: " . ($serr ?? 'unknown'));
+                return 0.0;
+            }
+
+            return Math::normAngleDeg($x[0] - 359.8333333333);
+        }
+
+        if ($sidMode === \Swisseph\Constants::SE_SIDM_TRUE_PUSHYA) {
+            // True Pushya (δ Cnc / Asellus Australis): ayanamsha = deCnc_longitude - 106°
+            $star = ',deCnc';
+            $x = [];
+            $serr = null;
+            $iflag = \Swisseph\Constants::SEFLG_SWIEPH | \Swisseph\Constants::SEFLG_NONUT | \Swisseph\Constants::SEFLG_NOABERR;
+
+            $retflag = \swe_fixstar($star, $jd_tt, $iflag, $x, $serr);
+            if ($retflag < 0) {
+                // Error getting star position - return 0 as fallback
+                error_log("TRUE_PUSHYA ayanamsha error: " . ($serr ?? 'unknown'));
+                return 0.0;
+            }
+
+            return Math::normAngleDeg($x[0] - 106.0);
         }
 
         // Get ayanamsha data from table
