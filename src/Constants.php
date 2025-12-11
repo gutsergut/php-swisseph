@@ -188,6 +188,38 @@ final class Constants
     public const EARTH_RADIUS = 6378136.6;          // Earth radius in meters (AA 2006 K6)
     public const EARTH_OBLATENESS = 0.0033528106647474807; // 1.0 / 298.25642 (AA 2006 K6)
     public const EARTH_ROT_SPEED = 6.30038061277862; // 7.2921151467e-5 * 86400 (rad/day)
+
+    // Eclipse-specific constants (swecl.c:84-91)
+    public const DMOON = 3476300.0;                 // Moon diameter in meters
+    public const DSUN = 1392000000.0;               // Sun diameter in meters
+
+    // Number of planets with known diameters (sweph.h:314)
+    public const NDIAM = 19; // SE_VESTA + 1 (up to asteroid Vesta)
+
+    // Planetary diameters in meters (sweph.h:315-327)
+    // Indexed by planet number (SE_SUN, SE_MOON, etc.)
+    public const PLA_DIAM = [
+        1392000000.0,  // SE_SUN (0)
+        3475000.0,     // SE_MOON (1)
+        4878800.0,     // SE_MERCURY (2) - diameter = 2 * radius
+        12103600.0,    // SE_VENUS (3)
+        6779000.0,     // SE_MARS (4)
+        139822000.0,   // SE_JUPITER (5)
+        116464000.0,   // SE_SATURN (6)
+        50724000.0,    // SE_URANUS (7)
+        49244000.0,    // SE_NEPTUNE (8)
+        2376600.0,     // SE_PLUTO (9)
+        0.0,           // SE_MEAN_NODE (10) - no diameter
+        0.0,           // SE_TRUE_NODE (11)
+        0.0,           // SE_MEAN_APOG (12)
+        0.0,           // SE_OSCU_APOG (13)
+        12742016.8,    // SE_EARTH (14)
+        271370.0,      // SE_CHIRON (15)
+        290000.0,      // SE_PHOLUS (16)
+        939400.0,      // SE_CERES (17)
+        545000.0,      // SE_PALLAS (18)
+    ];
+
     public const RADTODEG = 57.2957795130823;       // Radians to degrees conversion
     public const DEGTORAD = 0.0174532925199433;     // Degrees to radians conversion
     public const SE_LAPSE_RATE = 0.0065;            // Temperature lapse rate (deg K/m) for refraction

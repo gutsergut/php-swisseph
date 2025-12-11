@@ -37,6 +37,7 @@ use Swisseph\Swe\Functions\LegacyStarFunctions;
 use Swisseph\Swe\Functions\SolarEclipseFunctions;
 use Swisseph\Swe\Functions\LunarEclipseWhenFunctions;
 use Swisseph\Swe\Functions\LunarEclipseWhenLocFunctions;
+use Swisseph\Swe\Functions\SolarEclipseWhereFunctions;
 
 if (!function_exists('swe_julday')) {
     /**
@@ -1869,5 +1870,53 @@ if (!function_exists('swe_lun_eclipse_when_loc')) {
         ?string &$serr = null
     ): int {
         return \Swisseph\Swe\Functions\LunarEclipseWhenLocFunctions::when($tjd_start, $ifl, $geopos, $tret, $attr, $backward, $serr);
+    }
+}
+
+if (!function_exists('swe_sol_eclipse_where')) {
+    /**
+     * Calculate geographic position of solar eclipse maximum (center of shadow path)
+     *
+     * Finds where the central line of a solar eclipse crosses Earth's surface.
+     * For total/annular eclipses, returns the point of greatest eclipse.
+     * For partial eclipses, returns the point of maximum obscuration.
+     *
+     * Port from swecl.c:565-581
+     *
+     * @param float $tjd_ut Time in Julian days UT
+     * @param int $ifl Ephemeris flag (SEFLG_SWIEPH, SEFLG_JPLEPH, SEFLG_MOSEPH)
+     * @param array &$geopos Geographic position [longitude_deg, latitude_deg] (output):
+     *   [0] = geographic longitude in degrees (east positive, west negative)
+     *   [1] = geographic latitude in degrees (north positive, south negative)
+     * @param array &$attr Eclipse attributes [20] (output):
+     *   [0] = fraction of solar diameter covered by moon (magnitude)
+     *   [1] = ratio of lunar diameter to solar diameter
+     *   [2] = fraction of solar disc covered by moon (obscuration)
+     *   [3] = diameter of core shadow in km (negative for annular eclipse)
+     *   [4] = azimuth of sun at maximum eclipse
+     *   [5] = true altitude of sun above horizon
+     *   [6] = apparent altitude of sun above horizon
+     *   [7] = angular distance of moon from sun in degrees
+     *   [8] = magnitude according to NASA definition
+     *   [9] = saros series number
+     *   [10] = saros series member number
+     * @param string &$serr Error message
+     * @return int Eclipse type flags (combination of):
+     *   SE_ECL_CENTRAL = central eclipse (umbra touches Earth)
+     *   SE_ECL_NONCENTRAL = non-central eclipse (umbra axis misses Earth center)
+     *   SE_ECL_TOTAL = total eclipse (moon diameter > sun diameter)
+     *   SE_ECL_ANNULAR = annular eclipse (moon diameter < sun diameter)
+     *   SE_ECL_PARTIAL = partial eclipse (only penumbra visible)
+     *   0 = no eclipse at this time
+     *   SE_ERR = error
+     */
+    function swe_sol_eclipse_where(
+        float $tjd_ut,
+        int $ifl,
+        array &$geopos,
+        array &$attr,
+        ?string &$serr = null
+    ): int {
+        return \Swisseph\Swe\Functions\SolarEclipseWhereFunctions::where($tjd_ut, $ifl, $geopos, $attr, $serr);
     }
 }

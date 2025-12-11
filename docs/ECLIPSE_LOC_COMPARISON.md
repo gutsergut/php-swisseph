@@ -43,7 +43,7 @@ Test: Moscow location (37.6173°E, 55.7558°N, 0m) - 2024-09-18 partial eclipse
 
 **Accuracy Summary:**
 - ✅ All eclipse times match exactly (JD precision to 6 decimals)
-- ✅ Contact times match to the minute  
+- ✅ Contact times match to the minute
 - ✅ Magnitudes match to 0.2% accuracy
 - ✅ Moon azimuth and altitude EXACT match
 - ✅ Visibility flags all correct
