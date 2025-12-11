@@ -992,7 +992,6 @@ class EclipseCalculator
         if ($retc === Constants::SE_ERR) {
             return $retc;
         }
-        error_log("eclipseWhere: Moon cart: rm=[{$rm[0]}, {$rm[1]}, {$rm[2]}]");
 
         // Moon in polar coordinates (swecl.c:676-678)
         $retc = \swe_calc($tjd, Constants::SE_MOON, $iflag2, $lm, $serr);
@@ -1005,7 +1004,6 @@ class EclipseCalculator
         if ($retc === Constants::SE_ERR) {
             return $retc;
         }
-        error_log("eclipseWhere: Sun cart: rs=[{$rs[0]}, {$rs[1]}, {$rs[2]}]");
 
         // Sun in polar coordinates (swecl.c:682-684)
         $retc = self::calcPlanetStar($tjd, $ipl, $starname, $iflag2, $ls, $serr);
@@ -1154,7 +1152,6 @@ class EclipseCalculator
             for ($i = 0; $i <= 2; $i++) {
                 $xs[$i] = $rm[$i] + $s * $e[$i];
             }
-            error_log("eclipseWhere: xs calc: s=$s, e=[{$e[0]}, {$e[1]}, {$e[2]}], xs=[{$xs[0]}, {$xs[1]}, {$xs[2]}]");
 
             // We need geographic position with correct z, as well (swecl.c:833-835)
             for ($i = 0; $i <= 2; $i++) {
@@ -1197,10 +1194,6 @@ class EclipseCalculator
         $geopos[0] = $xs[0];
         $geopos[1] = $xs[1];
 
-        error_log("eclipseWhere: xs before geopos assignment = [{$xs[0]}, {$xs[1]}], sidt=$sidt");
-        error_log("eclipseWhere: retc=$retc, dcore[0]={$dcore[0]}, niter=$niter");
-
-        // Diameter of core shadow (swecl.c:858-865)
         // First, distance moon - place of eclipse on earth
         for ($i = 0; $i <= 2; $i++) {
             $x[$i] = $rmt[$i] - $xst[$i];

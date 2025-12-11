@@ -249,7 +249,6 @@ class SolarEclipseWhenGlobFunctions
             $geopos = [];
             $dcore = [];
             $retflag = EclipseCalculator::eclipseWhere($tjd, Constants::SE_SUN, null, $ifl, $geopos, $dcore, $serr);
-            error_log("First eclipseWhere() returned retflag=$retflag for JD=$tjd, geopos=[{$geopos[0]}, {$geopos[1]}]");
             if ($retflag === Constants::SE_ERR) {
                 return $retflag;
             }
@@ -286,9 +285,7 @@ class SolarEclipseWhenGlobFunctions
             \swe_calc($tjd, Constants::SE_SUN, $iflag, $dummy, $serr);
             \swe_calc($tjd, Constants::SE_MOON, $iflag, $dummy, $serr);
             
-            error_log("Before second eclipseWhere(): geopos=[{$geopos[0]}, {$geopos[1]}]");
             $retflag = EclipseCalculator::eclipseWhere($tjd, Constants::SE_SUN, null, $ifl, $geopos, $dcore, $serr);
-            error_log("Second eclipseWhere() returned retflag=$retflag for JD=$tjd, geopos=[{$geopos[0]}, {$geopos[1]}]");
             if ($retflag === Constants::SE_ERR) {
                 return $retflag;
             }
