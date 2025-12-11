@@ -1989,6 +1989,61 @@ if (!function_exists('swe_lun_occult_when_glob')) {
     }
 }
 
+if (!function_exists('swe_lun_occult_where')) {
+    /**
+     * Calculate geographic position of maximum lunar occultation
+     *
+     * Finds the geographic location where a lunar occultation of a planet or star
+     * reaches its maximum. Returns the longitude, latitude, and attributes of the
+     * occultation at that location.
+     *
+     * Port from swecl.c:606-630
+     *
+     * @param float $tjd_ut Julian Day Number (UT)
+     * @param int $ipl Planet number (SE_SUN, SE_MOON, SE_MERCURY, etc.)
+     * @param string|null $starname Fixed star name (e.g., "Aldebaran"), or null for planet
+     * @param int $ifl Ephemeris flags (SEFLG_SWIEPH, SEFLG_JPLEPH, etc.)
+     * @param array &$geopos Geographic position [longitude, latitude, altitude] (output)
+     * @param array &$attr Eclipse attributes array (output), declare as attr[20]:
+     *   attr[0] = fraction of object diameter covered by moon
+     *   attr[1] = ratio of lunar diameter to object diameter
+     *   attr[2] = fraction of object disc covered by moon (obscuration)
+     *   attr[3] = diameter of core shadow in km
+     *   attr[4] = azimuth of object
+     *   attr[5] = true altitude of object
+     *   attr[6] = apparent altitude of object
+     *   attr[7] = angular separation of moon from object
+     * @param string|null &$serr Error message (output)
+     * @return int Eclipse type flags (combination of):
+     *   SE_ECL_CENTRAL = central occultation
+     *   SE_ECL_NONCENTRAL = non-central occultation
+     *   SE_ECL_TOTAL = total occultation
+     *   SE_ECL_ANNULAR = annular occultation (object larger than moon)
+     *   SE_ECL_PARTIAL = partial occultation
+     *   0 = no occultation at this time
+     *   SE_ERR = error
+     */
+    function swe_lun_occult_where(
+        float $tjd_ut,
+        int $ipl,
+        ?string $starname,
+        int $ifl,
+        array &$geopos,
+        array &$attr,
+        ?string &$serr = null
+    ): int {
+        return \Swisseph\Swe\Functions\LunarOccultationWhereFunctions::lunOccultWhere(
+            $tjd_ut,
+            $ipl,
+            $starname,
+            $ifl,
+            $geopos,
+            $attr,
+            $serr
+        );
+    }
+}
+
 if (!function_exists('swe_sol_eclipse_where')) {
     /**
      * Calculate geographic position of solar eclipse maximum (center of shadow path)
