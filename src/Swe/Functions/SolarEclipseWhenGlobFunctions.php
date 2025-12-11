@@ -284,7 +284,7 @@ class SolarEclipseWhenGlobFunctions
             $dummy = [];
             \swe_calc($tjd, Constants::SE_SUN, $iflag, $dummy, $serr);
             \swe_calc($tjd, Constants::SE_MOON, $iflag, $dummy, $serr);
-            
+
             $retflag = EclipseCalculator::eclipseWhere($tjd, Constants::SE_SUN, null, $ifl, $geopos, $dcore, $serr);
             if ($retflag === Constants::SE_ERR) {
                 return $retflag;

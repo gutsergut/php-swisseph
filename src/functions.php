@@ -37,6 +37,7 @@ use Swisseph\Swe\Functions\LegacyStarFunctions;
 use Swisseph\Swe\Functions\SolarEclipseFunctions;
 use Swisseph\Swe\Functions\LunarEclipseWhenFunctions;
 use Swisseph\Swe\Functions\LunarEclipseWhenLocFunctions;
+use Swisseph\Swe\Functions\LunarOccultationWhenGlobFunctions;
 use Swisseph\Swe\Functions\SolarEclipseWhereFunctions;
 
 if (!function_exists('swe_julday')) {
@@ -1931,6 +1932,60 @@ if (!function_exists('swe_lun_eclipse_when_loc')) {
         ?string &$serr = null
     ): int {
         return \Swisseph\Swe\Functions\LunarEclipseWhenLocFunctions::when($tjd_start, $ifl, $geopos, $tret, $attr, $backward, $serr);
+    }
+}
+
+if (!function_exists('swe_lun_occult_when_glob')) {
+    /**
+     * Find next global lunar occultation of planet or star
+     *
+     * Searches for the next (or previous) occultation of a planet or fixed star
+     * by the Moon, visible from anywhere on Earth.
+     *
+     * @param float $tjd_start Start time for search (JD UT)
+     * @param int $ipl Planet number (SE_SUN, SE_MARS, SE_JUPITER, etc.)
+     *                  For fixed stars, pass any planet number (ignored)
+     * @param string|null $starname Fixed star name for swe_fixstar() (null for planets)
+     * @param int $ifl Ephemeris flags (SEFLG_SWIEPH, SEFLG_JPLEPH, etc.)
+     * @param int $ifltype Type of occultation to search for (0 = any):
+     *   SE_ECL_TOTAL - Total occultations only
+     *   SE_ECL_ANNULAR - Annular occultations only (Sun only)
+     *   SE_ECL_PARTIAL - Partial occultations only
+     *   SE_ECL_CENTRAL - Central occultations only
+     *   SE_ECL_NONCENTRAL - Non-central occultations only
+     * @param array &$tret Return array for occultation times (10 elements, JD UT):
+     *   [0] = time of maximum occultation
+     *   [1] = time of maximum at local apparent noon (0 if no transit)
+     *   [2] = begin of occultation
+     *   [3] = end of occultation
+     *   [4] = begin of totality (0 if not applicable)
+     *   [5] = end of totality (0 if not applicable)
+     *   [6] = begin of center line (0 if not applicable)
+     *   [7] = end of center line (0 if not applicable)
+     * @param int $backward 1 = search backward in time, 0 = search forward
+     * @param string|null &$serr Error message (if any)
+     * @return int Occultation type flags (SE_ECL_TOTAL, SE_ECL_ANNULAR, etc.) or 0 if none found
+     */
+    function swe_lun_occult_when_glob(
+        float $tjd_start,
+        int $ipl,
+        ?string $starname,
+        int $ifl,
+        int $ifltype,
+        array &$tret,
+        int $backward,
+        ?string &$serr = null
+    ): int {
+        return \Swisseph\Swe\Functions\LunarOccultationWhenGlobFunctions::whenGlob(
+            $tjd_start,
+            $ipl,
+            $starname,
+            $ifl,
+            $ifltype,
+            $tret,
+            (bool)$backward,
+            $serr
+        );
     }
 }
 

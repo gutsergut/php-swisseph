@@ -190,9 +190,13 @@ final class Constants
     public const EARTH_ROT_SPEED = 6.30038061277862; // 7.2921151467e-5 * 86400 (rad/day)
 
     // Eclipse-specific constants (swecl.c:84-91)
-    public const DMOON = 3476300.0;                 // Moon diameter in meters
-    public const RMOON = self::DMOON / 2.0;         // Moon radius in meters (swecl.c:85)
-    public const DSUN = 1392000000.0;               // Sun diameter in meters
+    // NOTE: These are in AU, not meters! The C code divides by AUNIT
+    public const DMOON = 3476300.0 / self::AUNIT;   // Moon diameter in AU (swecl.c:87: 3476300.0 / AUNIT)
+    public const RMOON = self::DMOON / 2.0;         // Moon radius in AU (swecl.c:89: DMOON / 2)
+    public const DSUN = 1392000000.0 / self::AUNIT; // Sun diameter in AU (swecl.c:85: 1392000000.0 / AUNIT)
+    public const RSUN = self::DSUN / 2.0;           // Sun radius in AU (swecl.c:89: DSUN / 2)
+    public const DEARTH = 6378140.0 * 2 / self::AUNIT; // Earth diameter in AU (swecl.c:88)
+    public const REARTH = self::DEARTH / 2.0;       // Earth radius in AU (swecl.c:90)
 
     // Number of planets with known diameters (sweph.h:314)
     public const NDIAM = 19; // SE_VESTA + 1 (up to asteroid Vesta)
