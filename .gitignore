@@ -24,8 +24,7 @@ desktop.ini
 tests/_output/
 build/
 
-# All test files (exclude from git)
-/tests/
+# Temporary test and debug files (exclude from git)
 /test_*.php
 /debug_*.php
 /debug_*.txt

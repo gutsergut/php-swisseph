@@ -1,0 +1,49 @@
+<?php
+
+require __DIR__ . '/../src/Constants.php';
+require __DIR__ . '/../src/Math.php';
+require __DIR__ . '/../src/Sun.php';
+require __DIR__ . '/../src/Venus.php';
+require __DIR__ . '/../src/Output.php';
+require __DIR__ . '/../src/Formatter.php';
+require __DIR__ . '/../src/functions.php';
+
+use Swisseph\Constants;
+
+$xx = [];
+$serr = null;
+$ret = swe_calc(2451545.0, Constants::SE_VENUS, 0, $xx, $serr);
+if ($ret !== 0) {
+    fwrite(STDERR, "Venus should be supported: ret=$ret serr=$serr\n");
+    exit(1);
+}
+if ($xx[2] <= 0.0 || $xx[2] > 2.0) {
+    fwrite(STDERR, "Venus dist AU looks wrong: {$xx[2]}\n");
+    exit(2);
+}
+
+$xx = [];
+$serr = null;
+$ret = swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_SPEED, $xx, $serr);
+if ($ret !== 0) {
+    fwrite(STDERR, "Venus SPEED failed: ret=$ret serr=$serr\n");
+    exit(3);
+}
+if (abs($xx[3]) < 0.5 || abs($xx[3]) > 3.0) {
+    fwrite(STDERR, "Venus dLon deg/day suspicious: {$xx[3]}\n");
+    exit(4);
+}
+
+$xx = [];
+$serr = null;
+$ret = swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_XYZ | Constants::SEFLG_SPEED, $xx, $serr);
+if ($ret !== 0) {
+    fwrite(STDERR, "Venus XYZ SPEED failed: ret=$ret serr=$serr\n");
+    exit(5);
+}
+if (abs($xx[3]) + abs($xx[4]) + abs($xx[5]) <= 0.0) {
+    fwrite(STDERR, "Venus xyz speed zero\n");
+    exit(6);
+}
+
+echo "OK\n";
