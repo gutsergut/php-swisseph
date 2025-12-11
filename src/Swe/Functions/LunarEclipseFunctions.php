@@ -157,13 +157,15 @@ class LunarEclipseFunctions
         $dcore = array_fill(0, 10, 0.0);
         $attr = array_fill(0, 20, 0.0);
 
-        // Constants from sweph.h
-        $RMOON = 1737400.0;      // Moon radius in meters
-        $DMOON = 2 * $RMOON;     // Moon diameter
-        $RSUN = 695990000.0;     // Sun radius in meters
-        $DSUN = 2 * $RSUN;       // Sun diameter
-        $REARTH = 6378136.6;     // Earth radius in meters (AA 2006 K6)
-        $DEARTH = 2 * $REARTH;   // Earth diameter
+        // Constants from sweph.h and swecl.c:79-86
+        // All distances in AU (astronomical units)
+        $AUNIT = 1.49597870700e+11; // AU in meters (sweph.h:273)
+        $RMOON = 1737400.0 / $AUNIT;      // Moon radius in AU
+        $DMOON = 2 * $RMOON;              // Moon diameter in AU
+        $RSUN = 695990000.0 / $AUNIT;     // Sun radius in AU
+        $DSUN = 2 * $RSUN;                // Sun diameter in AU
+        $REARTH = 6378136.6 / $AUNIT;     // Earth radius in AU
+        $DEARTH = 2 * $REARTH;            // Earth diameter in AU
         $RADTODEG = 57.29577951308232088; // 180/PI
 
         // Ephemeris flags: equatorial + cartesian + speed (swecl.c:3258-3259)
@@ -238,15 +240,16 @@ class LunarEclipseFunctions
 
         // Diameter of core shadow on fundamental plane (swecl.c:3300-3302)
         // One 50th is added for effect of atmosphere, AA98, L4
-        $d0 = abs($s0 / $dsm * ($DSUN - $DEARTH) - $DEARTH) * (1 + 1.0 / 50.0) / $cosf1;
+        $d0 = abs($s0 / $dsm * ($DSUN - $DEARTH) - $DEARTH) * (1 + 1.0 / 50.0);
 
-        // Diameter of half-shadow on fundamental plane (swecl.c:3303-3304)
-        $D0 = ($s0 / $dsm * ($DSUN + $DEARTH) + $DEARTH) * (1 + 1.0 / 50.0) / $cosf2;
+        // Diameter of half-shadow on fundamental plane (swecl.c:3304)
+        $D0 = ($s0 / $dsm * ($DSUN + $DEARTH) + $DEARTH) * (1 + 1.0 / 50.0);
 
+        // Additional division by cosf1/cosf2 (swecl.c:3305-3306)
         $d0 /= $cosf1;
         $D0 /= $cosf2;
 
-        // For better agreement with NASA (swecl.c:3307-3308)
+        // For better agreement with NASA (swecl.c:3308-3309)
         $d0 *= 0.99405;
         $D0 *= 0.98813;
 
