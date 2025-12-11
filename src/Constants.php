@@ -297,5 +297,9 @@ final class Constants
     public const SE_ECL_OCC_BEG_DAYLIGHT = 8192;    // occultation begins during the day
     public const SE_ECL_OCC_END_DAYLIGHT = 16384;   // occultation ends during the day
     public const SE_ECL_ONE_TRY = 32768;  // check only next conjunction, don't search further
+
+    // Geographic altitude limits for eclipse calculations (from sweph.h:198-199)
+    public const SEI_ECL_GEOALT_MAX = 25000.0;    // maximum altitude in meters
+    public const SEI_ECL_GEOALT_MIN = -500.0;     // minimum altitude in meters
 }
 

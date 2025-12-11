@@ -36,6 +36,7 @@ use Swisseph\Swe\Functions\StarFunctions;
 use Swisseph\Swe\Functions\LegacyStarFunctions;
 use Swisseph\Swe\Functions\SolarEclipseFunctions;
 use Swisseph\Swe\Functions\LunarEclipseWhenFunctions;
+use Swisseph\Swe\Functions\LunarEclipseWhenLocFunctions;
 
 if (!function_exists('swe_julday')) {
     /**
@@ -1801,5 +1802,72 @@ if (!function_exists('swe_lun_eclipse_when')) {
         ?string &$serr = null
     ): int {
         return \Swisseph\Swe\Functions\LunarEclipseWhenFunctions::when($tjd_start, $ifl, $ifltype, $tret, $backward, $serr);
+    }
+}
+
+if (!function_exists('swe_lun_eclipse_when_loc')) {
+    /**
+     * Find next lunar eclipse visible from given location
+     *
+     * Searches for the next lunar eclipse that is visible from a specific geographic location.
+     * Returns visibility flags and adjusts contact times based on moon rise/set during the eclipse.
+     *
+     * @param float $tjd_start Start time for search (JD UT)
+     * @param int $ifl Ephemeris flags (SEFLG_SWIEPH, SEFLG_JPLEPH, etc.)
+     * @param array $geopos Geographic position [longitude_deg, latitude_deg, altitude_meters]
+     *                      - longitude: East positive, West negative
+     *                      - latitude: North positive, South negative
+     *                      - altitude: meters above sea level (must be between -12000 and 50000 m)
+     * @param array &$tret Return array for eclipse times (10 elements, JD UT):
+     *   [0] = time of maximum eclipse (or moon rise/set if maximum not visible)
+     *   [1] = (unused)
+     *   [2] = time of partial phase begin (or 0 if moon rises after)
+     *   [3] = time of partial phase end (or 0 if moon sets before)
+     *   [4] = time of totality begin (or 0 if moon rises after)
+     *   [5] = time of totality end (or 0 if moon sets before)
+     *   [6] = time of penumbral phase begin (or 0 if moon rises after)
+     *   [7] = time of penumbral phase end (or 0 if moon sets before)
+     *   [8] = time of moon rise during eclipse (or 0 if moon already up)
+     *   [9] = time of moon set during eclipse (or 0 if moon stays up)
+     * @param array &$attr Return array for eclipse attributes (20 elements):
+     *   [0] = umbral magnitude at maximum (attr[0] > 1.0 => total, 0 < attr[0] < 1.0 => partial)
+     *   [1] = penumbral magnitude
+     *   [2] = (unused)
+     *   [3] = azimuth of Moon at maximum (degrees)
+     *   [4] = true altitude of Moon at maximum (degrees, with refraction)
+     *   [5] = apparent altitude of Moon at maximum (degrees, with refraction)
+     *   [6] = apparent altitude at calculation time (used internally for visibility check)
+     *   [7] = distance of moon from opposition in degrees
+     *   [8] = eclipse magnitude (same as attr[0] for partial, = attr[1] for penumbral only)
+     *   [9] = saros series number
+     *   [10] = saros series member number
+     * @param int $backward 1 = search backward in time, 0 = search forward
+     * @param string|null &$serr Error message (if any)
+     * @return int Eclipse type and visibility flags (bitwise OR):
+     *   Eclipse types:
+     *     SE_ECL_TOTAL (4) = total lunar eclipse
+     *     SE_ECL_PARTIAL (16) = partial lunar eclipse
+     *     SE_ECL_PENUMBRAL (64) = penumbral lunar eclipse only
+     *   Visibility flags:
+     *     SE_ECL_VISIBLE = eclipse visible from location
+     *     SE_ECL_MAX_VISIBLE = maximum visible
+     *     SE_ECL_PARTBEG_VISIBLE = partial phase begin visible
+     *     SE_ECL_PARTEND_VISIBLE = partial phase end visible
+     *     SE_ECL_TOTBEG_VISIBLE = totality begin visible
+     *     SE_ECL_TOTEND_VISIBLE = totality end visible
+     *     SE_ECL_PENUMBBEG_VISIBLE = penumbral phase begin visible
+     *     SE_ECL_PENUMBEND_VISIBLE = penumbral phase end visible
+     *   Returns SE_ERR (-1) on error
+     */
+    function swe_lun_eclipse_when_loc(
+        float $tjd_start,
+        int $ifl,
+        array $geopos,
+        array &$tret,
+        array &$attr,
+        int $backward,
+        ?string &$serr = null
+    ): int {
+        return \Swisseph\Swe\Functions\LunarEclipseWhenLocFunctions::when($tjd_start, $ifl, $geopos, $tret, $attr, $backward, $serr);
     }
 }
