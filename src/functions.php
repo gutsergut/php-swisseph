@@ -35,6 +35,7 @@ use Swisseph\Swe\Functions\FixstarFunctions;
 use Swisseph\Swe\Functions\StarFunctions;
 use Swisseph\Swe\Functions\LegacyStarFunctions;
 use Swisseph\Swe\Functions\SolarEclipseFunctions;
+use Swisseph\Swe\Functions\LunarEclipseWhenFunctions;
 
 if (!function_exists('swe_julday')) {
     /**
@@ -1753,5 +1754,52 @@ if (!function_exists('swe_lun_eclipse_how')) {
         ?string &$serr = null
     ): int {
         return \Swisseph\Swe\Functions\LunarEclipseFunctions::how($tjd_ut, $ifl, $geopos, $attr, $serr);
+    }
+}
+
+if (!function_exists('swe_lun_eclipse_when')) {
+    /**
+     * Find the next lunar eclipse anywhere on earth
+     *
+     * Port from Swiss Ephemeris C library: swe_lun_eclipse_when()
+     * Search for lunar eclipses globally using Meeus formulae.
+     *
+     * @param float $tjd_start Start time for search (JD UT)
+     * @param int $ifl Ephemeris flag (SEFLG_SWIEPH, SEFLG_JPLEPH, SEFLG_MOSEPH)
+     * @param int $ifltype Eclipse type to search for:
+     *   - SE_ECL_TOTAL: total lunar eclipse
+     *   - SE_ECL_PARTIAL: partial lunar eclipse
+     *   - SE_ECL_PENUMBRAL: penumbral lunar eclipse
+     *   - 0: any type of eclipse
+     *   Can be combined with OR (|)
+     * @param array &$tret Return array for eclipse times (declare as array with 10 elements):
+     *   - [0]: time of maximum eclipse (JD UT)
+     *   - [1]: (not used)
+     *   - [2]: time of partial phase begin (JD UT)
+     *   - [3]: time of partial phase end (JD UT)
+     *   - [4]: time of totality begin (JD UT)
+     *   - [5]: time of totality end (JD UT)
+     *   - [6]: time of penumbral phase begin (JD UT)
+     *   - [7]: time of penumbral phase end (JD UT)
+     *   - [8-9]: (reserved)
+     * @param int $backward Search backward in time if 1, forward if 0
+     * @param string|null &$serr Error message return (optional)
+     *
+     * @return int Eclipse type flags:
+     *   - SE_ECL_TOTAL: total lunar eclipse
+     *   - SE_ECL_PARTIAL: partial lunar eclipse
+     *   - SE_ECL_PENUMBRAL: penumbral lunar eclipse
+     *   - 0: no eclipse found
+     *   - SE_ERR (-1): error occurred
+     */
+    function swe_lun_eclipse_when(
+        float $tjd_start,
+        int $ifl,
+        int $ifltype,
+        array &$tret,
+        int $backward,
+        ?string &$serr = null
+    ): int {
+        return \Swisseph\Swe\Functions\LunarEclipseWhenFunctions::when($tjd_start, $ifl, $ifltype, $tret, $backward, $serr);
     }
 }

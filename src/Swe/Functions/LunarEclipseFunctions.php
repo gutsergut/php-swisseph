@@ -146,7 +146,7 @@ class LunarEclipseFunctions
      * @param string|null &$serr Error message
      * @return int Eclipse type or ERR
      */
-    private static function lunEclipseHow(
+    public static function lunEclipseHow(
         float $tjdUt,
         int $ifl,
         array &$attr,
