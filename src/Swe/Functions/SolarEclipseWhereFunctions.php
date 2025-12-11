@@ -464,7 +464,7 @@ class SolarEclipseWhereFunctions
      * @param string &$serr Error message
      * @return int Eclipse type flags (SE_ECL_TOTAL, SE_ECL_ANNULAR, SE_ECL_PARTIAL, SE_ECL_VISIBLE) or 0 if no eclipse
      */
-    private static function eclipseHow(
+    public static function eclipseHow(
         float $tjdUt,
         int $ipl,
         ?string $starname,

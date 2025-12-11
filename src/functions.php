@@ -1718,6 +1718,67 @@ if (!function_exists('swe_sol_eclipse_when_loc')) {
         return SolarEclipseFunctions::whenLoc($tjd_start, $ifl, $geopos, $tret, $attr, $backward, $serr);
     }
 }
+
+if (!function_exists('swe_sol_eclipse_when_glob')) {
+    /**
+     * Find next solar eclipse anywhere on Earth
+     *
+     * Port of C function: int32 swe_sol_eclipse_when_glob(double tjd_start, int32 ifl, int32 ifltype, double *tret, int32 backward, char *serr)
+     *
+     * Searches for the next solar eclipse of specified type(s) anywhere on Earth.
+     *
+     * @param float $tjd_start Starting time for search (Julian day, UT)
+     * @param int $ifl Ephemeris flags (SEFLG_SWIEPH, SEFLG_JPLEPH, etc.)
+     * @param int $ifltype Eclipse type to search for:
+     *   - 0: any type
+     *   - SE_ECL_TOTAL (4): total eclipse
+     *   - SE_ECL_ANNULAR (8): annular eclipse
+     *   - SE_ECL_PARTIAL (16): partial eclipse
+     *   - SE_ECL_ANNULAR_TOTAL (32): hybrid (annular-total) eclipse
+     *   - SE_ECL_CENTRAL (1): central eclipse
+     *   - SE_ECL_NONCENTRAL (2): non-central eclipse
+     *   - Combinations allowed (e.g., SE_ECL_TOTAL | SE_ECL_ANNULAR)
+     * @param array &$tret Output: times of eclipse events [10]:
+     *   - tret[0]: time of maximum eclipse (JD, UT)
+     *   - tret[1]: time when eclipse takes place at local apparent noon (JD, UT), or 0 if no transit
+     *   - tret[2]: time of eclipse begin (JD, UT)
+     *   - tret[3]: time of eclipse end (JD, UT)
+     *   - tret[4]: time of totality/annularity begin (JD, UT)
+     *   - tret[5]: time of totality/annularity end (JD, UT)
+     *   - tret[6]: time of center line begin (JD, UT)
+     *   - tret[7]: time of center line end (JD, UT)
+     *   - tret[8]: time when annular-total eclipse becomes total (not implemented)
+     *   - tret[9]: time when annular-total eclipse becomes annular again (not implemented)
+     * @param int $backward Search direction: 0 = forward, 1 = backward
+     * @param string|null &$serr Error message output
+     * @return int Eclipse type flags:
+     *   - SE_ECL_TOTAL (4): total eclipse
+     *   - SE_ECL_ANNULAR (8): annular eclipse
+     *   - SE_ECL_PARTIAL (16): partial eclipse
+     *   - SE_ECL_ANNULAR_TOTAL (32): hybrid eclipse
+     *   - SE_ECL_CENTRAL (1): central eclipse
+     *   - SE_ECL_NONCENTRAL (2): non-central eclipse
+     *   - Returns SE_ERR (-1) on error
+     */
+    function swe_sol_eclipse_when_glob(
+        float $tjd_start,
+        int $ifl,
+        int $ifltype,
+        array &$tret,
+        int $backward = 0,
+        ?string &$serr = null
+    ): int {
+        return \Swisseph\Swe\Functions\SolarEclipseWhenGlobFunctions::sweEclipseWhenGlob(
+            $tjd_start,
+            $ifl,
+            $ifltype,
+            $tret,
+            $backward,
+            $serr
+        );
+    }
+}
+
 // Lunar eclipse wrappers
 if (!function_exists('swe_lun_eclipse_how')) {
     /**
