@@ -1715,3 +1715,43 @@ if (!function_exists('swe_sol_eclipse_when_loc')) {
         return SolarEclipseFunctions::whenLoc($tjd_start, $ifl, $geopos, $tret, $attr, $backward, $serr);
     }
 }
+// Lunar eclipse wrappers
+if (!function_exists('swe_lun_eclipse_how')) {
+    /**
+     * Compute attributes of a lunar eclipse
+     *
+     * Port of C function: int32 swe_lun_eclipse_how(double tjd_ut, int32 ifl, double *geopos, double *attr, char *serr)
+     *
+     * Calculates eclipse parameters at given time and location.
+     *
+     * @param float $tjd_ut Julian day in UT
+     * @param int $ifl Ephemeris flags (SEFLG_SWIEPH, SEFLG_JPLEPH, etc.)
+     * @param array|null $geopos Geographic position [lon, lat, alt] or null
+     * @param array &$attr Output: eclipse attributes [0-10]
+     *   - attr[0]: umbral magnitude
+     *   - attr[1]: penumbral magnitude
+     *   - attr[4]: azimuth of moon (if geopos provided)
+     *   - attr[5]: true altitude of moon (if geopos provided)
+     *   - attr[6]: apparent altitude of moon (if geopos provided)
+     *   - attr[7]: angular distance from opposition
+     *   - attr[8]: umbral magnitude (same as attr[0])
+     *   - attr[9]: saros series number
+     *   - attr[10]: saros series member number
+     * @param string|null &$serr Output: error message
+     * @return int Eclipse type:
+     *   - SE_ECL_TOTAL (2): total lunar eclipse
+     *   - SE_ECL_PARTIAL (4): partial lunar eclipse
+     *   - SE_ECL_PENUMBRAL (8): penumbral lunar eclipse
+     *   - 0: no eclipse at this time
+     *   - SE_ERR (-1): error occurred
+     */
+    function swe_lun_eclipse_how(
+        float $tjd_ut,
+        int $ifl,
+        ?array $geopos,
+        array &$attr,
+        ?string &$serr = null
+    ): int {
+        return \Swisseph\Swe\Functions\LunarEclipseFunctions::how($tjd_ut, $ifl, $geopos, $attr, $serr);
+    }
+}
