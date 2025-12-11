@@ -13,35 +13,35 @@ class ComposerStaticInit8ec2a0325d453a7149c403a216874b21
     );
 
     public static $prefixLengthsPsr4 = array (
-        'S' => 
+        'S' =>
         array (
             'Swisseph\\Tests\\' => 15,
             'Swisseph\\' => 9,
         ),
-        'P' => 
+        'P' =>
         array (
             'PhpParser\\' => 10,
         ),
-        'D' => 
+        'D' =>
         array (
             'DeepCopy\\' => 9,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'Swisseph\\Tests\\' => 
+        'Swisseph\\Tests\\' =>
         array (
             0 => __DIR__ . '/../..' . '/tests/phpunit',
         ),
-        'Swisseph\\' => 
+        'Swisseph\\' =>
         array (
             0 => __DIR__ . '/../..' . '/src',
         ),
-        'PhpParser\\' => 
+        'PhpParser\\' =>
         array (
             0 => __DIR__ . '/..' . '/nikic/php-parser/lib/PhpParser',
         ),
-        'DeepCopy\\' => 
+        'DeepCopy\\' =>
         array (
             0 => __DIR__ . '/..' . '/myclabs/deep-copy/src/DeepCopy',
         ),

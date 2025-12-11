@@ -505,9 +505,9 @@ final class RiseSetFunctions
         }
 
         // No rise or set found after tjd_ut (swecl.c:4694-4696)
-        if ($serr !== null) {
-            $serr = sprintf('rise or set not found for planet %d', $ipl);
-        }
+        // C: if (serr) sprintf(serr, "rise or set not found for planet %d", ipl);
+        // PHP: Always set error message (reference parameter always valid)
+        $serr = sprintf('rise or set not found for planet %d', $ipl);
         return -2;
     }
 
