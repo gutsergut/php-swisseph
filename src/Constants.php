@@ -191,6 +191,7 @@ final class Constants
 
     // Eclipse-specific constants (swecl.c:84-91)
     public const DMOON = 3476300.0;                 // Moon diameter in meters
+    public const RMOON = self::DMOON / 2.0;         // Moon radius in meters (swecl.c:85)
     public const DSUN = 1392000000.0;               // Sun diameter in meters
 
     // Number of planets with known diameters (sweph.h:314)

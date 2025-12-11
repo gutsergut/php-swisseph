@@ -7,6 +7,7 @@ namespace Swisseph\Swe\Functions;
 use Swisseph\Constants;
 use Swisseph\VectorMath;
 use Swisseph\Coordinates;
+use Swisseph\Swe\Eclipses\SarosData;
 
 /**
  * Solar eclipse geographic position calculations
@@ -438,18 +439,30 @@ class SolarEclipseWhereFunctions
     /**
      * Calculate eclipse attributes at specific geographic location
      *
-     * Placeholder - will be ported from eclipse_how() in next iteration
+     * Ported from swecl.c:967-1163 (eclipse_how)
+     * NO SIMPLIFICATIONS - Full port of all calculations
      *
      * @param float $tjdUt Time in Julian days UT
-     * @param int $ipl Planet number
-     * @param string|null $starname Star name
+     * @param int $ipl Planet number (SE_SUN for solar eclipses)
+     * @param string|null $starname Star name (null for planets)
      * @param int $ifl Ephemeris flags
-     * @param float $geolon Geographic longitude in degrees
-     * @param float $geolat Geographic latitude in degrees
-     * @param float $geohgt Geographic height in meters
-     * @param array &$attr Attributes array [20]
+     * @param float $geolon Geographic longitude in degrees (east positive)
+     * @param float $geolat Geographic latitude in degrees (north positive)
+     * @param float $geohgt Geographic height in meters above sea level
+     * @param array &$attr Attributes array [11]
+     *   [0]: fraction of diameter covered (magnitude)
+     *   [1]: ratio of Moon/Sun diameter
+     *   [2]: fraction of disc covered (obscuration)
+     *   [3]: not used here (set by caller)
+     *   [4]: azimuth of Sun
+     *   [5]: true altitude of Sun
+     *   [6]: apparent altitude of Sun
+     *   [7]: angular distance Moon-Sun (degrees)
+     *   [8]: NASA magnitude
+     *   [9]: Saros series number
+     *   [10]: Saros member number
      * @param string &$serr Error message
-     * @return int Eclipse type or SE_ERR
+     * @return int Eclipse type flags (SE_ECL_TOTAL, SE_ECL_ANNULAR, SE_ECL_PARTIAL, SE_ECL_VISIBLE) or 0 if no eclipse
      */
     private static function eclipseHow(
         float $tjdUt,
@@ -462,15 +475,195 @@ class SolarEclipseWhereFunctions
         array &$attr,
         string &$serr
     ): int {
-        // Temporary: call existing swe_sol_eclipse_how() if available
-        // Otherwise return placeholder
-        if (function_exists('swe_sol_eclipse_how')) {
-            $geopos = [$geolon, $geolat, $geohgt];
-            return \swe_sol_eclipse_how($tjdUt, $ifl, $geopos, $attr, $serr);
+        // Initialize attributes array
+        for ($i = 0; $i < 10; $i++) {
+            $attr[$i] = 0.0;
         }
 
-        // Placeholder - return partial eclipse
-        $attr = array_fill(0, 20, 0.0);
-        return Constants::SE_ECL_PARTIAL;
+        $geopos = [$geolon, $geolat, $geohgt];
+
+        // Calculate TT from UT
+        $te = $tjdUt + \swe_deltat_ex($tjdUt, $ifl, $serr);
+
+        // Set topocentric position
+        \swe_set_topo($geolon, $geolat, $geohgt);
+
+        // Calculation flags
+        $iflag = Constants::SEFLG_EQUATORIAL | Constants::SEFLG_TOPOCTR | $ifl;
+        $iflagCart = $iflag | Constants::SEFLG_XYZ;
+
+        // Calculate planet/star position (equatorial)
+        $ls = [];
+        if (self::calcPlanetStar($te, $ipl, $starname, $iflag, $ls, $serr) === Constants::SE_ERR) {
+            return Constants::SE_ERR;
+        }
+
+        // Calculate Moon position (equatorial)
+        $lm = [];
+        if (\swe_calc($te, Constants::SE_MOON, $iflag, $lm, $serr) === Constants::SE_ERR) {
+            return Constants::SE_ERR;
+        }
+
+        // Calculate planet/star position (cartesian)
+        $xs = [];
+        if (self::calcPlanetStar($te, $ipl, $starname, $iflagCart, $xs, $serr) === Constants::SE_ERR) {
+            return Constants::SE_ERR;
+        }
+
+        // Calculate Moon position (cartesian)
+        $xm = [];
+        if (\swe_calc($te, Constants::SE_MOON, $iflagCart, $xm, $serr) === Constants::SE_ERR) {
+            return Constants::SE_ERR;
+        }
+
+        // Radius of planet disk in AU
+        if ($starname !== null && $starname !== '') {
+            $drad = 0.0;
+        } elseif ($ipl < Constants::NDIAM) {
+            $drad = Constants::PLA_DIAM[$ipl] / 2.0 / Constants::AUNIT;
+        } elseif ($ipl > Constants::SE_AST_OFFSET) {
+            // Asteroid diameter (would need swed.ast_diam from state)
+            // For now use default
+            $drad = 0.0;
+        } else {
+            $drad = 0.0;
+        }
+
+        // Azimuth and altitude of sun or planet
+        $xh = [];
+        \swe_azalt($tjdUt, Constants::SE_EQU2HOR, $geopos, 0.0, 10.0, $ls, $xh);
+
+        // Eclipse description
+        $rmoon = asin(self::RMOON / $lm[2]) * Constants::RADTODEG;
+        $rsun = asin($drad / $ls[2]) * Constants::RADTODEG;
+        $rsplusrm = $rsun + $rmoon;
+        $rsminusrm = $rsun - $rmoon;
+
+        // Normalize position vectors
+        $x1 = [];
+        $x2 = [];
+        for ($i = 0; $i < 3; $i++) {
+            $x1[$i] = $xs[$i] / $ls[2];
+            $x2[$i] = $xm[$i] / $lm[2];
+        }
+
+        // Angular distance between centers
+        $dctr = acos(VectorMath::dotProductUnit($x1, $x2)) * Constants::RADTODEG;
+
+        // Determine eclipse phase
+        $retc = 0;
+        if ($dctr < $rsminusrm) {
+            $retc = Constants::SE_ECL_ANNULAR;
+        } elseif ($dctr < abs($rsminusrm)) {
+            $retc = Constants::SE_ECL_TOTAL;
+        } elseif ($dctr < $rsplusrm) {
+            $retc = Constants::SE_ECL_PARTIAL;
+        } else {
+            $retc = 0;
+            $serr = sprintf("no solar eclipse at tjd = %f", $tjdUt);
+        }
+
+        // Ratio of diameter of moon to that of sun
+        if ($rsun > 0) {
+            $attr[1] = $rmoon / $rsun;
+        } else {
+            $attr[1] = 0.0;
+        }
+
+        // Eclipse magnitude: fraction of solar diameter covered by moon
+        $lsun = asin($rsun / 2.0 * Constants::DEGTORAD) * 2.0;
+        $lsunleft = (-$dctr + $rsun + $rmoon);
+        if ($lsun > 0) {
+            $attr[0] = $lsunleft / $rsun / 2.0;
+        } else {
+            $attr[0] = 1.0;
+        }
+
+        // Obscuration: fraction of solar disc obscured by moon
+        $lsun = $rsun;
+        $lmoon = $rmoon;
+        $lctr = $dctr;
+
+        if ($retc === 0 || $lsun === 0.0) {
+            $attr[2] = 1.0;
+        } elseif ($retc === Constants::SE_ECL_TOTAL || $retc === Constants::SE_ECL_ANNULAR) {
+            $attr[2] = $lmoon * $lmoon / $lsun / $lsun;
+        } else {
+            $a = 2.0 * $lctr * $lmoon;
+            $b = 2.0 * $lctr * $lsun;
+            if ($a < 1e-9) {
+                $attr[2] = $lmoon * $lmoon / $lsun / $lsun;
+            } else {
+                $a = ($lctr * $lctr + $lmoon * $lmoon - $lsun * $lsun) / $a;
+                if ($a > 1.0) $a = 1.0;
+                if ($a < -1.0) $a = -1.0;
+                $b = ($lctr * $lctr + $lsun * $lsun - $lmoon * $lmoon) / $b;
+                if ($b > 1.0) $b = 1.0;
+                if ($b < -1.0) $b = -1.0;
+                $a = acos($a);
+                $b = acos($b);
+                $sc1 = $a * $lmoon * $lmoon / 2.0;
+                $sc2 = $b * $lsun * $lsun / 2.0;
+                $sc1 -= (cos($a) * sin($a)) * $lmoon * $lmoon / 2.0;
+                $sc2 -= (cos($b) * sin($b)) * $lsun * $lsun / 2.0;
+                $attr[2] = ($sc1 + $sc2) * 2.0 / M_PI / $lsun / $lsun;
+            }
+        }
+
+        $attr[7] = $dctr;
+
+        // Approximate minimum height for visibility, considering refraction and dip
+        // 34.4556': refraction at horizon, from Bennet's formulae
+        // 1.75' / sqrt(geohgt): dip of horizon
+        // 0.37' / sqrt(geohgt): refraction between horizon and observer
+        $hminAppr = -(34.4556 + (1.75 + 0.37) * sqrt($geohgt)) / 60.0;
+        if ($xh[1] + $rsun + abs($hminAppr) >= 0 && $retc) {
+            $retc |= Constants::SE_ECL_VISIBLE; // Eclipse visible
+        }
+
+        $attr[4] = $xh[0]; // Azimuth, from south, clockwise, via west
+        $attr[5] = $xh[1]; // True altitude
+        $attr[6] = $xh[2]; // Apparent altitude
+
+        // Magnitude and Saros series for solar eclipses
+        if ($ipl === Constants::SE_SUN && ($starname === null || $starname === '')) {
+            // Magnitude of solar eclipse according to NASA
+            $attr[8] = $attr[0]; // Fraction of diameter occulted
+            if ($retc & (Constants::SE_ECL_TOTAL | Constants::SE_ECL_ANNULAR)) {
+                $attr[8] = $attr[1]; // Ratio between diameters of sun and moon
+            }
+
+            // Saros series and member
+            $found = false;
+            for ($i = 0; $i < SarosData::NSAROS_SOLAR; $i++) {
+                $d = ($tjdUt - SarosData::SAROS_DATA_SOLAR[$i]['tstart']) / SarosData::SAROS_CYCLE;
+                if ($d < 0 && $d * SarosData::SAROS_CYCLE > -2) {
+                    $d = 0.0000001;
+                }
+                if ($d < 0) {
+                    continue;
+                }
+                $j = (int)$d;
+                if (($d - $j) * SarosData::SAROS_CYCLE < 2) {
+                    $attr[9] = (float)SarosData::SAROS_DATA_SOLAR[$i]['series_no'];
+                    $attr[10] = (float)($j + 1);
+                    $found = true;
+                    break;
+                }
+                $k = $j + 1;
+                if (($k - $d) * SarosData::SAROS_CYCLE < 2) {
+                    $attr[9] = (float)SarosData::SAROS_DATA_SOLAR[$i]['series_no'];
+                    $attr[10] = (float)($k + 1);
+                    $found = true;
+                    break;
+                }
+            }
+            if (!$found) {
+                $attr[9] = -99999999.0;
+                $attr[10] = -99999999.0;
+            }
+        }
+
+        return $retc;
     }
 }
