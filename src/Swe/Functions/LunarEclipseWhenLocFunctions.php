@@ -93,12 +93,12 @@ class LunarEclipseWhenLocFunctions
         next_lun_ecl:
 
         // Find next global lunar eclipse (swecl.c:3646-3648)
-        $retflag = \swe_lun_eclipse_when($tjdStart, $ifl, 0, $tret, $backward, $serr);
+        // Initialize local error variable for nested call
+        $serrLocal = '';
+        $retflag = \swe_lun_eclipse_when($tjdStart, $ifl, 0, $tret, $backward, $serrLocal);
         if ($retflag === Constants::SE_ERR) {
-            // Debug
-            if (empty($serr)) {
-                $serr = "swe_lun_eclipse_when() returned SE_ERR with empty error message";
-            }
+            // Pass error message from nested call to caller
+            $serr = $serrLocal ?: "swe_lun_eclipse_when() returned SE_ERR";
             return Constants::SE_ERR;
         }
 
@@ -109,8 +109,10 @@ class LunarEclipseWhenLocFunctions
             if ($tret[$i] === 0.0) continue;
 
             // Check if moon is above horizon at this phase
-            $retflag2 = \swe_lun_eclipse_how($tret[$i], $ifl, $geopos, $attr, $serr);
+            $serrHow = '';
+            $retflag2 = \swe_lun_eclipse_how($tret[$i], $ifl, $geopos, $attr, $serrHow);
             if ($retflag2 === Constants::SE_ERR) {
+                $serr = $serrHow;
                 return Constants::SE_ERR;
             }
 
@@ -161,6 +163,7 @@ class LunarEclipseWhenLocFunctions
         $tjds = 0.0;
 
         // Moon rise during eclipse period (swecl.c:3685-3686)
+        $serrRise = '';
         $retc = \swe_rise_trans(
             $tret[6] - 0.001,
             Constants::SE_MOON,
@@ -172,14 +175,16 @@ class LunarEclipseWhenLocFunctions
             0.0,      // attemp (standard temperature)
             0.0,      // horhgt (horizon height)
             $tjdr,
-            $serr
+            $serrRise
         );
         if ($retc === Constants::SE_ERR) {
+            $serr = $serrRise;
             return Constants::SE_ERR;
         }
 
         // Moon set during eclipse period (swecl.c:3687-3688)
         if ($retc >= 0) {
+            $serrSet = '';
             $retc = \swe_rise_trans(
                 $tret[6] - 0.001,
                 Constants::SE_MOON,
@@ -191,9 +196,10 @@ class LunarEclipseWhenLocFunctions
                 0.0,      // attemp
                 0.0,      // horhgt
                 $tjds,
-                $serr
+                $serrSet
             );
             if ($retc === Constants::SE_ERR) {
+                $serr = $serrSet;
                 return Constants::SE_ERR;
             }
         }
@@ -241,8 +247,10 @@ class LunarEclipseWhenLocFunctions
 
         // Recalculate eclipse at maximum visible time (swecl.c:3719-3720)
         $tret[0] = $tjdMax;
-        $retflag2 = \swe_lun_eclipse_how($tjdMax, $ifl, $geopos, $attr, $serr);
+        $serrMax = '';
+        $retflag2 = \swe_lun_eclipse_how($tjdMax, $ifl, $geopos, $attr, $serrMax);
         if ($retflag2 === Constants::SE_ERR) {
+            $serr = $serrMax;
             return Constants::SE_ERR;
         }
 

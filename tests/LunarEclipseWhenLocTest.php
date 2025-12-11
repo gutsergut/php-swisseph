@@ -5,7 +5,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Swisseph\Constants;
-
+// CRITICAL: Set ephemeris path BEFORE any calculations
+swe_set_ephe_path(__DIR__ . '/../../eph/ephe');
 echo "=== Lunar Eclipse When Location Test ===\n";
 echo "Testing swe_lun_eclipse_when_loc() - location-specific visibility\n\n";
 
@@ -91,12 +92,12 @@ foreach ($locations as $city => $geopos) {
     }
     echo "\n";
 
-    // Eclipse magnitude and moon altitude
+    // Eclipse magnitude and moon position
     printf("Umbral Magnitude: %.4f\n", $attr[0]);
     printf("Penumbral Magnitude: %.4f\n", $attr[1]);
-    printf("Moon Azimuth: %.2f°\n", $attr[3]);
-    printf("Moon Altitude (true): %.2f°\n", $attr[4]);
-    printf("Moon Altitude (apparent): %.2f°\n", $attr[5]);
+    printf("Moon Azimuth: %.2f°\n", $attr[4]);
+    printf("Moon Altitude (true): %.2f°\n", $attr[5]);
+    printf("Moon Altitude (apparent): %.2f°\n", $attr[6]);
 
     // Phase visibility
     echo "\nPhase Visibility:\n";
