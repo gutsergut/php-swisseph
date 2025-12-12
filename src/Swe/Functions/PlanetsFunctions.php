@@ -91,10 +91,10 @@ final class PlanetsFunctions
 
     /**
      * Planetocentric calculation - calculate positions relative to another planet.
-     * 
+     *
      * Port of swe_calc_pctr() from sweph.c:8096-8340 (~250 lines).
      * Full C API compatibility - NO SIMPLIFICATIONS.
-     * 
+     *
      * @param float $tjd Julian day number (TT/ET)
      * @param int $ipl Target planet number
      * @param int $iplctr Center planet number (viewing position)
@@ -153,7 +153,7 @@ final class PlanetsFunctions
         // Save initial position
         $xx0 = $xx;
 
-        // TODO: Implement light-time correction, deflection, aberration, 
+        // TODO: Implement light-time correction, deflection, aberration,
         // precession, nutation, coordinate transformations
         // This is a stub that needs full implementation (~200 more lines)
 
