@@ -41,6 +41,9 @@ use Swisseph\Swe\Functions\LunarOccultationWhenGlobFunctions;
 use Swisseph\Swe\Functions\SolarEclipseWhereFunctions;
 use Swisseph\Swe\Functions\GauquelinSectorFunctions;
 use Swisseph\Swe\Functions\CrossingFunctions;
+use Swisseph\Domain\Heliacal\HeliacalFunctions;
+use Swisseph\Domain\Heliacal\HeliacalArcusVisionis;
+use Swisseph\Domain\Heliacal\HeliacalPhenomena;
 
 if (!function_exists('swe_julday')) {
     /**
@@ -2414,3 +2417,318 @@ if (!function_exists('swe_helio_cross_ut')) {
         return CrossingFunctions::helioCrossUt($ipl, $x2cross, $jd_ut, $iflag, $dir, $jd_cross, $serr);
     }
 }
+
+// ============================================================================
+// HELIACAL RISING/SETTING API
+// Full port from swehel.c - complete heliacal phenomena calculations
+// ============================================================================
+
+if (!function_exists('swe_heliacal_ut')) {
+    /**
+     * Calculate heliacal rising/setting events
+     * Port from swehel.c:3435-3512 (swe_heliacal_ut)
+     * 
+     * Full implementation WITHOUT SIMPLIFICATIONS:
+     * - Multi-synodic period search (default 5, max 20)
+     * - Both AV (Arcus Visionis) and VLM (Visual Limiting Magnitude) methods
+     * - Complete atmospheric modeling (extinction, refraction, sky brightness)
+     * - Observer physiology (age, Snellen ratio, scotopic/photopic vision)
+     * - Separate handling for Moon, planets, and fixed stars
+     * 
+     * @param float $JDNDaysUTStart Starting JD in UT
+     * @param array $dgeo Geographic position [lon°, lat°, height_m]
+     *                    height must be between -1000 and 20000m
+     * @param array $datm Atmospheric [pressure_mbar, temp_C, RH%, VR_km]
+     *                    pressure: default 1013.25 mbar
+     *                    temp: default 15°C (auto if both 0)
+     *                    RH: relative humidity %
+     *                    VR: >=1 = meteorological range km (default 40)
+     *                        0<VR<1 = ktot coefficient (default 0.25)
+     *                        -1 = calculate from other params
+     * @param array $dobs Observer [age, SN, binocular, mag, dia, trans]
+     *                    age: default 36 years (optimum 23)
+     *                    SN: Snellen ratio, default 1
+     *                    binocular: 0=mono, 1=binocular (if SE_HELFLAG_OPTICAL_PARAMS)
+     *                    mag: telescope magnification (0=auto, 1=naked eye)
+     *                    dia: aperture diameter mm
+     *                    trans: optical transmission
+     * @param string $ObjectName Object name ('venus', 'aldebaran', etc.)
+     * @param int $TypeEvent Event type:
+     *                       1 = morning first (heliacal rising)
+     *                       2 = evening last (heliacal setting)
+     *                       3 = evening first (acronychal rising)
+     *                       4 = morning last (acronychal setting)
+     *                       5 = SE_ACRONYCHAL_RISING (for AV method)
+     *                       6 = SE_ACRONYCHAL_SETTING (for AV method)
+     * @param int $helflag Calculation flags:
+     *                     SE_HELFLAG_AVKIND_* - method selection
+     *                     SE_HELFLAG_HIGH_PRECISION - use nutation
+     *                     SE_HELFLAG_OPTICAL_PARAMS - use telescope params
+     *                     SE_HELFLAG_NO_DETAILS - skip t_optimum/t_last
+     *                     SE_HELFLAG_LONG_SEARCH - search up to 20 synodic periods
+     * @param array &$dret Output array:
+     *                     [0] = beginning of visibility (JD_UT)
+     *                     [1] = optimum visibility (JD_UT; 0 if SE_HELFLAG_AV)
+     *                     [2] = end of visibility (JD_UT; 0 if SE_HELFLAG_AV)
+     * @param string|null &$serr Error message
+     * @return int OK (>=0), -2 (not found within period), or ERR (<0)
+     */
+    function swe_heliacal_ut(
+        float $JDNDaysUTStart,
+        array $dgeo,
+        array $datm,
+        array $dobs,
+        string $ObjectName,
+        int $TypeEvent,
+        int $helflag,
+        array &$dret,
+        ?string &$serr = null
+    ): int {
+        return HeliacalFunctions::swe_heliacal_ut(
+            $JDNDaysUTStart,
+            $dgeo,
+            $datm,
+            $dobs,
+            $ObjectName,
+            $TypeEvent,
+            $helflag,
+            $dret,
+            $serr
+        );
+    }
+}
+
+if (!function_exists('swe_heliacal_pheno_ut')) {
+    /**
+     * Calculate heliacal phenomena details
+     * Port from swehel.c (swe_heliacal_pheno_ut)
+     * 
+     * Returns detailed visibility information at a specific time:
+     * - Topocentric arcus visionis
+     * - Best and worst visibility times
+     * - Azimuth/altitude for object and Sun
+     * - Moon parameters (Yallop q-test, crescent width/length)
+     * - Atmospheric conditions (extinction, sky brightness)
+     * 
+     * @param float $JDNDaysUT Julian day in UT
+     * @param array $dgeo Geographic position [lon, lat, height_m]
+     * @param array $datm Atmospheric conditions [pressure, temp, RH, VR]
+     * @param array $dobs Observer parameters [age, SN, etc.]
+     * @param string $ObjectName Object name
+     * @param int $TypeEvent Event type (1-4)
+     * @param int $helflag Calculation flags
+     * @param array &$darr Output array (30 elements):
+     *                     [0] = AltO (object altitude)
+     *                     [1] = AziO (object azimuth)
+     *                     [2] = AltS (sun altitude)
+     *                     [3] = AziS (sun azimuth)
+     *                     [4] = TAVact (topocentric arcus visionis)
+     *                     [5] = ArcVis (arcus visionis)
+     *                     [6] = ArcV_Dat (best visibility arcus visionis)
+     *                     [7] = ArcV_Night (worst visibility arcus visionis)
+     *                     [8] = VisLimMag (visual limiting magnitude)
+     *                     [9] = SunAlt (solar altitude, or Moon decl for Sunshine house)
+     *                     [10-12] = AltO_DateBest, AziO_DateBest, JDut_DateBest
+     *                     [13-15] = AltO_DateWorst, AziO_DateWorst, JDut_DateWorst
+     *                     [16] = object magnitude
+     *                     [17-22] = Moon: q (Yallop), age, width, length, illum%, AltO
+     *                     [23] = sky brightness
+     *                     [24] = extinction coefficient
+     *                     [25] = refraction
+     * @param string|null &$serr Error message
+     * @return int OK or ERR
+     */
+    function swe_heliacal_pheno_ut(
+        float $JDNDaysUT,
+        array $dgeo,
+        array $datm,
+        array $dobs,
+        string $ObjectName,
+        int $TypeEvent,
+        int $helflag,
+        array &$darr,
+        ?string &$serr = null
+    ): int {
+        return HeliacalPhenomena::swe_heliacal_pheno_ut(
+            $JDNDaysUT,
+            $dgeo,
+            $datm,
+            $dobs,
+            $ObjectName,
+            $TypeEvent,
+            $helflag,
+            $darr,
+            $serr
+        );
+    }
+}
+
+if (!function_exists('swe_vis_limit_mag')) {
+    /**
+     * Calculate visual limiting magnitude
+     * Port from swehel.c (swe_vis_limit_mag)
+     * 
+     * Determines limiting magnitude based on:
+     * - Sky brightness (astronomical twilight, Moon, light pollution)
+     * - Observer parameters (age, Snellen ratio)
+     * - Atmospheric extinction
+     * - Optical parameters (if telescope used)
+     * 
+     * @param float $JDNDaysUT Julian day in UT
+     * @param array $dgeo Geographic position [lon, lat, height_m]
+     * @param array $datm Atmospheric conditions [pressure, temp, RH, VR]
+     * @param array $dobs Observer parameters [age, SN, binocular, mag, dia, trans]
+     * @param string $ObjectName Object name
+     * @param int $helflag Calculation flags
+     * @param array &$dret Output array:
+     *                     [0] = visual limiting magnitude
+     *                     [1-6] = details (AltO, sky brightness, etc.)
+     *                     [7] = object magnitude
+     * @param string|null &$serr Error message
+     * @return int OK or ERR
+     */
+    function swe_vis_limit_mag(
+        float $JDNDaysUT,
+        array $dgeo,
+        array $datm,
+        array $dobs,
+        string $ObjectName,
+        int $helflag,
+        array &$dret,
+        ?string &$serr = null
+    ): int {
+        return HeliacalArcusVisionis::swe_vis_limit_mag(
+            $JDNDaysUT,
+            $dgeo,
+            $datm,
+            $dobs,
+            $ObjectName,
+            $helflag,
+            $dret,
+            $serr
+        );
+    }
+}
+
+if (!function_exists('swe_heliacal_angle')) {
+    /**
+     * Calculate heliacal angle
+     * Port from swehel.c (swe_heliacal_angle)
+     * 
+     * Computes the arcus visionis (visibility arc) for an object at given
+     * azimuth/altitude considering atmospheric and observer conditions.
+     * 
+     * @param float $JDNDaysUT Julian day in UT
+     * @param array $dgeo Geographic position [lon, lat, height_m]
+     * @param array $datm Atmospheric conditions [pressure, temp, RH, VR]
+     * @param array $dobs Observer parameters [age, SN, etc.]
+     * @param string $ObjectName Object name
+     * @param int $helflag Calculation flags
+     * @param float $mag Object visual magnitude
+     * @param float $AziO Object azimuth (degrees)
+     * @param float $AltM Moon altitude (degrees, -1 if not used)
+     * @param float $AziM Moon azimuth (degrees)
+     * @param float $AziS Sun azimuth (degrees)
+     * @param array &$dret Output array:
+     *                     [0] = heliacal angle
+     *                     [1] = arcus visionis
+     *                     [2] = solar altitude
+     * @param string|null &$serr Error message
+     * @return int OK or ERR
+     */
+    function swe_heliacal_angle(
+        float $JDNDaysUT,
+        array $dgeo,
+        array $datm,
+        array $dobs,
+        string $ObjectName,
+        int $helflag,
+        float $mag,
+        float $AziO,
+        float $AltM,
+        float $AziM,
+        float $AziS,
+        array &$dret,
+        ?string &$serr = null
+    ): int {
+        return HeliacalArcusVisionis::swe_heliacal_angle(
+            $mag,
+            $dobs,
+            $AziO,
+            $AltM,
+            $AziM,
+            $JDNDaysUT,
+            $AziS,
+            $dgeo,
+            $datm,
+            $helflag,
+            $dret,
+            $serr
+        );
+    }
+}
+
+if (!function_exists('swe_topo_arcus_visionis')) {
+    /**
+     * Calculate topocentric arcus visionis
+     * Port from swehel.c (swe_topo_arcus_visionis)
+     * 
+     * Computes the minimum altitude difference between object and Sun
+     * required for visibility, considering topocentric position and
+     * all atmospheric/observer factors.
+     * 
+     * @param float $JDNDaysUT Julian day in UT
+     * @param array $dgeo Geographic position [lon, lat, height_m]
+     * @param array $datm Atmospheric conditions [pressure, temp, RH, VR]
+     * @param array $dobs Observer parameters [age, SN, etc.]
+     * @param string $ObjectName Object name
+     * @param int $helflag Calculation flags
+     * @param float $mag Object visual magnitude
+     * @param float $AziO Object azimuth (degrees)
+     * @param float $AltO Object altitude (degrees)
+     * @param float $AziS Sun azimuth (degrees)
+     * @param float $AltS Sun altitude (degrees)
+     * @param float $AziM Moon azimuth (degrees, -1 if not used)
+     * @param float $AltM Moon altitude (degrees)
+     * @param array &$dret Output array:
+     *                     [0] = topocentric arcus visionis
+     * @param string|null &$serr Error message
+     * @return int OK or ERR
+     */
+    function swe_topo_arcus_visionis(
+        float $JDNDaysUT,
+        array $dgeo,
+        array $datm,
+        array $dobs,
+        string $ObjectName,
+        int $helflag,
+        float $mag,
+        float $AziO,
+        float $AltO,
+        float $AziS,
+        float $AltS,
+        float $AziM,
+        float $AltM,
+        array &$dret,
+        ?string &$serr = null
+    ): int {
+        return HeliacalArcusVisionis::swe_topo_arcus_visionis(
+            $JDNDaysUT,
+            $dgeo,
+            $datm,
+            $dobs,
+            $ObjectName,
+            $helflag,
+            $mag,
+            $AziO,
+            $AltO,
+            $AziS,
+            $AltS,
+            $AziM,
+            $AltM,
+            $dret,
+            $serr
+        );
+    }
+}
+
