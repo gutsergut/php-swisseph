@@ -152,6 +152,13 @@ final class PlanetsFunctions
             $serr = "calc_pctr: Failed to calculate center planet $iplctr: " . ($serr ?: 'unknown error');
             return Constants::SE_ERR;
         }
+        // Convert to polar for debug
+        $xxctr_polar = [];
+        Coordinates::cartPolSp($xxctr, $xxctr_polar);
+        $ra_ctr_deg = $xxctr_polar[0] * Constants::RADTODEG;
+        $dec_ctr_deg = $xxctr_polar[1] * Constants::RADTODEG;
+        // error_log("DEBUG calc_pctr INITIAL xxctr (barycentric equatorial J2000): RA={$ra_ctr_deg}°, Dec={$dec_ctr_deg}°");
+        // error_log("DEBUG calc_pctr INITIAL xxctr[0-2]=[{$xxctr[0]}, {$xxctr[1]}, {$xxctr[2]}]");
 
         // Calculate target planet (barycentric)
         $xx = [];
@@ -160,6 +167,13 @@ final class PlanetsFunctions
             $serr = "calc_pctr: Failed to calculate target planet $ipl: " . ($serr ?: 'unknown error');
             return Constants::SE_ERR;
         }
+        // Convert to polar for debug
+        $xx_polar = [];
+        Coordinates::cartPolSp($xx, $xx_polar);
+        $ra_deg = $xx_polar[0] * Constants::RADTODEG;
+        $dec_deg = $xx_polar[1] * Constants::RADTODEG;
+        // error_log("DEBUG calc_pctr INITIAL xx (barycentric equatorial J2000): RA={$ra_deg}°, Dec={$dec_deg}°");
+        // error_log("DEBUG calc_pctr INITIAL xx[0-2]=[{$xx[0]}, {$xx[1]}, {$xx[2]}]");
 
         // Save initial position
         $xx0 = array_slice($xx, 0, 6);
@@ -236,17 +250,28 @@ final class PlanetsFunctions
             }
 
             $retc = self::calc($t, $iplctr, $iflag2, $xxctr2, $serr);
+            if ($retc < 0) {
+                $serr = "calc_pctr: Failed to calculate center planet at t-dt: " . ($serr ?: 'unknown error');
+                return Constants::SE_ERR;
+            }
             $retc = self::calc($t, $ipl, $iflag2, $xx, $serr);
+            if ($retc < 0) {
+                $serr = "calc_pctr: Failed to calculate target planet at t-dt: " . ($serr ?: 'unknown error');
+                return Constants::SE_ERR;
+            }
         }
 
         /*******************************
          * conversion to planetocenter *
          *******************************/
         if (!($iflag & Constants::SEFLG_HELCTR) && !($iflag & Constants::SEFLG_BARYCTR)) {
+            // error_log("DEBUG calc_pctr BEFORE planetocenter: xx[0-2]=[{$xx[0]}, {$xx[1]}, {$xx[2]}]");
+            // error_log("DEBUG calc_pctr BEFORE planetocenter: xxctr[0-2]=[{$xxctr[0]}, {$xxctr[1]}, {$xxctr[2]}]");
             // subtract earth
             for ($i = 0; $i <= 5; $i++) {
                 $xx[$i] -= $xxctr[$i];
             }
+            // error_log("DEBUG calc_pctr AFTER planetocenter: xx[0-2]=[{$xx[0]}, {$xx[1]}, {$xx[2]}]");
             if (!($iflag & Constants::SEFLG_TRUEPOS)) {
                 /*
                  * Apparent speed is also influenced by
@@ -340,12 +365,14 @@ final class PlanetsFunctions
          * with sidereal calc. this will be overwritten *
          * afterwards.                                  *
          ************************************************/
+        // error_log("DEBUG calc_pctr BEFORE ecl transform: xx[0-2]=[{$xx[0]}, {$xx[1]}, {$xx[2]}] (equatorial)");
         $pos = [$xx[0], $xx[1], $xx[2]];
         $out = [];
         Coordinates::coortrf2($pos, $out, $oe->seps, $oe->ceps);
         $xx[0] = $out[0];
         $xx[1] = $out[1];
         $xx[2] = $out[2];
+        // error_log("DEBUG calc_pctr AFTER ecl transform: xx[0-2]=[{$xx[0]}, {$xx[1]}, {$xx[2]}] (ecliptic)");
 
         if ($iflag & Constants::SEFLG_SPEED) {
             $vel = [$xx[3], $xx[4], $xx[5]];
@@ -364,6 +391,7 @@ final class PlanetsFunctions
             $xx[0] = $out[0];
             $xx[1] = $out[1];
             $xx[2] = $out[2];
+            error_log("DEBUG calc_pctr AFTER nut ecl transform: xx[0-2]=[{$xx[0]}, {$xx[1]}, {$xx[2]}]");
 
             if ($iflag & Constants::SEFLG_SPEED) {
                 $vel = [$xx[3], $xx[4], $xx[5]];
@@ -376,6 +404,7 @@ final class PlanetsFunctions
         }
 
         // now we have ecliptic cartesian coordinates
+        // error_log("DEBUG calc_pctr ECLIPTIC CARTESIAN xx[0-2]=[{$xx[0]}, {$xx[1]}, {$xx[2]}]");
         for ($i = 0; $i <= 5; $i++) {
             $xreturn[6 + $i] = $xx[$i];
         }
@@ -449,8 +478,10 @@ final class PlanetsFunctions
         }
 
         $xret6_slice = array_slice($xreturn, 6, 6);
+        // error_log("DEBUG calc_pctr BEFORE cartPolSp: xret6_slice[0-2]=[{$xret6_slice[0]}, {$xret6_slice[1]}, {$xret6_slice[2]}]");
         $polar6_temp = [];
         Coordinates::cartPolSp($xret6_slice, $polar6_temp);
+        // error_log("DEBUG calc_pctr AFTER cartPolSp: polar6_temp[0-2]=[{$polar6_temp[0]}, {$polar6_temp[1]}, {$polar6_temp[2]}] (radians)");
         for ($i = 0; $i <= 5; $i++) {
             $xreturn[$i] = $polar6_temp[$i];
         }

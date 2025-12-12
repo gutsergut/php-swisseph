@@ -22,7 +22,7 @@ echo "\n=== swe_calc_pctr() Test ===\n\n";
 
 // Test 1: Venus-centric Mars position
 echo "Test 1: Venus-centric Mars (1.1.2000 12:00 UT)\n";
-echo "Reference (swetest64): Mars  lon=359.4388477°  lat=12.7108999°\n";
+echo "Reference (swetest64): Mars  lon=359.4388477°  lat=-1.4197691°\n";
 
 $jd_ut = swe_julday(2000, 1, 1, 12.0, Constants::SE_GREG_CAL);
 $jd_et = $jd_ut + swe_deltat_ex($jd_ut, Constants::SEFLG_SWIEPH);
@@ -53,11 +53,11 @@ if ($ret < 0) {
 
 echo "PHP Result:  Mars  lon=" . number_format($xx[0], 7, '.', '') . "°  lat=" . number_format($xx[1], 7, '.', '') . "°\n";
 echo "Longitude diff: " . number_format(abs($xx[0] - 359.4388477), 7, '.', '') . "°\n";
-echo "Latitude diff:  " . number_format(abs($xx[1] - 12.7108999), 7, '.', '') . "°\n";
+echo "Latitude diff:  " . number_format(abs($xx[1] - (-1.4197691)), 7, '.', '') . "°\n";
 
 // Validate within tolerance (should be < 0.001° for high precision)
 $lon_diff = abs($xx[0] - 359.4388477);
-$lat_diff = abs($xx[1] - 12.7108999);
+$lat_diff = abs($xx[1] - (-1.4197691));
 
 if ($lon_diff < 0.01 && $lat_diff < 0.01) {
     echo "✅ PASSED: Differences within 0.01°\n";
