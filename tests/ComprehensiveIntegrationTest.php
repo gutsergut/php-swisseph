@@ -58,8 +58,8 @@ foreach ($planets as [$ipl, $name]) {
     }
 }
 
-// Test additional bodies (Node, Chiron - may not be supported yet)
-echo "\nAdditional bodies (may have limited support):\n";
+// Test additional bodies
+echo "\nAdditional bodies:\n";
 foreach ([[Constants::SE_MEAN_NODE, 'Node'], [Constants::SE_CHIRON, 'Chiron']] as [$ipl, $name]) {
     $xx = [];
     $serr = null;
@@ -67,8 +67,11 @@ foreach ([[Constants::SE_MEAN_NODE, 'Node'], [Constants::SE_CHIRON, 'Chiron']] a
         printf("%-10s: %6.2f° (speed: %+.4f°/day)\n", $name, $xx[0], $xx[3]);
         $passed++;
     } else {
-        printf("%-10s: not supported in current version\n", $name);
-        // Don't count as failure - this is expected
+        printf("%-10s: %s\n", $name, $serr ?: 'not supported');
+        if ($name !== 'Chiron') {
+            // Node should work, count as failure if it doesn't
+            $failed++;
+        }
     }
 }
 

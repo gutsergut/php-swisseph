@@ -32,10 +32,26 @@ final class PlanetsFunctions
     {
         $xx = Output::emptyForFlags($iflag);
 
-        // Диапазон поддерживаемых планет (сохраняем поведение C)
-        if (($ipl < Constants::SE_SUN || $ipl > Constants::SE_PLUTO) && $ipl !== Constants::SE_EARTH) {
+        // Диапазон поддерживаемых планет (расширен для Node и Chiron)
+        // SE_SUN..SE_PLUTO (0-9), SE_MEAN_NODE (10), SE_EARTH (14), SE_CHIRON (15)
+        $validRange = ($ipl >= Constants::SE_SUN && $ipl <= Constants::SE_PLUTO)
+            || $ipl === Constants::SE_MEAN_NODE
+            || $ipl === Constants::SE_EARTH
+            || $ipl === Constants::SE_CHIRON;
+
+        if (!$validRange) {
             $serr = ErrorCodes::compose(ErrorCodes::INVALID_ARG, "ipl=$ipl out of supported range");
             return Constants::SE_ERR;
+        }
+
+        // Специальная обработка для Mean Node - делегируем к swe_nod_aps
+        if ($ipl === Constants::SE_MEAN_NODE) {
+            return self::calcMeanNode($jd_tt, $iflag, $xx, $serr);
+        }
+
+        // Специальная обработка для Chiron - используем asteroid ephemeris
+        if ($ipl === Constants::SE_CHIRON) {
+            return self::calcChiron($jd_tt, $iflag, $xx, $serr);
         }
 
         // Проверка взаимоисключающих источников эфемерид
@@ -85,6 +101,62 @@ final class PlanetsFunctions
         // Берём финальный блок координат (с учётом флагов) из стратегии
         $xx = $res->x;
         return $iflag;
+    }
+
+    /**
+     * Calculate Mean Node by delegating to swe_nod_aps
+     * Returns ascending node position
+     *
+     * @param float $jd_tt Julian day in TT
+     * @param int $iflag Calculation flags
+     * @param array &$xx Output coordinates
+     * @param string|null &$serr Error message
+     * @return int iflag on success, SE_ERR on error
+     */
+    private static function calcMeanNode(float $jd_tt, int $iflag, array &$xx, ?string &$serr): int
+    {
+        // Use NodesApsidesFunctions to get mean node for Moon
+        $xnasc = null;  // Ascending node
+        $xndsc = null;  // Descending node (not needed)
+        $xperi = null;  // Perihelion (not needed)
+        $xaphe = null;  // Aphelion (not needed)
+
+        $ret = NodesApsidesFunctions::nodAps(
+            $jd_tt,
+            Constants::SE_MOON,  // Mean node is for the Moon
+            $iflag,
+            Constants::SE_NODBIT_MEAN,  // Request mean nodes
+            $xnasc,
+            $xndsc,
+            $xperi,
+            $xaphe,
+            $serr
+        );
+
+        if ($ret < 0) {
+            return Constants::SE_ERR;
+        }
+
+        // Copy ascending node coordinates to output
+        $xx = $xnasc;
+
+        return $iflag;
+    }
+
+    /**
+     * Calculate Chiron using Swiss Ephemeris asteroid files
+     *
+     * @param float $jd_tt Julian day in TT
+     * @param int $iflag Calculation flags
+     * @param array &$xx Output coordinates
+     * @param string|null &$serr Error message
+     * @return int iflag on success, SE_ERR on error
+     */
+    private static function calcChiron(float $jd_tt, int $iflag, array &$xx, ?string &$serr): int
+    {
+        // Chiron requires asteroid ephemeris support which is not yet fully ported
+        $serr = 'SE_CHIRON: asteroid ephemeris support not yet implemented';
+        return Constants::SE_ERR;
     }
 
     /**
