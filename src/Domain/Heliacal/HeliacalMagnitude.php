@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Swisseph\Domain\Heliacal;
 
+use Swisseph\Constants;
 use Swisseph\Swe;
 
 /**
@@ -85,8 +86,7 @@ class HeliacalMagnitude
         string $ObjectName,
         int $helflag,
         float &$dmag,
-        string &$serr
-    ): int {
+        ?string &$serr = null): int {
         $epheflag = $helflag & (Swe::SEFLG_JPLEPH | Swe::SEFLG_SWIEPH | Swe::SEFLG_MOSEPH);
         $dmag = -99.0;
 
@@ -101,23 +101,22 @@ class HeliacalMagnitude
             // Planet or Moon - use phenomena calculation
             Swe::swe_set_topo($dgeo[0], $dgeo[1], $dgeo[2]);
 
-            $result = Swe::swe_pheno_ut($JDNDaysUT, $Planet, $iflag, $serr);
-            if ($result['rc'] == Swe::ERR) {
-                return Swe::ERR;
+            $attr = array_fill(0, 20, 0.0);
+            $rc = Swe::swe_pheno_ut($JDNDaysUT, $Planet, $iflag, $attr, $serr);
+            if ($rc == Constants::ERR) {
+                return Constants::ERR;
             }
 
             // Magnitude is 5th element (index 4) of pheno array
-            $dmag = $result['attr'][4];
+            $dmag = $attr[4];
         } else {
             // Fixed star - use fixstar_mag
-            $result = Swe::swe_fixstar_mag($ObjectName, $serr);
-            if ($result['rc'] == Swe::ERR) {
-                return Swe::ERR;
+            $rc = Swe::swe_fixstar_mag($ObjectName, $dmag, $serr);
+            if ($rc == Constants::ERR) {
+                return Constants::ERR;
             }
-
-            $dmag = $result['mag'];
         }
 
-        return Swe::OK;
+        return Constants::OK;
     }
 }

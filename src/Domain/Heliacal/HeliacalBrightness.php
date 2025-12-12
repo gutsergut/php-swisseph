@@ -119,8 +119,7 @@ class HeliacalBrightness
         float $HeightEye,
         array $datm,
         int $helflag,
-        string &$serr
-    ): float {
+        ?string &$serr = null): float {
         $PresE = HeliacalAtmosphere::PresEfromPresS($datm[1], $datm[0], $HeightEye);
         $TempE = HeliacalAtmosphere::TempEfromTempS($datm[1], $HeightEye, HeliacalConstants::LAPSE_SA);
         $AppAltO = HeliacalAtmosphere::AppAltfromTopoAlt($AltO, $TempE, $PresE, $helflag);
@@ -182,8 +181,7 @@ class HeliacalBrightness
         float $HeightEye,
         array $datm,
         int $helflag,
-        string &$serr
-    ): float {
+        ?string &$serr = null): float {
         $M0 = -11.05;
         $Bm = 0;
 
@@ -251,8 +249,7 @@ class HeliacalBrightness
         float $HeightEye,
         array $datm,
         int $helflag,
-        string &$serr
-    ): float {
+        ?string &$serr = null): float {
         $M0 = -11.05;
         $MS = -26.74;
 
@@ -301,8 +298,7 @@ class HeliacalBrightness
         float $HeightEye,
         array $datm,
         int $helflag,
-        string &$serr
-    ): float {
+        ?string &$serr = null): float {
         $M0 = -11.05;
         $MS = -26.74;
 
@@ -379,7 +375,7 @@ class HeliacalBrightness
         float $HeightEye,
         array $datm,
         int $helflag,
-        string &$serr
+        ?string &$serr = null
     ): float {
         $Bsky = 0;
 

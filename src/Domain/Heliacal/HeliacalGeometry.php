@@ -24,7 +24,7 @@ class HeliacalGeometry
      * @param string &$serr Error message output
      * @return float Sun RA [degrees]
      */
-    public static function SunRA(float $JDNDaysUT, int $helflag, string &$serr): float
+    public static function SunRA(float $JDNDaysUT, int $helflag, ?string &$serr = null): float
     {
         static $tjdlast = null;
         static $ralast = null;
@@ -39,10 +39,11 @@ class HeliacalGeometry
         $iflag |= Swe::SEFLG_NONUT | Swe::SEFLG_TRUEPOS;
 
         $tjd_tt = $JDNDaysUT + Swe::swe_deltat_ex($JDNDaysUT, $epheflag, $serr);
-        $result = Swe::swe_calc($tjd_tt, Swe::SE_SUN, $iflag, $serr);
+        $xx = array_fill(0, 6, 0.0);
+        $rc = Swe::swe_calc($tjd_tt, Swe::SE_SUN, $iflag, $xx, $serr);
 
-        if ($result['rc'] != Constants::ERR) {
-            $ralast = $result['xx'][0];
+        if ($rc != Constants::ERR) {
+            $ralast = $xx[0];
             $tjdlast = $JDNDaysUT;
             return $ralast;
         }
@@ -106,7 +107,7 @@ class HeliacalGeometry
         int $Angle,
         int $helflag,
         float &$dret,
-        string &$serr
+        ?string &$serr = null
     ): int {
         $epheflag = $helflag & (Swe::SEFLG_JPLEPH | Swe::SEFLG_SWIEPH | Swe::SEFLG_MOSEPH);
         $iflag = Swe::SEFLG_EQUATORIAL | $epheflag;
@@ -127,17 +128,17 @@ class HeliacalGeometry
         $Planet = HeliacalMagnitude::DeterObject($ObjectName);
 
         if ($Planet != -1) {
-            $result = Swe::swe_calc($tjd_tt, $Planet, $iflag, $serr);
-            if ($result['rc'] == Constants::ERR) {
+            $x = array_fill(0, 6, 0.0);
+            $rc = Swe::swe_calc($tjd_tt, $Planet, $iflag, $x, $serr);
+            if ($rc == Constants::ERR) {
                 return Constants::ERR;
             }
-            $x = $result['xx'];
         } else {
-            $result = Swe::swe_fixstar($ObjectName, $tjd_tt, $iflag, $serr);
-            if ($result['rc'] == Constants::ERR) {
+            $x = array_fill(0, 6, 0.0);
+            $rc = Swe::swe_fixstar($ObjectName, $tjd_tt, $iflag, $x, $serr);
+            if ($rc == Constants::ERR) {
                 return Constants::ERR;
             }
-            $x = $result['xx'];
         }
 
         if ($Angle == 2 || $Angle == 5) {
@@ -146,22 +147,23 @@ class HeliacalGeometry
             $dret = $x[0]; // Right ascension
         } else {
             $xin = [$x[0], $x[1]];
-            $xaz = Swe::swe_azalt($JDNDaysUT, Swe::SE_EQU2HOR, $dgeo, $datm[0], $datm[1], $xin, $serr);
+            $xaz = array_fill(0, 3, 0.0);
+            Swe::swe_azalt($JDNDaysUT, Swe::SE_EQU2HOR, $dgeo, $datm[0], $datm[1], $xin, $xaz);
 
             if ($Angle == 0) {
-                $dret = $xaz['xaz'][1]; // Topocentric altitude
+                $dret = $xaz[1]; // Topocentric altitude
             } elseif ($Angle == 4) {
-                $dret = HeliacalAtmosphere::AppAltfromTopoAlt($xaz['xaz'][1], $datm[0], $datm[1], $helflag);
+                $dret = HeliacalAtmosphere::AppAltfromTopoAlt($xaz[1], $datm[0], $datm[1], $helflag);
             } elseif ($Angle == 1) {
-                $xaz['xaz'][0] += 180;
-                if ($xaz['xaz'][0] >= 360) {
-                    $xaz['xaz'][0] -= 360;
+                $xaz[0] += 180;
+                if ($xaz[0] >= 360) {
+                    $xaz[0] -= 360;
                 }
-                $dret = $xaz['xaz'][0]; // Azimuth
+                $dret = $xaz[0]; // Azimuth
             }
         }
 
-        return Swe::OK;
+        return Constants::OK;
     }
 
     /**
@@ -184,8 +186,7 @@ class HeliacalGeometry
         string $ObjectName,
         int $helflag,
         array &$dret,
-        string &$serr
-    ): int {
+        ?string &$serr = null): int {
         $epheflag = $helflag & (Swe::SEFLG_JPLEPH | Swe::SEFLG_SWIEPH | Swe::SEFLG_MOSEPH);
         $iflag = Swe::SEFLG_EQUATORIAL | Swe::SEFLG_TOPOCTR | $epheflag;
 
@@ -197,22 +198,22 @@ class HeliacalGeometry
         $Planet = HeliacalMagnitude::DeterObject($ObjectName);
 
         if ($Planet != -1) {
-            $result = Swe::swe_calc($tjd_tt, $Planet, $iflag, $serr);
-            if ($result['rc'] == Constants::ERR) {
+            $x = array_fill(0, 6, 0.0);
+            $rc = Swe::swe_calc($tjd_tt, $Planet, $iflag, $x, $serr);
+            if ($rc == Constants::ERR) {
                 return Constants::ERR;
             }
-            $x = $result['xx'];
         } else {
-            $result = Swe::swe_fixstar($ObjectName, $tjd_tt, $iflag, $serr);
-            if ($result['rc'] == Constants::ERR) {
+            $x = array_fill(0, 6, 0.0);
+            $rc = Swe::swe_fixstar($ObjectName, $tjd_tt, $iflag, $x, $serr);
+            if ($rc == Constants::ERR) {
                 return Constants::ERR;
             }
-            $x = $result['xx'];
         }
 
         $xin = [$x[0], $x[1]];
-        $xaz_result = Swe::swe_azalt($JDNDaysUT, Swe::SE_EQU2HOR, $dgeo, $datm[0], $datm[1], $xin, $serr);
-        $xaz = $xaz_result['xaz'];
+        $xaz = array_fill(0, 3, 0.0);
+        Swe::swe_azalt($JDNDaysUT, Swe::SE_EQU2HOR, $dgeo, $datm[0], $datm[1], $xin, $xaz);
 
         $dret[0] = $xaz[0]; // Azimuth
         $dret[1] = $xaz[1]; // True altitude
@@ -227,7 +228,7 @@ class HeliacalGeometry
         $dret[4] = $xaz_cart[1]; // Cart Y
         $dret[5] = $xaz_cart[2]; // Cart Z
 
-        return Swe::OK;
+        return Constants::OK;
     }
 
     /**
@@ -256,8 +257,7 @@ class HeliacalGeometry
         float $atpress,
         float $attemp,
         float &$tret,
-        string &$serr
-    ): int {
+        ?string &$serr = null): int {
         $iflag = $helflag & (Swe::SEFLG_JPLEPH | Swe::SEFLG_SWIEPH | Swe::SEFLG_MOSEPH);
         return Swe::swe_rise_trans($tjd, $ipl, $star, $iflag, $eventtype, $dgeo, $atpress, $attemp, $tret, $serr);
     }
@@ -287,7 +287,7 @@ class HeliacalGeometry
         int $eventflag,
         int $helflag,
         float &$trise,
-        string &$serr
+        ?string &$serr = null
     ): int {
         $epheflag = $helflag & (Swe::SEFLG_JPLEPH | Swe::SEFLG_SWIEPH | Swe::SEFLG_MOSEPH);
         $iflag = Swe::SEFLG_EQUATORIAL | $epheflag;
@@ -318,11 +318,12 @@ class HeliacalGeometry
         $tjdnoon -= Swe::swe_degnorm($xs[0] - $xx[0]) / 360.0;
 
         // Check if planet is above or below horizon
-        $xaz = Swe::swe_azalt($tjd0, Swe::SE_EQU2HOR, $dgeo, $datm[0], $datm[1], [$xx[0], $xx[1]], $serr);
+        $xaz = array_fill(0, 3, 0.0);
+        Swe::swe_azalt($tjd0, Swe::SE_EQU2HOR, $dgeo, $datm[0], $datm[1], [$xx[0], $xx[1]], $xaz);
 
         // Adjust tjdnoon based on event type and current position
         if ($eventflag & Swe::SE_CALC_RISE) {
-            if ($xaz['xaz'][2] > 0) {
+            if ($xaz[2] > 0) {
                 while ($tjdnoon - $tjd0 < 0.5) $tjdnoon += 1;
                 while ($tjdnoon - $tjd0 > 1.5) $tjdnoon -= 1;
             } else {
@@ -330,7 +331,7 @@ class HeliacalGeometry
                 while ($tjdnoon - $tjd0 > 1.0) $tjdnoon -= 1;
             }
         } else {
-            if ($xaz['xaz'][2] > 0) {
+            if ($xaz[2] > 0) {
                 while ($tjd0 - $tjdnoon > 0.5) $tjdnoon += 1;
                 while ($tjd0 - $tjdnoon < -0.5) $tjdnoon -= 1;
             } else {
@@ -389,17 +390,19 @@ class HeliacalGeometry
                 return Constants::ERR;
             }
 
-            $xaz = Swe::swe_azalt($tjdrise, Swe::SE_EQU2HOR, $dgeo, $datm[0], $datm[1], [$xx[0], $xx[1]], $serr);
+            $xaz = array_fill(0, 3, 0.0);
+            Swe::swe_azalt($tjdrise, Swe::SE_EQU2HOR, $dgeo, $datm[0], $datm[1], [$xx[0], $xx[1]], $xaz);
 
             $xx[0] -= $xx[3] * $dfac;
             $xx[1] -= $xx[4] * $dfac;
-            $xaz2 = Swe::swe_azalt($tjdrise - $dfac, Swe::SE_EQU2HOR, $dgeo, $datm[0], $datm[1], [$xx[0], $xx[1]], $serr);
+            $xaz2 = array_fill(0, 3, 0.0);
+            Swe::swe_azalt($tjdrise - $dfac, Swe::SE_EQU2HOR, $dgeo, $datm[0], $datm[1], [$xx[0], $xx[1]], $xaz2);
 
-            $tjdrise -= ($xaz['xaz'][1] - $rh) / ($xaz['xaz'][1] - $xaz2['xaz'][1]) * $dfac;
+            $tjdrise -= ($xaz[1] - $rh) / ($xaz[1] - $xaz2[1]) * $dfac;
         }
 
         $trise = $tjdrise;
-        return Swe::OK;
+        return Constants::OK;
     }
 
     /**
@@ -428,7 +431,7 @@ class HeliacalGeometry
         array $dgeo,
         array $datm,
         float &$tret,
-        string &$serr
+        ?string &$serr = null
     ): int {
         if ($starname !== null && $starname !== '') {
             $ipl = HeliacalMagnitude::DeterObject($starname);
@@ -468,8 +471,7 @@ class HeliacalGeometry
         int $helflag,
         int $Rim,
         float &$tret,
-        string &$serr
-    ): int {
+        ?string &$serr = null): int {
         $eventtype = $RSEvent;
         if ($Rim == 0) {
             $eventtype |= Swe::SE_BIT_DISC_CENTER;

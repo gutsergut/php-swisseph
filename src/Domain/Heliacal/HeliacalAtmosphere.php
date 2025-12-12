@@ -150,8 +150,7 @@ class HeliacalAtmosphere
         float $TempS,
         float $RH,
         float $VR,
-        string &$serr
-    ): float {
+        ?string &$serr = null): float {
         // Use cache
         if ($AltS == self::$alts_last_ka && $sunra == self::$sunra_last_ka) {
             return self::$ka_last;
@@ -243,8 +242,7 @@ class HeliacalAtmosphere
         float $RH,
         float $VR,
         int $ExtType,
-        string &$serr
-    ): float {
+        ?string &$serr = null): float {
         $kRact = 0;
         $kWact = 0;
         $kOZact = 0;
@@ -379,8 +377,7 @@ class HeliacalAtmosphere
         float $HeightEye,
         array $datm,
         int $helflag,
-        string &$serr
-    ): float {
+        ?string &$serr = null): float {
         // Use cache
         if ($AltS == self::$alts_last_dm && $AltO == self::$alto_last_dm && $sunra == self::$sunra_last_dm) {
             return self::$deltam_last;

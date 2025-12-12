@@ -221,7 +221,7 @@ class HeliacalVision
         array $datm,
         int $helflag,
         ?int &$scotopic_flag,
-        string &$serr
+        ?string &$serr = null
     ): float {
         $log10 = 2.302585092994; // ln(10)
 

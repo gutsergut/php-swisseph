@@ -69,16 +69,17 @@ final class HeliacalArcusVisionis
     ): array {
         $xR = 0.0;
         $Xl = 45.0;
+        $scotopic_flag = null;
 
         // Calculate function values at left and right bounds
-        [$status, $Yl] = HeliacalVision::VisLimMagn(
+        $Yl = HeliacalVision::VisLimMagn(
             $dobs, $AltO, $AziO, $AltM, $AziM, $JDNDaysUT,
             $AltO - $Xl, $AziS, $sunra, $Lat, $HeightEye,
             $datm, $helflag, $scotopic_flag, $serr
         );
         $Yl = $Magn - $Yl;
 
-        [$status, $Yr] = HeliacalVision::VisLimMagn(
+        $Yr = HeliacalVision::VisLimMagn(
             $dobs, $AltO, $AziO, $AltM, $AziM, $JDNDaysUT,
             $AltO - $xR, $AziS, $sunra, $Lat, $HeightEye,
             $datm, $helflag, $scotopic_flag, $serr
@@ -93,7 +94,7 @@ final class HeliacalArcusVisionis
                 $AltSi = $AltO - $Xm;
                 $AziSi = $AziS;
 
-                [$status, $Ym] = HeliacalVision::VisLimMagn(
+                $Ym = HeliacalVision::VisLimMagn(
                     $dobs, $AltO, $AziO, $AltM, $AziM, $JDNDaysUT,
                     $AltSi, $AziSi, $sunra, $Lat, $HeightEye,
                     $datm, $helflag, $scotopic_flag, $serr
@@ -295,19 +296,22 @@ final class HeliacalArcusVisionis
         $sunra = HeliacalGeometry::SunRA($JDNDaysUT, $helflag, $serr);
 
         // Get object magnitude
-        [$status, $Magn] = HeliacalMagnitude::Magnitude($JDNDaysUT, $dgeo, $ObjectName, $helflag, $serr);
+        $Magn = 0.0;
+        $status = HeliacalMagnitude::Magnitude($JDNDaysUT, $dgeo, $ObjectName, $helflag, $Magn, $serr);
         if ($status === Constants::ERR) {
             return [Constants::ERR, 0.0];
         }
 
         // Get object altitude
-        [$status, $AltO] = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, $ObjectName, 0, $helflag, $serr);
+        $AltO = 0.0;
+        $status = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, $ObjectName, 0, $helflag, $AltO, $serr);
         if ($status === Constants::ERR) {
             return [Constants::ERR, 0.0];
         }
 
         // Get object azimuth
-        [$status, $AziO] = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, $ObjectName, 1, $helflag, $serr);
+        $AziO = 0.0;
+        $status = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, $ObjectName, 1, $helflag, $AziO, $serr);
         if ($status === Constants::ERR) {
             return [Constants::ERR, 0.0];
         }
@@ -317,19 +321,22 @@ final class HeliacalArcusVisionis
             $AltM = -90.0;
             $AziM = 0.0;
         } else {
-            [$status, $AltM] = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, "moon", 0, $helflag, $serr);
+            $AltM = 0.0;
+            $status = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, "moon", 0, $helflag, $AltM, $serr);
             if ($status === Constants::ERR) {
                 return [Constants::ERR, 0.0];
             }
 
-            [$status, $AziM] = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, "moon", 1, $helflag, $serr);
+            $AziM = 0.0;
+            $status = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, "moon", 1, $helflag, $AziM, $serr);
             if ($status === Constants::ERR) {
                 return [Constants::ERR, 0.0];
             }
         }
 
         // Get Sun azimuth
-        [$status, $AziS] = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, "sun", 1, $helflag, $serr);
+        $AziS = 0.0;
+        $status = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, "sun", 1, $helflag, $AziS, $serr);
         if ($status === Constants::ERR) {
             return [Constants::ERR, 0.0];
         }
@@ -592,6 +599,7 @@ final class HeliacalArcusVisionis
         ?string &$serr
     ): array {
         $dret = array_fill(0, 8, 0.0);
+        $scotopic_flag = null;
 
         $ObjectName = strtolower($ObjectName);
 
@@ -608,7 +616,8 @@ final class HeliacalArcusVisionis
         // swe_set_topo(dgeo[0], dgeo[1], dgeo[2]);
 
         // Get object altitude
-        [$status, $AltO] = HeliacalGeometry::ObjectLoc($tjdut, $dgeo, $datm, $ObjectName, 0, $helflag, $serr);
+        $AltO = 0.0;
+        $status = HeliacalGeometry::ObjectLoc($tjdut, $dgeo, $datm, $ObjectName, 0, $helflag, $AltO, $serr);
         if ($status === Constants::ERR) {
             return [Constants::ERR, $dret];
         }
@@ -622,7 +631,8 @@ final class HeliacalArcusVisionis
         }
 
         // Get object azimuth
-        [$status, $AziO] = HeliacalGeometry::ObjectLoc($tjdut, $dgeo, $datm, $ObjectName, 1, $helflag, $serr);
+        $AziO = 0.0;
+        $status = HeliacalGeometry::ObjectLoc($tjdut, $dgeo, $datm, $ObjectName, 1, $helflag, $AziO, $serr);
         if ($status === Constants::ERR) {
             return [Constants::ERR, $dret];
         }
@@ -632,12 +642,14 @@ final class HeliacalArcusVisionis
             $AltS = -90.0;
             $AziS = 0.0;
         } else {
-            [$status, $AltS] = HeliacalGeometry::ObjectLoc($tjdut, $dgeo, $datm, "sun", 0, $helflag, $serr);
+            $AltS = 0.0;
+            $status = HeliacalGeometry::ObjectLoc($tjdut, $dgeo, $datm, "sun", 0, $helflag, $AltS, $serr);
             if ($status === Constants::ERR) {
                 return [Constants::ERR, $dret];
             }
 
-            [$status, $AziS] = HeliacalGeometry::ObjectLoc($tjdut, $dgeo, $datm, "sun", 1, $helflag, $serr);
+            $AziS = 0.0;
+            $status = HeliacalGeometry::ObjectLoc($tjdut, $dgeo, $datm, "sun", 1, $helflag, $AziS, $serr);
             if ($status === Constants::ERR) {
                 return [Constants::ERR, $dret];
             }
@@ -652,19 +664,21 @@ final class HeliacalArcusVisionis
             $AltM = -90.0;
             $AziM = 0.0;
         } else {
-            [$status, $AltM] = HeliacalGeometry::ObjectLoc($tjdut, $dgeo, $datm, "moon", 0, $helflag, $serr);
+            $AltM = 0.0;
+            $status = HeliacalGeometry::ObjectLoc($tjdut, $dgeo, $datm, "moon", 0, $helflag, $AltM, $serr);
             if ($status === Constants::ERR) {
                 return [Constants::ERR, $dret];
             }
 
-            [$status, $AziM] = HeliacalGeometry::ObjectLoc($tjdut, $dgeo, $datm, "moon", 1, $helflag, $serr);
+            $AziM = 0.0;
+            $status = HeliacalGeometry::ObjectLoc($tjdut, $dgeo, $datm, "moon", 1, $helflag, $AziM, $serr);
             if ($status === Constants::ERR) {
                 return [Constants::ERR, $dret];
             }
         }
 
         // Calculate visual limiting magnitude
-        [$status, $dret[0]] = HeliacalVision::VisLimMagn(
+        $dret[0] = HeliacalVision::VisLimMagn(
             $dobs, $AltO, $AziO, $AltM, $AziM, $tjdut, $AltS, $AziS,
             $sunra, $dgeo[1], $dgeo[2], $datm, $helflag, $scotopic_flag, $serr
         );
@@ -677,12 +691,13 @@ final class HeliacalArcusVisionis
         $dret[6] = $AziM;
 
         // Get object magnitude
-        [$status, $dret[7]] = HeliacalMagnitude::Magnitude($tjdut, $dgeo, $ObjectName, $helflag, $serr);
+        $dret[7] = 0.0;
+        $status = HeliacalMagnitude::Magnitude($tjdut, $dgeo, $ObjectName, $helflag, $dret[7], $serr);
         if ($status === Constants::ERR) {
             return [Constants::ERR, $dret];
         }
 
-        $retval = $scotopic_flag;
+        $retval = $scotopic_flag ?? 0;
 
         return [$retval, $dret];
     }
