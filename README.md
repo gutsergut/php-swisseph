@@ -135,12 +135,10 @@ Misc Utilities         ███████████████████
 </details>
 
 <details>
-<summary><b>Orbital Elements (4)</b></summary>
+<summary><b>Orbital Elements (2) 🎉 COMPLETE!</b></summary>
 
-- ✅ `swe_get_orbital_elements` - Keplerian elements **TESTED**
-- ✅ `swe_orbit_max_min_true_distance` - Orbital max/min/true distance **IMPLEMENTED**
-- ✅ Internal: True anomaly from mean anomaly
-- ✅ Internal: Eccentric anomaly solver
+- ✅ `swe_get_orbital_elements` - Keplerian elements (17 elements: a,e,i,Ω,ω,ϖ,M,ν,E,L,periods,apsides) **TESTED**
+- ✅ `swe_orbit_max_min_true_distance` - Orbital max/min/true distance (geocentric & heliocentric) **TESTED**
 </details>
 
 <details>
