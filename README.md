@@ -7,8 +7,8 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 135/200+ implemented (68%)
-**Categories Complete**: 12/12 (100%) 🎉🎊✨
+**Core Functions**: 138/200+ implemented (69%)
+**Categories Complete**: 13/13 (100%) 🎉🎊✨
 
 ```
 Planets & Calculation  ████████████████████████  28/28 (100%)
@@ -17,7 +17,7 @@ Sidereal & Ayanamsha   ███████████████████
 Nodes & Apsides        ████████████████████  2/2   (100%)
 Rise/Set/Transit       ████████████████████  7/7   (100%)
 Crossings & Transits   ████████████████████  8/8   (100%) 🎉
-Time & Conversions     ████████████████████  11/11 (100%)
+Time & Conversions     ████████████████████  14/14 (100%)
 Coordinate Transform   ████████████████████  7/7   (100%)
 Orbital Elements       ████████████████████  2/2   (100%)
 Stars & Fixed Objects  ████████████████████  11/11 (100%)
@@ -147,19 +147,32 @@ Misc Utilities         ███████████████████
 </details>
 
 <details>
-<summary><b>Time & Conversions (11)</b></summary>
+<summary><b>Time & Conversions (14) 🎉 COMPLETE!</b></summary>
 
 - ✅ `swe_julday` - Calendar to Julian Day
 - ✅ `swe_revjul` - Julian Day to calendar date
-- ✅ `swe_utc_to_jd` - UTC to Julian Day
-- ✅ `swe_jdet_to_utc` - TT to UTC
-- ✅ `swe_jdut1_to_utc` - UT1 to UTC
-- ✅ `swe_utc_time_zone` - UTC with timezone offset
+- ✅ `swe_utc_to_jd` - UTC to Julian Day (with leap seconds) **FULL PORT** ⭐
+- ✅ `swe_jdet_to_utc` - Ephemeris Time → UTC components **NEW** ⭐
+- ✅ `swe_jdut1_to_utc` - UT1 → UTC components **NEW** ⭐
+- ✅ `swe_utc_time_zone` - Apply timezone offset (UTC ↔ local time) **NEW** ⭐
 - ✅ `swe_date_conversion` - Convert and validate calendar date
 - ✅ `swe_day_of_week` - Get day of week from JD
+- ✅ `swe_deltat` - Delta-T (TT-UT1) calculation
+- ✅ `swe_deltat_ex` - Delta-T with ephemeris flags
+- ✅ `swe_time_equ` - Equation of time
+- ✅ `swe_lmt_to_lat` - Local Mean Time → Local Apparent Time
+- ✅ `swe_lat_to_lmt` - Local Apparent Time → Local Mean Time
 - ✅ Internal: `swe_d2l` - Double to int32 with rounding
-- ✅ Internal: Delta-T calculation algorithms
-- ✅ Internal: Leap seconds handling
+
+**Features:**
+- ✨ Full leap seconds support (1972-2016 table, extendable via seleapsec.txt)
+- ✨ ET/TT → UTC conversion with Delta-T correction and leap second handling
+- ✨ UT1 → UTC conversion wrapper
+- ✨ Timezone offset application with day/month/year rollover
+- ✨ Leap second detection (60th second on specific dates)
+- ✨ Automatic fallback to UT1 for outdated leap seconds table
+- ✨ Gregorian/Julian calendar support
+- ✨ Before 1972: returns UT1 (UTC with leap seconds not yet defined)
 </details>
 
 <details>

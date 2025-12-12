@@ -25,6 +25,7 @@ use Swisseph\Domain\Houses\Support\AscMc as HousesAscMc;
 use Swisseph\Domain\Houses\Support\CuspPostprocessor as CuspPost;
 use Swisseph\Swe\Functions\PlanetsFunctions;
 use Swisseph\Swe\Functions\TimeFunctions;
+use Swisseph\Swe\Functions\UTCFunctions;
 use Swisseph\Swe\Functions\HorizonFunctions;
 use Swisseph\Swe\Functions\RefractionFunctions;
 use Swisseph\Swe\Functions\TransformFunctions;
@@ -228,6 +229,124 @@ if (!function_exists('swe_time_equ')) {
     function swe_time_equ(float $jd_ut, ?float &$E = null, ?string &$serr = null): int
     {
         return TimeFunctions::timeEqu($jd_ut, $E, $serr);
+    }
+}
+
+// UTC conversion functions
+if (!function_exists('swe_utc_time_zone')) {
+    /**
+     * Apply timezone offset to convert between UTC and local time.
+     * Port of swe_utc_time_zone() from swedate.c:234-264
+     *
+     * This function can convert in both directions:
+     * - To convert LOCAL → UTC: use +d_timezone (e.g., +3.0 for MSK)
+     * - To convert UTC → LOCAL: use -d_timezone (e.g., -3.0 for MSK)
+     *
+     * For time zones east of Greenwich, timezone value is positive.
+     * For time zones west of Greenwich, timezone value is negative.
+     *
+     * Example: UTC 12:00 to MSK (UTC+3):
+     *   swe_utc_time_zone(2025, 12, 13, 12, 0, 0, -3.0, ...) → 15:00 MSK
+     *
+     * @param int $iyear Input year
+     * @param int $imonth Input month
+     * @param int $iday Input day
+     * @param int $ihour Input hour
+     * @param int $imin Input minute
+     * @param float $dsec Input second (can be >= 60 for leap seconds)
+     * @param float $d_timezone Timezone offset (negative for UTC→local, positive for local→UTC)
+     * @param int|null &$iyear_out Output year
+     * @param int|null &$imonth_out Output month
+     * @param int|null &$iday_out Output day
+     * @param int|null &$ihour_out Output hour
+     * @param int|null &$imin_out Output minute
+     * @param float|null &$dsec_out Output second
+     * @return void
+     */
+    function swe_utc_time_zone(
+        int $iyear,
+        int $imonth,
+        int $iday,
+        int $ihour,
+        int $imin,
+        float $dsec,
+        float $d_timezone,
+        ?int &$iyear_out = null,
+        ?int &$imonth_out = null,
+        ?int &$iday_out = null,
+        ?int &$ihour_out = null,
+        ?int &$imin_out = null,
+        ?float &$dsec_out = null
+    ): void {
+        UTCFunctions::utcTimeZone(
+            $iyear, $imonth, $iday, $ihour, $imin, $dsec, $d_timezone,
+            $iyear_out, $imonth_out, $iday_out, $ihour_out, $imin_out, $dsec_out
+        );
+    }
+}
+
+if (!function_exists('swe_jdet_to_utc')) {
+    /**
+     * Convert Julian Day (Ephemeris Time / TT) to UTC date/time components.
+     * Port of swe_jdet_to_utc() from swedate.c:486-568
+     *
+     * This function converts from TT (Terrestrial Time) to UTC,
+     * accounting for Delta-T and leap seconds (since 1972).
+     *
+     * For dates before 1 Jan 1972, returns UT1 instead of UTC.
+     *
+     * @param float $tjd_et Julian Day in Ephemeris Time (TT)
+     * @param int $gregflag Calendar flag (SE_GREG_CAL=1 or SE_JUL_CAL=0)
+     * @param int|null &$iyear Output: year
+     * @param int|null &$imonth Output: month (1-12)
+     * @param int|null &$iday Output: day (1-31)
+     * @param int|null &$ihour Output: hour (0-23)
+     * @param int|null &$imin Output: minute (0-59)
+     * @param float|null &$dsec Output: second (0-60)
+     * @return void
+     */
+    function swe_jdet_to_utc(
+        float $tjd_et,
+        int $gregflag,
+        ?int &$iyear = null,
+        ?int &$imonth = null,
+        ?int &$iday = null,
+        ?int &$ihour = null,
+        ?int &$imin = null,
+        ?float &$dsec = null
+    ): void {
+        UTCFunctions::jdetToUtc($tjd_et, $gregflag, $iyear, $imonth, $iday, $ihour, $imin, $dsec);
+    }
+}
+
+if (!function_exists('swe_jdut1_to_utc')) {
+    /**
+     * Convert Julian Day (UT1) to UTC date/time components.
+     * Port of swe_jdut1_to_utc() from swedate.c:583-587
+     *
+     * Simple wrapper that converts UT1 to ET, then calls swe_jdet_to_utc().
+     *
+     * @param float $tjd_ut Julian Day in UT1
+     * @param int $gregflag Calendar flag (SE_GREG_CAL=1 or SE_JUL_CAL=0)
+     * @param int|null &$iyear Output: year
+     * @param int|null &$imonth Output: month (1-12)
+     * @param int|null &$iday Output: day (1-31)
+     * @param int|null &$ihour Output: hour (0-23)
+     * @param int|null &$imin Output: minute (0-59)
+     * @param float|null &$dsec Output: second (0-60)
+     * @return void
+     */
+    function swe_jdut1_to_utc(
+        float $tjd_ut,
+        int $gregflag,
+        ?int &$iyear = null,
+        ?int &$imonth = null,
+        ?int &$iday = null,
+        ?int &$ihour = null,
+        ?int &$imin = null,
+        ?float &$dsec = null
+    ): void {
+        UTCFunctions::jdut1ToUtc($tjd_ut, $gregflag, $iyear, $imonth, $iday, $ihour, $imin, $dsec);
     }
 }
 
