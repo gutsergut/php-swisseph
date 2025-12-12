@@ -1352,41 +1352,7 @@ if (!function_exists('swe_split_deg')) {
     }
 }
 
-if (!function_exists('swe_date_conversion')) {
-    /**
-     * Convert calendar date to Julian Day with validation.
-     * @param int $y Year
-     * @param int $m Month (1-12)
-     * @param int $d Day (1-31)
-     * @param float $utime Universal time in hours (decimal)
-     * @param string $c Calendar type: 'g' (Gregorian) or 'j' (Julian)
-     * @param float &$tjd Output Julian Day
-     * @return int SE_OK on success, SE_ERR on error
-     */
-    function swe_date_conversion(
-        int $y,
-        int $m,
-        int $d,
-        float $utime,
-        string $c,
-        float &$tjd
-    ): int {
-        return Julian::dateConversion($y, $m, $d, $utime, $c, $tjd);
-    }
-}
 
-if (!function_exists('swe_day_of_week')) {
-    /**
-     * Get day of week for a Julian Day.
-     * Monday = 0, Tuesday = 1, ..., Sunday = 6
-     * @param float $jd Julian Day
-     * @return int Day of week (0-6)
-     */
-    function swe_day_of_week(float $jd): int
-    {
-        return Julian::dayOfWeek($jd);
-    }
-}
 
 if (!function_exists('swe_lmt_to_lat')) {
     /**
@@ -1480,113 +1446,7 @@ if (!function_exists('swe_pheno_ut')) {
     }
 }
 
-if (!function_exists('swe_fixstar')) {
-    /**
-     * Calculate fixed star positions (ET version).
-     * @param string &$star Star name (traditional name, Bayer designation, or sequential number). Modified to full name on success.
-     * @param float $tjd Julian day number (ET)
-     * @param int $iflag Calculation flags (SEFLG_*)
-     * @param array &$xx Output array [longitude, latitude, distance, speed_long, speed_lat, speed_dist]
-     * @param string|null &$serr Error message
-     * @return int Flag value or ERR
-     */
-    function swe_fixstar(
-        string &$star,
-        float $tjd,
-        int $iflag,
-        ?array &$xx = null,
-        ?string &$serr = null
-    ): int {
-        return FixstarFunctions::fixstar($star, $tjd, $iflag, $xx, $serr);
-    }
-}
 
-if (!function_exists('swe_fixstar_ut')) {
-    /**
-     * Calculate fixed star positions (UT version).
-     * @param string &$star Star name. Modified to full name on success.
-     * @param float $tjd_ut Julian day number (UT)
-     * @param int $iflag Calculation flags (SEFLG_*)
-     * @param array &$xx Output array [longitude, latitude, distance, speed_long, speed_lat, speed_dist]
-     * @param string|null &$serr Error message
-     * @return int Flag value or ERR
-     */
-    function swe_fixstar_ut(
-        string &$star,
-        float $tjd_ut,
-        int $iflag,
-        ?array &$xx = null,
-        ?string &$serr = null
-    ): int {
-        return FixstarFunctions::fixstarUt($star, $tjd_ut, $iflag, $xx, $serr);
-    }
-}
-
-if (!function_exists('swe_fixstar_mag')) {
-    /**
-     * Get visual magnitude of a fixed star.
-     * @param string &$star Star name. Modified to full name on success.
-     * @param float &$mag Output magnitude
-     * @param string|null &$serr Error message
-     * @return int OK or ERR
-     */
-    function swe_fixstar_mag(
-        string &$star,
-        float &$mag,
-        ?string &$serr = null
-    ): int {
-        return FixstarFunctions::fixstarMag($star, $mag, $serr);
-    }
-}
-
-if (!function_exists('swe_gauquelin_sector')) {
-    /**
-     * Calculate Gauquelin sector position for a planet or fixed star.
-     *
-     * @param float $t_ut Julian day number (UT)
-     * @param int $ipl Planet number (SE_SUN, etc.) - ignored if starname is set
-     * @param string|null $starname Star name for fixed stars, or null/empty for planets
-     * @param int $iflag Calculation flags (SEFLG_*)
-     * @param int $imeth Method (0-5):
-     *                    0 = geometric with latitude
-     *                    1 = geometric without latitude
-     *                    2 = from rise/set, disc center, no refraction
-     *                    3 = from rise/set, disc center, with refraction
-     *                    4 = from rise/set, no refraction
-     *                    5 = from rise/set, with refraction
-     * @param array $geopos Geographic position [longitude, latitude, height]
-     * @param float $atpress Atmospheric pressure (mbar), 0 = default 1013.25
-     * @param float $attemp Atmospheric temperature (°C)
-     * @param float &$dgsect Output: Gauquelin sector position (1.0 - 36.999...)
-     * @param string|null &$serr Error message
-     * @return int OK or ERR
-     */
-    function swe_gauquelin_sector(
-        float $t_ut,
-        int $ipl,
-        ?string $starname,
-        int $iflag,
-        int $imeth,
-        array $geopos,
-        float $atpress,
-        float $attemp,
-        float &$dgsect,
-        ?string &$serr = null
-    ): int {
-        return \Swisseph\Swe\Functions\GauquelinFunctions::gauquelinSector(
-            $t_ut,
-            $ipl,
-            $starname,
-            $iflag,
-            $imeth,
-            $geopos,
-            $atpress,
-            $attemp,
-            $dgsect,
-            $serr
-        );
-    }
-}
 
 // ============================================================================
 // Centisec (centiseconds) utility functions
