@@ -21,9 +21,9 @@ echo "JD_UT: $jd_ut\n";
 echo "JD_ET: $jd_et\n\n";
 
 // Get barycentric J2000 ICRS equatorial XYZ coordinates
-$iflag_bary = Constants::SEFLG_SWIEPH | Constants::SEFLG_BARYCTR | Constants::SEFLG_J2000 | 
-              Constants::SEFLG_ICRS | Constants::SEFLG_TRUEPOS | Constants::SEFLG_EQUATORIAL | 
-              Constants::SEFLG_XYZ | Constants::SEFLG_SPEED | Constants::SEFLG_NOABERR | 
+$iflag_bary = Constants::SEFLG_SWIEPH | Constants::SEFLG_BARYCTR | Constants::SEFLG_J2000 |
+              Constants::SEFLG_ICRS | Constants::SEFLG_TRUEPOS | Constants::SEFLG_EQUATORIAL |
+              Constants::SEFLG_XYZ | Constants::SEFLG_SPEED | Constants::SEFLG_NOABERR |
               Constants::SEFLG_NOGDEFL;
 
 // Venus (center)
@@ -117,7 +117,7 @@ echo sprintf("  Lat diff: %.7f°\n", abs(rad2deg($lat_ecl) - (-1.4197691)));
 
 if (abs(rad2deg($lon_ecl) - 359.4388477) > 0.01 || abs(rad2deg($lat_ecl) - (-1.4197691)) > 0.01) {
     echo "\n❌ FAILED: Differences exceed 0.01°\n";
-    
+
     // Additional diagnostic: check if it's a 360° wrap issue
     $lon_diff_360 = abs((rad2deg($lon_ecl) + 360) - 359.4388477);
     $lon_diff_m360 = abs((rad2deg($lon_ecl) - 360) - 359.4388477);

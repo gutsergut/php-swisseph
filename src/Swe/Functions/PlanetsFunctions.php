@@ -177,6 +177,9 @@ final class PlanetsFunctions
 
         // Save initial position
         $xx0 = array_slice($xx, 0, 6);
+        error_log("DEBUG calc_pctr: xx0 (initial target) = [{$xx0[0]}, {$xx0[1]}, {$xx0[2]}]");
+        error_log("DEBUG calc_pctr: xx0 velocities = [{$xx0[3]}, {$xx0[4]}, {$xx0[5]}]");
+        error_log("DEBUG calc_pctr: xxctr (initial center) = [{$xxctr[0]}, {$xxctr[1]}, {$xxctr[2]}]");
 
         // Initialize arrays
         $xxsp = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
@@ -233,13 +236,16 @@ final class PlanetsFunctions
                     $dx[$i] -= $xxctr[$i];
                 }
                 $dt = sqrt(VectorMath::squareSum($dx)) * Constants::AUNIT / Constants::CLIGHT / 86400.0;
+                error_log("DEBUG calc_pctr light-time iter $j: dt=$dt days, dx=[{$dx[0]}, {$dx[1]}, {$dx[2]}]");
                 // new t
                 $t = $tjd - $dt;
+                error_log("DEBUG calc_pctr: t=$t (tjd=$tjd, dt=$dt)");
                 $dtsave_for_defl = $dt;
                 for ($i = 0; $i <= 2; $i++) {
                     // rough apparent position at t
                     $xx[$i] = $xx0[$i] - $dt * $xx0[$i + 3];
                 }
+                error_log("DEBUG calc_pctr: rough xx at t-dt = [{$xx[0]}, {$xx[1]}, {$xx[2]}]");
             }
 
             // part of daily motion resulting from change of dt
@@ -254,24 +260,27 @@ final class PlanetsFunctions
                 $serr = "calc_pctr: Failed to calculate center planet at t-dt: " . ($serr ?: 'unknown error');
                 return Constants::SE_ERR;
             }
+            error_log("DEBUG calc_pctr: xxctr2 (center at t-dt) = [{$xxctr2[0]}, {$xxctr2[1]}, {$xxctr2[2]}]");
+
             $retc = self::calc($t, $ipl, $iflag2, $xx, $serr);
             if ($retc < 0) {
                 $serr = "calc_pctr: Failed to calculate target planet at t-dt: " . ($serr ?: 'unknown error');
                 return Constants::SE_ERR;
             }
+            error_log("DEBUG calc_pctr: xx (target at t-dt) = [{$xx[0]}, {$xx[1]}, {$xx[2]}]");
         }
 
         /*******************************
          * conversion to planetocenter *
          *******************************/
         if (!($iflag & Constants::SEFLG_HELCTR) && !($iflag & Constants::SEFLG_BARYCTR)) {
-            // error_log("DEBUG calc_pctr BEFORE planetocenter: xx[0-2]=[{$xx[0]}, {$xx[1]}, {$xx[2]}]");
-            // error_log("DEBUG calc_pctr BEFORE planetocenter: xxctr[0-2]=[{$xxctr[0]}, {$xxctr[1]}, {$xxctr[2]}]");
+            error_log("DEBUG calc_pctr BEFORE planetocenter: xx[0-2]=[{$xx[0]}, {$xx[1]}, {$xx[2]}]");
+            error_log("DEBUG calc_pctr BEFORE planetocenter: xxctr[0-2]=[{$xxctr[0]}, {$xxctr[1]}, {$xxctr[2]}]");
             // subtract earth
             for ($i = 0; $i <= 5; $i++) {
                 $xx[$i] -= $xxctr[$i];
             }
-            // error_log("DEBUG calc_pctr AFTER planetocenter: xx[0-2]=[{$xx[0]}, {$xx[1]}, {$xx[2]}]");
+            error_log("DEBUG calc_pctr AFTER planetocenter: xx[0-2]=[{$xx[0]}, {$xx[1]}, {$xx[2]}]");
             if (!($iflag & Constants::SEFLG_TRUEPOS)) {
                 /*
                  * Apparent speed is also influenced by
