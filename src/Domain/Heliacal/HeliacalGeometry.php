@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Swisseph\Domain\Heliacal;
 
+use Swisseph\Constants;
 use Swisseph\Swe;
 
 /**
@@ -40,7 +41,7 @@ class HeliacalGeometry
         $tjd_tt = $JDNDaysUT + Swe::swe_deltat_ex($JDNDaysUT, $epheflag, $serr);
         $result = Swe::swe_calc($tjd_tt, Swe::SE_SUN, $iflag, $serr);
 
-        if ($result['rc'] != Swe::ERR) {
+        if ($result['rc'] != Constants::ERR) {
             $ralast = $result['xx'][0];
             $tjdlast = $JDNDaysUT;
             return $ralast;
@@ -127,14 +128,14 @@ class HeliacalGeometry
 
         if ($Planet != -1) {
             $result = Swe::swe_calc($tjd_tt, $Planet, $iflag, $serr);
-            if ($result['rc'] == Swe::ERR) {
-                return Swe::ERR;
+            if ($result['rc'] == Constants::ERR) {
+                return Constants::ERR;
             }
             $x = $result['xx'];
         } else {
             $result = Swe::swe_fixstar($ObjectName, $tjd_tt, $iflag, $serr);
-            if ($result['rc'] == Swe::ERR) {
-                return Swe::ERR;
+            if ($result['rc'] == Constants::ERR) {
+                return Constants::ERR;
             }
             $x = $result['xx'];
         }
@@ -197,14 +198,14 @@ class HeliacalGeometry
 
         if ($Planet != -1) {
             $result = Swe::swe_calc($tjd_tt, $Planet, $iflag, $serr);
-            if ($result['rc'] == Swe::ERR) {
-                return Swe::ERR;
+            if ($result['rc'] == Constants::ERR) {
+                return Constants::ERR;
             }
             $x = $result['xx'];
         } else {
             $result = Swe::swe_fixstar($ObjectName, $tjd_tt, $iflag, $serr);
-            if ($result['rc'] == Swe::ERR) {
-                return Swe::ERR;
+            if ($result['rc'] == Constants::ERR) {
+                return Constants::ERR;
             }
             $x = $result['xx'];
         }
@@ -299,20 +300,20 @@ class HeliacalGeometry
         $tjdnoon = floor($tjd0) - $dgeo[0] / 15.0 / 24.0;
 
         // Calculate Sun position
-        $xs_result = Swe::swe_calc_ut($tjd0, Swe::SE_SUN, $iflag, $serr);
-        if ($xs_result['rc'] == Swe::ERR) {
+        $xs = array_fill(0, 6, 0.0);
+        $rc = Swe::swe_calc_ut($tjd0, Swe::SE_SUN, $iflag, $xs, $serr);
+        if ($rc == Constants::ERR) {
             $serr = "error in calc_rise_and_set(): calc(sun) failed";
-            return Swe::ERR;
+            return Constants::ERR;
         }
-        $xs = $xs_result['xx'];
 
         // Calculate planet position
-        $xx_result = Swe::swe_calc_ut($tjd0, $ipl, $iflag, $serr);
-        if ($xx_result['rc'] == Swe::ERR) {
+        $xx = array_fill(0, 6, 0.0);
+        $rc = Swe::swe_calc_ut($tjd0, $ipl, $iflag, $xx, $serr);
+        if ($rc == Constants::ERR) {
             $serr = "error in calc_rise_and_set(): calc(planet) failed";
-            return Swe::ERR;
+            return Constants::ERR;
         }
-        $xx = $xx_result['xx'];
 
         $tjdnoon -= Swe::swe_degnorm($xs[0] - $xx[0]) / 360.0;
 
@@ -339,11 +340,11 @@ class HeliacalGeometry
         }
 
         // Get planet position at noon
-        $xx_result = Swe::swe_calc_ut($tjdnoon, $ipl, $iflag, $serr);
-        if ($xx_result['rc'] == Swe::ERR) {
-            return Swe::ERR;
+        $xx = array_fill(0, 6, 0.0);
+        $rc = Swe::swe_calc_ut($tjdnoon, $ipl, $iflag, $xx, $serr);
+        if ($rc == Constants::ERR) {
+            return Constants::ERR;
         }
-        $xx = $xx_result['xx'];
 
         // Calculate apparent radius
         $rdi = 0;
@@ -382,11 +383,11 @@ class HeliacalGeometry
 
         $dfac = 1 / 365.25;
         for ($i = 0; $i < 2; $i++) {
-            $xx_result = Swe::swe_calc_ut($tjdrise, $ipl, $iflag, $serr);
-            if ($xx_result['rc'] == Swe::ERR) {
-                return Swe::ERR;
+            $xx = array_fill(0, 6, 0.0);
+            $rc = Swe::swe_calc_ut($tjdrise, $ipl, $iflag, $xx, $serr);
+            if ($rc == Constants::ERR) {
+                return Constants::ERR;
             }
-            $xx = $xx_result['xx'];
 
             $xaz = Swe::swe_azalt($tjdrise, Swe::SE_EQU2HOR, $dgeo, $datm[0], $datm[1], [$xx[0], $xx[1]], $serr);
 

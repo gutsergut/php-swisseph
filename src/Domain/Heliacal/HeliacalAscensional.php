@@ -563,8 +563,9 @@ final class HeliacalAscensional
             }
 
             // Check visibility at Sun rise/set time
-            [$retval, $darr] = HeliacalArcusVisionis::swe_vis_limit_mag(
-                $tret, $dgeo, $datm, $dobs, $ObjectName, $helflag, $serr
+            $darr = array_fill(0, 10, 0.0);
+            $retval = \swe_vis_limit_mag(
+                $tret, $dgeo, $datm, $dobs, $ObjectName, $helflag, $darr, $serr
             );
             if ($retval === Constants::ERR) {
                 return Constants::ERR;
@@ -619,8 +620,9 @@ final class HeliacalAscensional
             // Move away from sunset if needed (vis_limit_mag has strange behavior there)
             if ($visible_at_sunsetrise) {
                 for ($j = 0; $j < 10; $j++) {
-                    [$retval2, $darr2] = HeliacalArcusVisionis::swe_vis_limit_mag(
-                        $tret + 1.0 / $div * $direct_time, $dgeo, $datm, $dobs, $ObjectName, $helflag, $serr
+                    $darr2 = array_fill(0, 10, 0.0);
+                    $retval2 = \swe_vis_limit_mag(
+                        $tret + 1.0 / $div * $direct_time, $dgeo, $datm, $dobs, $ObjectName, $helflag, $darr2, $serr
                     );
 
                     if ($retval2 >= 0 && $darr2[0] - $darr2[7] > $vd) {

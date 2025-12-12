@@ -2597,16 +2597,17 @@ if (!function_exists('swe_vis_limit_mag')) {
         array &$dret,
         ?string &$serr = null
     ): int {
-        return HeliacalArcusVisionis::swe_vis_limit_mag(
+        [$retval, $dret_internal] = HeliacalArcusVisionis::swe_vis_limit_mag(
             $JDNDaysUT,
             $dgeo,
             $datm,
             $dobs,
             $ObjectName,
             $helflag,
-            $dret,
             $serr
         );
+        $dret = $dret_internal;
+        return $retval;
     }
 }
 
