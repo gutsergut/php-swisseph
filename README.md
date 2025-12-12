@@ -7,10 +7,10 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 113/200+ implemented (57%)
+**Core Functions**: 115/200+ implemented (58%)
 
 ```
-Planets & Calculation  █████████████████████░  20/28 (71%)
+Planets & Calculation  █████████████████████░  22/28 (79%)
 Houses & Angles        ████████████████████  7/7   (100%)
 Sidereal & Ayanamsha   ████████████████████  6/6   (100%)
 Nodes & Apsides        ████████░░░░░░░░░░░░  2/5   (40%)
@@ -27,7 +27,7 @@ Misc Utilities         ███████████████████
 ### ✅ Implemented Functions
 
 <details>
-<summary><b>Planets & Calculation (20)</b></summary>
+<summary><b>Planets & Calculation (22)</b></summary>
 
 - ✅ `swe_calc` - Calculate planet positions (TT) **TESTED**
 - ✅ `swe_calc_ut` - Calculate planet positions (UT) **TESTED**
@@ -35,6 +35,8 @@ Misc Utilities         ███████████████████
 - ✅ `swe_get_planet_name` - Get planet name by index **TESTED**
 - ✅ `swe_get_current_file_data` - Get ephemeris file metadata **STUB**
 - ✅ `swe_get_library_path` - Get library path **STUB**
+- ✅ `swe_set_astro_models` - Set astronomical calculation models (Delta T, Precession, Nutation, etc.) **FULL PORT** ⭐
+- ✅ `swe_get_astro_models` - Get current astronomical models configuration **FULL PORT** ⭐
 - ✅ `swe_solcross` - Find when Sun crosses longitude (TT) **TESTED**
 - ✅ `swe_solcross_ut` - Sun crossing (UT) **TESTED**
 - ✅ `swe_mooncross` - Find when Moon crosses longitude (TT) **TESTED**
