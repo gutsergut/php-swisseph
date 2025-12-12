@@ -92,4 +92,21 @@ class HeliacalConstants
 
     // Vision model flags
     public const PLSV = 0;               // Planet, Lunar and Stellar Visibility formula (0=disabled, 1=enabled)
+
+    // Heliacal event flags (from swephexp.h:434-449)
+    public const SE_HELFLAG_LONG_SEARCH = 128;          // Extended search period
+    public const SE_HELFLAG_HIGH_PRECISION = 256;       // High precision mode
+    public const SE_HELFLAG_OPTICAL_PARAMS = 512;       // Use optical instrument parameters
+    public const SE_HELFLAG_NO_DETAILS = 1024;          // Don't return detailed data
+    public const SE_HELFLAG_SEARCH_1_PERIOD = 2048;     // Search only 1 synodic period
+    public const SE_HELFLAG_VISLIM_DARK = 4096;         // Visibility limit for dark conditions
+    public const SE_HELFLAG_VISLIM_NOMOON = 8192;       // Visibility limit without moon
+    public const SE_HELFLAG_VISLIM_PHOTOPIC = 16384;    // Force photopic (light-adapted) vision
+    public const SE_HELFLAG_VISLIM_SCOTOPIC = 32768;    // Force scotopic (dark-adapted) vision
+    public const SE_HELFLAG_AV = 65536;                 // Use arcus visionis method
+    public const SE_HELFLAG_AVKIND_VR = 65536;          // Arcus visionis: VR method
+    public const SE_HELFLAG_AVKIND_PTO = 131072;        // Arcus visionis: PTO method (1 << 17)
+    public const SE_HELFLAG_AVKIND_MIN7 = 262144;       // Arcus visionis: MIN7 method (1 << 18)
+    public const SE_HELFLAG_AVKIND_MIN9 = 524288;       // Arcus visionis: MIN9 method (1 << 19)
+    public const SE_HELFLAG_AVKIND = 983040;            // All arcus visionis methods (VR|PTO|MIN7|MIN9)
 }
