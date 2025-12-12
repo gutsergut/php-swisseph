@@ -7,7 +7,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 94/200+ implemented (47%)
+**Core Functions**: 95/200+ implemented (48%)
 
 ```
 Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
@@ -19,7 +19,7 @@ Time & Conversions     ███████████████████
 Coordinate Transform   ████████████████████  7/7   (100%)
 Orbital Elements       ███████████████░░░░░  3/4   (75%)
 Stars & Fixed Objects  ████████████████████  8/8   (100%)
-Eclipses & Phenomena   ████████░░░░░░░░░░░░  8/15  (53%)
+Eclipses & Phenomena   █████████░░░░░░░░░░░  9/15  (60%)
 Heliacal Phenomena     ████████████████████  7/7   (100%) 🎉
 Misc Utilities         ████████████████████  24/24 (100%)
 ```
@@ -170,7 +170,7 @@ Misc Utilities         ███████████████████
 - ✅ `swe_pheno` - Phenomena (phase, magnitude, etc.) **TESTED**
 - ✅ `swe_pheno_ut` - Phenomena (UT) **TESTED**
 - ✅ `swe_sol_eclipse_where` - Geographic path of solar eclipse **IMPLEMENTED**
-- ⬜ `swe_lun_eclipse_when_loc` - Local lunar eclipse search
+- ✅ `swe_lun_eclipse_when_loc` - Local lunar eclipse search **TESTED**
 - ⬜ `swe_lun_occult_when_glob` - Global occultation search
 - ⬜ `swe_lun_occult_when_loc` - Local occultation search
 - ⬜ `swe_lun_occult_where` - Geographic path of occultation
