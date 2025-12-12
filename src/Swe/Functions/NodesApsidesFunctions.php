@@ -91,45 +91,95 @@ class NodesApsidesFunctions
         if ($methodBase === 0 || ($methodBase & Constants::SE_NODBIT_MEAN)) {
             // Mean positions for Sun-Neptune
             if (($ipl >= Constants::SE_SUN && $ipl <= Constants::SE_NEPTUNE) || $ipl === Constants::SE_EARTH) {
-                $errTemp = null;
-                $result = NodesApsides::compute($tjdEt, $ipl, $iflag, $method, $errTemp);
-
-                if ($result < 0) {
-                    $serr = $errTemp ?? 'Unknown error in NodesApsides::compute()';
-                    if ($xnasc !== null) {
-                        $xnasc = array_fill(0, 6, 0.0);
-                    }
-                    if ($xndsc !== null) {
-                        $xndsc = array_fill(0, 6, 0.0);
-                    }
-                    if ($xperi !== null) {
-                        $xperi = array_fill(0, 6, 0.0);
-                    }
-                    if ($xaphe !== null) {
-                        $xaphe = array_fill(0, 6, 0.0);
-                    }
-                    return -1;
+                // If speeds are requested, compute at 3 times: t-dt, t, t+dt
+                // Port of swecl.c:5250-5265 (NODE_CALC_INTV logic)
+                $dt = 0.0001; // NODE_CALC_INTV
+                $istart = 0;
+                $iend = 0;
+                if ($withSpeed) {
+                    $istart = 0;
+                    $iend = 2;
                 }
 
-                [$xna, $xnd, $xpe, $xap] = NodesApsides::getResults();
+                // Storage for 3 calculations
+                $xna_all = [];
+                $xnd_all = [];
+                $xpe_all = [];
+                $xap_all = [];
 
-                // Apply final transformations (matching C code swe_nod_aps lines 5431-5620)
-                $xx = [&$xna, &$xnd, &$xpe, &$xap];
-                self::applyFinalNodApsTransformations($xx, $tjdEt, $iflag, $ipl);
+                for ($i = $istart; $i <= $iend; $i++) {
+                    $t = $tjdEt + ($i - 1) * $dt; // t-dt, t, t+dt
+                    if ($istart === $iend) {
+                        $t = $tjdEt;
+                    }
 
-                // Copy transformed results to output (only if not null)
-                if ($xnasc !== null) {
-                    $xnasc = $xna;
+                    $errTemp = null;
+                    $result = NodesApsides::compute($t, $ipl, $iflag & ~Constants::SEFLG_SPEED, $method, $errTemp);
+
+                    if ($result < 0) {
+                        $serr = $errTemp ?? 'Unknown error in NodesApsides::compute()';
+                        if ($xnasc !== null) {
+                            $xnasc = array_fill(0, 6, 0.0);
+                        }
+                        if ($xndsc !== null) {
+                            $xndsc = array_fill(0, 6, 0.0);
+                        }
+                        if ($xperi !== null) {
+                            $xperi = array_fill(0, 6, 0.0);
+                        }
+                        if ($xaphe !== null) {
+                            $xaphe = array_fill(0, 6, 0.0);
+                        }
+                        return -1;
+                    }
+
+                    [$xna, $xnd, $xpe, $xap] = NodesApsides::getResults();
+
+                    // Apply final transformations
+                    $xx = [&$xna, &$xnd, &$xpe, &$xap];
+                    self::applyFinalNodApsTransformations($xx, $t, $iflag & ~Constants::SEFLG_SPEED, $ipl);
+
+                    $xna_all[$i] = $xna;
+                    $xnd_all[$i] = $xnd;
+                    $xpe_all[$i] = $xpe;
+                    $xap_all[$i] = $xap;
                 }
-                if ($xndsc !== null) {
-                    $xndsc = $xnd;
+
+                // Compute final positions and speeds (C code: swecl.c:5398-5416)
+                if ($withSpeed) {
+                    // Use central position and compute speed via central difference
+                    $xna = $xna_all[1];
+                    $xnd = $xnd_all[1];
+                    $xpe = $xpe_all[1];
+                    $xap = $xap_all[1];
+
+                    // Speeds (indices 3,4,5) = (x[2] - x[0]) / (2*dt)
+                    for ($i = 0; $i < 3; $i++) {
+                        $xna[$i + 3] = ($xna_all[2][$i] - $xna_all[0][$i]) / (2 * $dt);
+                        $xnd[$i + 3] = ($xnd_all[2][$i] - $xnd_all[0][$i]) / (2 * $dt);
+                        $xpe[$i + 3] = ($xpe_all[2][$i] - $xpe_all[0][$i]) / (2 * $dt);
+                        $xap[$i + 3] = ($xap_all[2][$i] - $xap_all[0][$i]) / (2 * $dt);
+                    }
+                } else {
+                    // No speed requested - use single calculation
+                    $xna = $xna_all[0];
+                    $xnd = $xnd_all[0];
+                    $xpe = $xpe_all[0];
+                    $xap = $xap_all[0];
+                    // Initialize speeds to 0
+                    for ($i = 3; $i < 6; $i++) {
+                        $xna[$i] = 0.0;
+                        $xnd[$i] = 0.0;
+                        $xpe[$i] = 0.0;
+                        $xap[$i] = 0.0;
+                    }
                 }
-                if ($xperi !== null) {
-                    $xperi = $xpe;
-                }
-                if ($xaphe !== null) {
-                    $xaphe = $xap;
-                }
+
+                // Copy transformed results to output (always assign)
+                $xnasc = $xna;
+                $xndsc = $xnd;
+                $xperi = $xpe;
+                $xaphe = $xap;
                 return 0;  // OK
             }
         }
@@ -181,18 +231,11 @@ class NodesApsidesFunctions
                 }
 
                 // Results are now in ecliptic spherical (lon, lat, r) after transformations
-                if ($xnasc !== null) {
-                    $xnasc = $xna;
-                }
-                if ($xndsc !== null) {
-                    $xndsc = $xnd;
-                }
-                if ($xperi !== null) {
-                    $xperi = $xpe;
-                }
-                if ($xaphe !== null) {
-                    $xaphe = $xap;
-                }
+                // Always assign results (C code doesn't check for NULL after transformations)
+                $xnasc = $xna;
+                $xndsc = $xnd;
+                $xperi = $xpe;
+                $xaphe = $xap;
             } else {
                 // For MEAN nodes/apsides, just convert cartesian to spherical
                 // (transformations already applied in mean calculation)
@@ -519,9 +562,15 @@ class NodesApsidesFunctions
                 }
             }
 
-            // Step 14: Convert CARTESIAN → POLAR (lon, lat, r)
-            // C code line 5620
-            \Swisseph\Coordinates::cartPol($xp, $xp);
+            // Step 14: Convert CARTESIAN → POLAR (lon, lat, r) with speeds
+            // C code line 5620: swi_cartpol_sp(xp, xp)
+            if ($iflag & Constants::SEFLG_SPEED) {
+                // Use cart_pol_sp() for conversion with speeds
+                \Swisseph\Coordinates::cartPolSp($xp, $xp);
+            } else {
+                // Use cart_pol() for position only
+                \Swisseph\Coordinates::cartPol($xp, $xp);
+            }
 
             // Convert to degrees if not radians flag
             if (!($iflag & Constants::SEFLG_RADIANS)) {
