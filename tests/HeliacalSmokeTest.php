@@ -12,6 +12,9 @@ require_once __DIR__ . '/../src/functions.php';
 
 use Swisseph\Constants;
 
+// Set ephemeris path
+swe_set_ephe_path(__DIR__ . '/../../eph/ephe');
+
 echo "=== Heliacal Functions Smoke Test ===\n\n";
 
 // Setup
@@ -50,7 +53,7 @@ if ($retval >= 0 || $retval === -2) {
         echo "   No event found within search period (expected for some dates)\n";
     }
 } else {
-    echo "   ✗ FAILED: $serr\n";
+    echo "   ✗ FAILED (code: $retval): $serr\n";
     exit(1);
 }
 

@@ -59,8 +59,9 @@ final class HeliacalAscensional
      * @param int $iflag Calculation flags
      * @param array $dgeo Geographic location [lon, lat, height] (3 elements)
      * @param bool $desc_obl TRUE for descensio obliqua, FALSE for ascensio
+     * @param float &$daop Output: oblique ascension in degrees (modified by reference)
      * @param string|null &$serr Error string (output)
-     * @return array{int, float} [status, asc_obl] - status: OK/ERR/-2, asc_obl in degrees
+     * @return int Status: Constants::OK, Constants::ERR, or -2 (circumpolar)
      *
      * Notes:
      * - Returns -2 if object is circumpolar (cannot calculate)
@@ -75,8 +76,9 @@ final class HeliacalAscensional
         int $iflag,
         array $dgeo,
         bool $desc_obl,
+        float &$daop,
         ?string &$serr
-    ): array {
+    ): int {
         $epheflag = $iflag & (Constants::SEFLG_JPLEPH | Constants::SEFLG_SWIEPH | Constants::SEFLG_MOSEPH);
 
         // Get equatorial coordinates
@@ -134,8 +136,9 @@ final class HeliacalAscensional
      * @param array $dgeo Geographic location [lon, lat, height] (3 elements)
      * @param bool $desc_obl TRUE for descensio obliqua, FALSE for ascensio
      * @param bool $is_acronychal TRUE for acronychal rising/setting
+     * @param float &$dsunpl Output: difference in degrees (modified by reference)
      * @param string|null &$serr Error string (output)
-     * @return array{int, float} [status, dsunpl] - status: OK/ERR/-2, dsunpl: difference in degrees
+     * @return int Status: Constants::OK, Constants::ERR, or -2
      *
      * Source: swehel.c lines 2521-2543
      */
@@ -147,12 +150,16 @@ final class HeliacalAscensional
         array $dgeo,
         bool $desc_obl,
         bool $is_acronychal,
+        float &$dsunpl,
         ?string &$serr
-    ): array {
+    ): int {
+        $aosun = 0.0;
+        $aopl = 0.0;
+
         // Ascensio obliqua of Sun
-        [$retval, $aosun] = self::get_asc_obl($tjd, Constants::SE_SUN, "", $iflag, $dgeo, $desc_obl, $serr);
+        $retval = self::get_asc_obl($tjd, Constants::SE_SUN, "", $iflag, $dgeo, $desc_obl, $aosun, $serr);
         if ($retval !== Constants::OK) {
-            return [$retval, 0.0];
+            return $retval;
         }
 
         // For acronychal events, flip the direction
@@ -161,9 +168,9 @@ final class HeliacalAscensional
         }
 
         // Ascensio obliqua of object
-        [$retval, $aopl] = self::get_asc_obl($tjd, $ipl, $star, $iflag, $dgeo, $desc_obl, $serr);
+        $retval = self::get_asc_obl($tjd, $ipl, $star, $iflag, $dgeo, $desc_obl, $aopl, $serr);
         if ($retval !== Constants::OK) {
-            return [$retval, 0.0];
+            return $retval;
         }
 
         $dsunpl = HeliacalUtils::swe_degnorm($aosun - $aopl);
@@ -176,7 +183,7 @@ final class HeliacalAscensional
             $dsunpl -= 360.0;
         }
 
-        return [Constants::OK, $dsunpl];
+        return Constants::OK;        return [Constants::OK, $dsunpl];
     }
 
     /**
@@ -194,8 +201,9 @@ final class HeliacalAscensional
      * @param int $ipl Planet number
      * @param int $helflag Calculation flags (SE_HELFLAG_*)
      * @param int $TypeEvent Event type (1-4)
+     * @param float &$tjd Output: conjunction time (JD UT), modified by reference
      * @param string|null &$serr Error string (output)
-     * @return array{int, float} [status, tjd] - status: OK/ERR, tjd: conjunction time (JD UT)
+     * @return int Status: Constants::OK or Constants::ERR
      *
      * Notes:
      * - For Mercury/Venus: TypeEvent 1,2 = inferior conj, 3,4 = superior conj
@@ -208,8 +216,9 @@ final class HeliacalAscensional
         int $ipl,
         int $helflag,
         int $TypeEvent,
+        float &$tjd,
         ?string &$serr
-    ): array {
+    ): int {
         $epheflag = $helflag & (Constants::SEFLG_JPLEPH | Constants::SEFLG_SWIEPH | Constants::SEFLG_MOSEPH);
 
         $daspect = 0.0;
@@ -227,19 +236,31 @@ final class HeliacalAscensional
 
         // Refine using Newton's method
         $ds = 100.0;
-        while ($ds > 0.5) {
-            // Note: would need swe_calc() with SEFLG_SPEED
-            // For now, simplified
-            $serr = "swe_calc() not yet implemented";
-            return [Constants::ERR, $tjdcon];
+        $x = array_fill(0, 6, 0.0);
+        $xs = array_fill(0, 6, 0.0);
 
-            // Original algorithm:
-            // $ds = swe_degnorm($x[0] - $xs[0] - $daspect);
-            // if ($ds > 180) $ds -= 360;
-            // $tjdcon -= $ds / ($x[3] - $xs[3]);
+        while ($ds > 0.5) {
+            // Calculate planet position with speed
+            if (\swe_calc($tjdcon, $ipl, $epheflag | Constants::SEFLG_SPEED, $x, $serr) === Constants::ERR) {
+                return Constants::ERR;
+            }
+            // Calculate Sun position with speed
+            if (\swe_calc($tjdcon, Constants::SE_SUN, $epheflag | Constants::SEFLG_SPEED, $xs, $serr) === Constants::ERR) {
+                return Constants::ERR;
+            }
+
+            // Calculate angular distance
+            $ds = \swe_degnorm($x[0] - $xs[0] - $daspect);
+            if ($ds > 180.0) {
+                $ds -= 360.0;
+            }
+
+            // Newton iteration: tjd -= f(t) / f'(t)
+            $tjdcon -= $ds / ($x[3] - $xs[3]);
         }
 
-        return [Constants::OK, $tjdcon];
+        $tjd = $tjdcon;
+        return Constants::OK;
     }
 
     /**
@@ -260,8 +281,9 @@ final class HeliacalAscensional
      * @param int $evtyp Event type (SE_EVENING_LAST, SE_MORNING_FIRST, etc.)
      * @param float $dperiod Maximum search period (days, 0 = unlimited)
      * @param array $dgeo Geographic location [lon, lat, height] (3 elements)
+     * @param float &$tjdret Output: event time (JD UT), modified by reference
      * @param string|null &$serr Error string (output)
-     * @return array{int, float} [status, tjdret] - status: OK/ERR/-2, tjdret: event time (JD UT)
+     * @return int Status: Constants::OK, Constants::ERR, or -2
      *
      * Notes:
      * - Returns -2 if event not found within dperiod
@@ -278,8 +300,9 @@ final class HeliacalAscensional
         int $evtyp,
         float $dperiod,
         array $dgeo,
+        float &$tjdret,
         ?string &$serr
-    ): array {
+    ): int {
         $is_acronychal = false;
         $epheflag = $helflag & (Constants::SEFLG_JPLEPH | Constants::SEFLG_SWIEPH | Constants::SEFLG_MOSEPH);
 
@@ -309,10 +332,11 @@ final class HeliacalAscensional
         // Coarse search: find approximate date
         $tjd = $tjd_start;
         $dsunpl_save = -999999999.0;
+        $dsunpl = 0.0;
 
-        [$retval, $dsunpl] = self::get_asc_obl_diff($tjd, $ipl, $star, $epheflag, $dgeo, $desc_obl, $is_acronychal, $serr);
+        $retval = self::get_asc_obl_diff($tjd, $ipl, $star, $epheflag, $dgeo, $desc_obl, $is_acronychal, $dsunpl, $serr);
         if ($retval !== Constants::OK) {
-            return [$retval, 0.0];
+            return $retval;
         }
 
         $daystep = 20.0;
@@ -334,12 +358,12 @@ final class HeliacalAscensional
             $tjd += 10.0;
 
             if ($dperiod > 0 && $tjd - $tjd_start > $dperiod) {
-                return [-2, 0.0];
+                return -2;
             }
 
-            [$retval, $dsunpl] = self::get_asc_obl_diff($tjd, $ipl, $star, $epheflag, $dgeo, $desc_obl, $is_acronychal, $serr);
+            $retval = self::get_asc_obl_diff($tjd, $ipl, $star, $epheflag, $dgeo, $desc_obl, $is_acronychal, $dsunpl, $serr);
             if ($retval !== Constants::OK) {
-                return [$retval, 0.0];
+                return $retval;
             }
         }
 
@@ -347,10 +371,11 @@ final class HeliacalAscensional
         $tjd_start = $tjd - $daystep;
         $daystep /= 2.0;
         $tjd = $tjd_start + $daystep;
+        $dsunpl_test = 0.0;
 
-        [$retval, $dsunpl_test] = self::get_asc_obl_diff($tjd, $ipl, $star, $epheflag, $dgeo, $desc_obl, $is_acronychal, $serr);
+        $retval = self::get_asc_obl_diff($tjd, $ipl, $star, $epheflag, $dgeo, $desc_obl, $is_acronychal, $dsunpl_test, $serr);
         if ($retval !== Constants::OK) {
-            return [$retval, 0.0];
+            return $retval;
         }
 
         $i = 0;
@@ -371,13 +396,14 @@ final class HeliacalAscensional
             $daystep /= 2.0;
             $tjd = $tjd_start + $daystep;
 
-            [$retval, $dsunpl_test] = self::get_asc_obl_diff($tjd, $ipl, $star, $epheflag, $dgeo, $desc_obl, $is_acronychal, $serr);
+            $retval = self::get_asc_obl_diff($tjd, $ipl, $star, $epheflag, $dgeo, $desc_obl, $is_acronychal, $dsunpl_test, $serr);
             if ($retval !== Constants::OK) {
-                return [$retval, 0.0];
+                return $retval;
             }
         }
 
-        return [Constants::OK, $tjd];
+        $tjdret = $tjd;
+        return Constants::OK;
     }
 
     /**
@@ -401,8 +427,9 @@ final class HeliacalAscensional
      * @param string $ObjectName Object name
      * @param int $helflag Calculation flags (SE_HELFLAG_*)
      * @param int $TypeEvent Event type (1-4)
+     * @param float &$thel Output: heliacal time (JD UT), modified by reference
      * @param string|null &$serr Error string (output)
-     * @return array{int, float} [status, thel] - status: OK/ERR/-2, thel: heliacal time (JD UT)
+     * @return int Status: Constants::OK, Constants::ERR, or -2
      *
      * Notes:
      * - Search parameters vary by planet:
@@ -424,8 +451,9 @@ final class HeliacalAscensional
         string $ObjectName,
         int $helflag,
         int $TypeEvent,
+        float &$thel,
         ?string &$serr
-    ): array {
+    ): int {
         $ipl = HeliacalMagnitude::DeterObject($ObjectName);
 
         // Determine search direction
@@ -520,11 +548,12 @@ final class HeliacalAscensional
             }
 
             // Get Sun rise/set time
-            [$retval, $tret] = HeliacalGeometry::my_rise_trans(
-                $tday, Constants::SE_SUN, "", $is_rise_or_set, $helflag, $dgeo, $datm, $serr
+            $tret = 0.0;
+            $retval = HeliacalGeometry::my_rise_trans(
+                $tday, Constants::SE_SUN, "", $is_rise_or_set, $helflag, $dgeo, $datm, $tret, $serr
             );
             if ($retval === Constants::ERR) {
-                return [Constants::ERR, 0.0];
+                return Constants::ERR;
             }
 
             // Sun does not rise: try next day
@@ -538,7 +567,7 @@ final class HeliacalAscensional
                 $tret, $dgeo, $datm, $dobs, $ObjectName, $helflag, $serr
             );
             if ($retval === Constants::ERR) {
-                return [Constants::ERR, 0.0];
+                return Constants::ERR;
             }
 
             // Object appeared above horizon: reduce daystep
@@ -583,7 +612,7 @@ final class HeliacalAscensional
                     $tret, $dgeo, $datm, $dobs, $ObjectName, $helflag, $serr
                 );
                 if ($retval === Constants::ERR) {
-                    return [Constants::ERR, 0.0];
+                    return Constants::ERR;
                 }
             }
 
@@ -610,12 +639,13 @@ final class HeliacalAscensional
                     $tday -= $daystep * $direct_day;
                     $daystep = 1.0;
                 } else {
-                    return [Constants::OK, $tret];
+                    $thel = $tret;
+                    return Constants::OK;
                 }
             }
         }
 
         $serr = "heliacal event does not happen";
-        return [-2, 0.0];
+        return -2;
     }
 }
