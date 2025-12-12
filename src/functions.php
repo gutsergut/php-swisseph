@@ -660,13 +660,13 @@ if (!function_exists('swe_get_current_file_data')) {
 if (!function_exists('swe_get_library_path')) {
     /**
      * Get the path of the Swiss Ephemeris library.
-     * 
+     *
      * Port of swe_get_library_path() from sweph.c:289-292.
      * In C, returns the path where the DLL/shared library is located.
      * In PHP port, returns empty string (not applicable).
-     * 
+     *
      * C API: char *swe_get_library_path(char *s);
-     * 
+     *
      * @return string Empty string (PHP port has no library file)
      */
     function swe_get_library_path(): string

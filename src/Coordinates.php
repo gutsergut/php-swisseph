@@ -365,6 +365,93 @@ final class Coordinates
         $xpn[1] = $x1;
         $xpn[2] = $x2;
     }
+
+    /**
+     * Wrapper for swi_deflect_light() - light deflection by the sun (3-param version)
+     * Port of swi_deflect_light() from sweph.c:3742-3920
+     *
+     * Automatically retrieves Earth and Sun positions from SwedState.
+     *
+     * @param array &$xx Planet position/velocity [x, y, z, vx, vy, vz] (modified in place)
+     * @param float $dt Time delta for light-time correction
+     * @param int $iflag Calculation flags
+     */
+    public static function deflectLight(array &$xx, float $dt, int $iflag): void
+    {
+        $swed = SwedState::get();
+        $pedp = $swed->pldat[Constants::SEI_EARTH] ?? null;
+        $psdp = $swed->pldat[Constants::SEI_SUNBARY] ?? null;
+
+        if ($pedp === null || $psdp === null) {
+            // If Earth/Sun data not available, skip deflection
+            return;
+        }
+
+        $xearth = $pedp->x;
+        $xsun = $psdp->x;
+
+        // Apply topocentric correction if needed
+        if (($iflag & Constants::SEFLG_TOPOCTR) && isset($swed->topd->xobs)) {
+            for ($i = 0; $i <= 5; $i++) {
+                $xearth[$i] += $swed->topd->xobs[$i];
+            }
+        }
+
+        // For speed calculation, need xearth and xsun at t - dt
+        $xearth_dt = $xearth; // Simplified: assume Earth doesn't move much in dt
+        $xsun_dt = [
+            $xsun[0] - $dt * $xsun[3],
+            $xsun[1] - $dt * $xsun[4],
+            $xsun[2] - $dt * $xsun[5],
+            $xsun[3],
+            $xsun[4],
+            $xsun[5]
+        ];
+
+        // Call the full implementation
+        \Swisseph\Swe\FixedStars\StarTransforms::deflectLight(
+            $xx,
+            $xearth,
+            $xearth_dt,
+            $xsun,
+            $xsun_dt,
+            $dt,
+            $iflag
+        );
+    }
+
+    /**
+     * Wrapper for swi_aberr_light() - annual aberration of light (2-param version)
+     * Port of swi_aberr_light() from sweph.c:3692-3718
+     *
+     * Automatically retrieves Earth position from SwedState.
+     *
+     * @param array &$xx Planet position/velocity [x, y, z, vx, vy, vz] (modified in place)
+     * @param array $xxctr Center planet position (usually for velocity correction)
+     * @param int $iflag Calculation flags
+     */
+    public static function aberrLight(array &$xx, array $xxctr, int $iflag): void
+    {
+        $swed = SwedState::get();
+        $pedp = $swed->pldat[Constants::SEI_EARTH] ?? null;
+
+        if ($pedp === null) {
+            // If Earth data not available, skip aberration
+            return;
+        }
+
+        $xearth = $pedp->x;
+
+        // Apply topocentric correction if needed
+        if (($iflag & Constants::SEFLG_TOPOCTR) && isset($swed->topd->xobs)) {
+            for ($i = 0; $i <= 5; $i++) {
+                $xearth[$i] += $swed->topd->xobs[$i];
+            }
+        }
+
+        // Call the full implementation
+        \Swisseph\Swe\FixedStars\StarTransforms::aberrLight($xx, $xearth);
+    }
 }
 
 

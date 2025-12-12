@@ -9,6 +9,14 @@ use Swisseph\DeltaT;
 use Swisseph\ErrorCodes;
 use Swisseph\Output;
 use Swisseph\Swe\Planets\EphemerisStrategyFactory;
+use Swisseph\VectorMath;
+use Swisseph\Coordinates;
+use Swisseph\Bias;
+use Swisseph\Precession;
+use Swisseph\SwephFile\SwedState;
+use Swisseph\SwephFile\SwephUtils;
+use Swisseph\Sidereal;
+use Swisseph\Swe\Functions\SiderealFunctions;
 
 /**
  * Тонкий фасад: валидация аргументов + делегирование стратегиям.
@@ -121,10 +129,11 @@ final class PlanetsFunctions
         $iflag = self::plausibleIflag($iflag, $ipl, $tjd, $serr);
         $epheflag = $iflag & Constants::SEFLG_EPHMASK;
 
-        // Fill obliquity and nutation values in swed (via swe_calc of ECL_NUT)
-        $xx = [];
-        $dt = DeltaT::deltaTSecondsFromJd($tjd) / 86400.0;
-        self::calc($tjd + $dt, Constants::SE_ECL_NUT, $iflag, $xx, $serr);
+        // Fill obliquity and nutation values in swed
+        // C: swe_calc(tjd + swe_deltat_ex(tjd, epheflag, serr), SE_ECL_NUT, iflag, xx, serr);
+        $swed = SwedState::getInstance();
+        $swed->oec->calculate($tjd, $iflag);
+        $swed->ensureNutation($tjd, $iflag, $swed->oec->seps, $swed->oec->ceps);
 
         // Remove HELCTR/BARYCTR from iflag for internal calculations
         $iflag &= ~(Constants::SEFLG_HELCTR | Constants::SEFLG_BARYCTR);
@@ -140,6 +149,7 @@ final class PlanetsFunctions
         $xxctr = [];
         $retc = self::calc($tjd, $iplctr, $iflag2, $xxctr, $serr);
         if ($retc < 0) {
+            $serr = "calc_pctr: Failed to calculate center planet $iplctr: " . ($serr ?: 'unknown error');
             return Constants::SE_ERR;
         }
 
@@ -147,18 +157,328 @@ final class PlanetsFunctions
         $xx = [];
         $retc = self::calc($tjd, $ipl, $iflag2, $xx, $serr);
         if ($retc < 0) {
+            $serr = "calc_pctr: Failed to calculate target planet $ipl: " . ($serr ?: 'unknown error');
             return Constants::SE_ERR;
         }
 
         // Save initial position
-        $xx0 = $xx;
+        $xx0 = array_slice($xx, 0, 6);
 
-        // TODO: Implement light-time correction, deflection, aberration,
-        // precession, nutation, coordinate transformations
-        // This is a stub that needs full implementation (~200 more lines)
+        // Initialize arrays
+        $xxsp = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xxsv = array_fill(0, 24, 0.0);
+        $xreturn = array_fill(0, 24, 0.0);
+        $xxctr2 = [];
+        $dtsave_for_defl = 0.0;
+        $t = 0.0;
 
-        $serr = "swe_calc_pctr: Full implementation in progress";
-        return Constants::SE_ERR;
+        /*******************************
+         * light-time geocentric       *
+         *******************************/
+        if (!($iflag & Constants::SEFLG_TRUEPOS)) {
+            // number of iterations - 1
+            $niter = 1;
+
+            if ($iflag & Constants::SEFLG_SPEED) {
+                /*
+                 * Apparent speed is influenced by the fact that dt changes with
+                 * time. This makes a difference of several hundredths of an
+                 * arc second / day. To take this into account, we compute
+                 * 1. true position - apparent position at time t - 1.
+                 * 2. true position - apparent position at time t.
+                 * 3. the difference between the two is the part of the daily motion
+                 * that results from the change of dt.
+                 */
+                for ($i = 0; $i <= 2; $i++) {
+                    $xxsv[$i] = $xxsp[$i] = $xx[$i] - $xx[$i + 3];
+                }
+                for ($j = 0; $j <= $niter; $j++) {
+                    $dx = [0.0, 0.0, 0.0];
+                    for ($i = 0; $i <= 2; $i++) {
+                        $dx[$i] = $xxsp[$i];
+                        $dx[$i] -= ($xxctr[$i] - $xxctr[$i + 3]);
+                    }
+                    // new dt
+                    $dt = sqrt(VectorMath::squareSum($dx)) * Constants::AUNIT / Constants::CLIGHT / 86400.0;
+                    for ($i = 0; $i <= 2; $i++) {
+                        // rough apparent position at t-1
+                        $xxsp[$i] = $xxsv[$i] - $dt * $xx0[$i + 3];
+                    }
+                }
+                // true position - apparent position at time t-1
+                for ($i = 0; $i <= 2; $i++) {
+                    $xxsp[$i] = $xxsv[$i] - $xxsp[$i];
+                }
+            }
+
+            // dt and t(apparent)
+            for ($j = 0; $j <= $niter; $j++) {
+                $dx = [0.0, 0.0, 0.0];
+                for ($i = 0; $i <= 2; $i++) {
+                    $dx[$i] = $xx[$i];
+                    $dx[$i] -= $xxctr[$i];
+                }
+                $dt = sqrt(VectorMath::squareSum($dx)) * Constants::AUNIT / Constants::CLIGHT / 86400.0;
+                // new t
+                $t = $tjd - $dt;
+                $dtsave_for_defl = $dt;
+                for ($i = 0; $i <= 2; $i++) {
+                    // rough apparent position at t
+                    $xx[$i] = $xx0[$i] - $dt * $xx0[$i + 3];
+                }
+            }
+
+            // part of daily motion resulting from change of dt
+            if ($iflag & Constants::SEFLG_SPEED) {
+                for ($i = 0; $i <= 2; $i++) {
+                    $xxsp[$i] = $xx0[$i] - $xx[$i] - $xxsp[$i];
+                }
+            }
+
+            $retc = self::calc($t, $iplctr, $iflag2, $xxctr2, $serr);
+            $retc = self::calc($t, $ipl, $iflag2, $xx, $serr);
+        }
+
+        /*******************************
+         * conversion to planetocenter *
+         *******************************/
+        if (!($iflag & Constants::SEFLG_HELCTR) && !($iflag & Constants::SEFLG_BARYCTR)) {
+            // subtract earth
+            for ($i = 0; $i <= 5; $i++) {
+                $xx[$i] -= $xxctr[$i];
+            }
+            if (!($iflag & Constants::SEFLG_TRUEPOS)) {
+                /*
+                 * Apparent speed is also influenced by
+                 * the change of dt during motion.
+                 * Neglect of this would result in an error of several 0.01"
+                 */
+                if ($iflag & Constants::SEFLG_SPEED) {
+                    for ($i = 3; $i <= 5; $i++) {
+                        $xx[$i] -= $xxsp[$i - 3];
+                    }
+                }
+            }
+        }
+
+        if (!($iflag & Constants::SEFLG_SPEED)) {
+            for ($i = 3; $i <= 5; $i++) {
+                $xx[$i] = 0.0;
+            }
+        }
+
+        /************************************
+         * relativistic deflection of light *
+         ************************************/
+        if (!($iflag & Constants::SEFLG_TRUEPOS) && !($iflag & Constants::SEFLG_NOGDEFL)) {
+            // SEFLG_NOGDEFL is on, if SEFLG_HELCTR or SEFLG_BARYCTR
+            Coordinates::deflectLight($xx, $dtsave_for_defl, $iflag);
+        }
+
+        /**********************************
+         * 'annual' aberration of light   *
+         **********************************/
+        if (!($iflag & Constants::SEFLG_TRUEPOS) && !($iflag & Constants::SEFLG_NOABERR)) {
+            // SEFLG_NOABERR is on, if SEFLG_HELCTR or SEFLG_BARYCTR
+            Coordinates::aberrLight($xx, $xxctr, $iflag);
+            /*
+             * Apparent speed is also influenced by
+             * the difference of speed of the earth between t and t-dt.
+             * Neglecting this would involve an error of several 0.1"
+             */
+            if ($iflag & Constants::SEFLG_SPEED) {
+                for ($i = 3; $i <= 5; $i++) {
+                    $xx[$i] += $xxctr[$i] - $xxctr2[$i];
+                }
+            }
+        }
+
+        if (!($iflag & Constants::SEFLG_SPEED)) {
+            for ($i = 3; $i <= 5; $i++) {
+                $xx[$i] = 0.0;
+            }
+        }
+
+        // ICRS to J2000
+        if (!($iflag & Constants::SEFLG_ICRS) && SwephUtils::getDenum($ipl, $epheflag) >= 403) {
+            Bias::bias($xx, $t, $iflag, false);
+        }
+
+        // save J2000 coordinates; required for sidereal positions
+        for ($i = 0; $i <= 5; $i++) {
+            $xxsv[$i] = $xx[$i];
+        }
+
+        /************************************************
+         * precession, equator 2000 -> equator of date *
+         ************************************************/
+        if (!($iflag & Constants::SEFLG_J2000)) {
+            Precession::precess($xx, $tjd, $iflag, Constants::J2000_TO_J, null);
+            if ($iflag & Constants::SEFLG_SPEED) {
+                Precession::precessSpeed($xx, $tjd, $iflag, Constants::J2000_TO_J);
+            }
+            $oe = SwedState::getInstance()->oec;
+        } else {
+            $oe = SwedState::getInstance()->oec2000;
+        }
+
+        /************************************************
+         * nutation                                     *
+         ************************************************/
+        if (!($iflag & Constants::SEFLG_NONUT)) {
+            $swed = SwedState::getInstance();
+            Coordinates::nutate($xx, $swed->nut->matrix, $swed->nut->matrixVelocity, $iflag, false);
+        }
+
+        // now we have equatorial cartesian coordinates; save them
+        for ($i = 0; $i <= 5; $i++) {
+            $xreturn[18 + $i] = $xx[$i];
+        }
+
+        /************************************************
+         * transformation to ecliptic.                  *
+         * with sidereal calc. this will be overwritten *
+         * afterwards.                                  *
+         ************************************************/
+        Coordinates::coortrf2($xx, 0, 3, $oe->seps, $oe->ceps);
+        if ($iflag & Constants::SEFLG_SPEED) {
+            Coordinates::coortrf2($xx, 3, 3, $oe->seps, $oe->ceps);
+        }
+        if (!($iflag & Constants::SEFLG_NONUT)) {
+            $swed = SwedState::getInstance();
+            Coordinates::coortrf2($xx, 0, 3, $swed->nut->snut, $swed->nut->cnut);
+            if ($iflag & Constants::SEFLG_SPEED) {
+                Coordinates::coortrf2($xx, 3, 3, $swed->nut->snut, $swed->nut->cnut);
+            }
+        }
+
+        // now we have ecliptic cartesian coordinates
+        for ($i = 0; $i <= 5; $i++) {
+            $xreturn[6 + $i] = $xx[$i];
+        }
+
+        /************************************
+         * sidereal positions               *
+         ************************************/
+        if ($iflag & Constants::SEFLG_SIDEREAL) {
+            $swed = SwedState::getInstance();
+            // project onto ecliptic t0
+            if ($swed->sidd->sid_mode & Constants::SE_SIDBIT_ECL_T0) {
+                $xxsv_arr = array_slice($xxsv, 0, 6);
+                $xret6 = array_slice($xreturn, 6, 6);
+                $xret18 = array_slice($xreturn, 18, 6);
+                if (SiderealFunctions::tropRa2sidLon($xxsv_arr, $xret6, $xret18, $iflag) !== Constants::OK) {
+                    return Constants::SE_ERR;
+                }
+                for ($i = 0; $i <= 5; $i++) {
+                    $xreturn[6 + $i] = $xret6[$i];
+                }
+            // project onto solar system equator
+            } elseif ($swed->sidd->sid_mode & Constants::SE_SIDBIT_SSY_PLANE) {
+                $xxsv_arr = array_slice($xxsv, 0, 6);
+                $xret6 = array_slice($xreturn, 6, 6);
+                if (SiderealFunctions::tropRa2sidLonSosy($xxsv_arr, $xret6, $iflag) !== Constants::OK) {
+                    return Constants::SE_ERR;
+                }
+                for ($i = 0; $i <= 5; $i++) {
+                    $xreturn[6 + $i] = $xret6[$i];
+                }
+            } else {
+                // traditional algorithm
+                $xret_slice = array_slice($xreturn, 6, 6);
+                $polar_temp = [];
+                Coordinates::cartPolSp($xret_slice, $polar_temp);
+                for ($i = 0; $i <= 5; $i++) {
+                    $xreturn[$i] = $polar_temp[$i];
+                }
+
+                // note, swi_get_ayanamsa_ex() disturbs present calculations, if sun is calculated with
+                // TRUE_CHITRA ayanamsha, because the ayanamsha also calculates the sun.
+                // Therefore current values are saved...
+                $xxsv_temp = $xreturn;
+                $daya = [0.0, 0.0];
+                if (Sidereal::getAyanamsaWithSpeed($tjd, $iflag, $daya, $serr) === Constants::SE_ERR) {
+                    return Constants::SE_ERR;
+                }
+                // ... and restored
+                $xreturn = $xxsv_temp;
+
+                $xreturn[0] -= $daya[0] * Constants::DEGTORAD;
+                $xreturn[3] -= $daya[1] * Constants::DEGTORAD;
+
+                $xret_polar = array_slice($xreturn, 0, 6);
+                $cart_temp = [];
+                Coordinates::polCartSp($xret_polar, $cart_temp);
+                for ($i = 0; $i <= 5; $i++) {
+                    $xreturn[6 + $i] = $cart_temp[$i];
+                }
+            }
+        }
+
+        /************************************************
+         * transformation to polar coordinates          *
+         ************************************************/
+        $xret18_slice = array_slice($xreturn, 18, 6);
+        $polar18_temp = [];
+        Coordinates::cartPolSp($xret18_slice, $polar18_temp);
+        for ($i = 0; $i <= 5; $i++) {
+            $xreturn[12 + $i] = $polar18_temp[$i];
+        }
+
+        $xret6_slice = array_slice($xreturn, 6, 6);
+        $polar6_temp = [];
+        Coordinates::cartPolSp($xret6_slice, $polar6_temp);
+        for ($i = 0; $i <= 5; $i++) {
+            $xreturn[$i] = $polar6_temp[$i];
+        }
+
+        /**********************
+         * radians to degrees *
+         **********************/
+        for ($i = 0; $i < 2; $i++) {
+            $xreturn[$i] *= Constants::RADTODEG;        // ecliptic
+            $xreturn[$i + 3] *= Constants::RADTODEG;
+            $xreturn[$i + 12] *= Constants::RADTODEG;   // equator
+            $xreturn[$i + 15] *= Constants::RADTODEG;
+        }
+
+        // return values
+        if ($iflag & Constants::SEFLG_EQUATORIAL) {
+            $xs = array_slice($xreturn, 12, 6); // equatorial coordinates
+        } else {
+            $xs = array_slice($xreturn, 0, 6);  // ecliptic coordinates
+        }
+
+        if ($iflag & Constants::SEFLG_XYZ) {
+            $xs = array_slice($xreturn, ($iflag & Constants::SEFLG_EQUATORIAL) ? 18 : 6, 6); // cartesian coordinates
+        }
+
+        for ($i = 0; $i < 6; $i++) {
+            $xxret[$i] = $xs[$i];
+        }
+
+        if (!($iflag & Constants::SEFLG_SPEED)) {
+            for ($i = 3; $i < 6; $i++) {
+                $xxret[$i] = 0.0;
+            }
+        }
+
+        if ($iflag & Constants::SEFLG_RADIANS) {
+            for ($i = 0; $i < 2; $i++) {
+                $xxret[$i] *= Constants::DEGTORAD;
+            }
+            if ($iflag & Constants::SEFLG_SPEED) {
+                for ($i = 3; $i < 5; $i++) {
+                    $xxret[$i] *= Constants::DEGTORAD;
+                }
+            }
+        }
+
+        if ($retc < 0) {
+            return Constants::SE_ERR;
+        }
+
+        return $iflag;
     }
 
     /**
