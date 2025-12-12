@@ -350,6 +350,33 @@ if (!function_exists('swe_calc_ut')) {
     }
 }
 
+if (!function_exists('swe_calc_pctr')) {
+    /**
+     * Calculate planetocentric positions - view target planet from another planet.
+     * 
+     * Thin facade to Swe\Functions\PlanetsFunctions::calcPctr.
+     * Port of C API: int32 swe_calc_pctr(double tjd, int32 ipl, int32 iplctr, int32 iflag, double *xxret, char *serr);
+     * 
+     * @param float $tjd Julian day number (TT/ET)
+     * @param int $ipl Target planet number (SE_SUN, SE_MOON, etc.)
+     * @param int $iplctr Center planet number (viewing position, e.g., SE_MARS for Mars-centric)
+     * @param int $iflag Calculation flags (SEFLG_*)
+     * @param array &$xxret Output coordinates [6]: longitude/RA, latitude/Dec, distance, speed_long, speed_lat, speed_dist
+     * @param string|null &$serr Error message (if any)
+     * @return int iflag on success, SE_ERR (-1) on error
+     */
+    function swe_calc_pctr(
+        float $tjd,
+        int $ipl,
+        int $iplctr,
+        int $iflag,
+        array &$xxret,
+        ?string &$serr = null
+    ): int {
+        return PlanetsFunctions::calcPctr($tjd, $ipl, $iplctr, $iflag, $xxret, $serr);
+    }
+}
+
 if (!function_exists('swe_get_orbital_elements')) {
     /**
      * Get orbital elements for a planet
@@ -594,6 +621,39 @@ if (!function_exists('swe_close')) {
     function swe_close(): void
     {
         // No-op in pure PHP port; in C closes ephemeris files and frees resources
+    }
+}
+
+if (!function_exists('swe_get_current_file_data')) {
+    /**
+     * Get data from internal file structures used in last swe_calc() or swe_fixstar() call.
+     * 
+     * Port of swe_get_current_file_data() from sweph.c:8351-8360.
+     * 
+     * C API: const char *swe_get_current_file_data(int ifno, double *tfstart, double *tfend, int *denum);
+     * 
+     * @param int $ifno File number (0=planet, 1=moon, 2=main asteroid, 3=other asteroid, 4=star)
+     * @param float &$tfstart Output: start date of file
+     * @param float &$tfend Output: end date of file
+     * @param int &$denum Output: JPL ephemeris number (406/431/etc)
+     * @return string|null Full file pathname, or null if no data
+     */
+    function swe_get_current_file_data(int $ifno, float &$tfstart, float &$tfend, int &$denum): ?string
+    {
+        // Initialize outputs
+        $tfstart = 0.0;
+        $tfend = 0.0;
+        $denum = 0;
+
+        // In pure PHP port without full file system implementation, return null
+        // C code: if (ifno < 0 || ifno > 4) return NULL;
+        if ($ifno < 0 || $ifno > 4) {
+            return null;
+        }
+
+        // C code would check swed.fidat[ifno] and return file data
+        // For now, return null (not yet implemented)
+        return null;
     }
 }
 
