@@ -1,7 +1,7 @@
 # Swiss Ephemeris PHP Port - Testing Summary
 
-**Date**: 12 января 2025  
-**Total Progress**: 95/200+ functions (48%)  
+**Date**: 12 января 2025
+**Total Progress**: 95/200+ functions (48%)
 **PHPUnit Tests**: 140 tests, 1042 assertions, 93% pass rate
 
 ---
@@ -14,24 +14,24 @@
   - Test: AllEclipseFunctionsTest.php
   - Accuracy: Dates exact to day, magnitude ±0.002
   - Example: 2024-04-08 total eclipse found correctly
-  
+
 - ✅ `swe_sol_eclipse_when_loc()` - Local solar eclipse search
   - Test: EclipseWhenLocTest.php
   - Accuracy: Magnitude 1.0135 vs expected 1.0147 (±0.001)
   - Contacts: Begin/end times accurate
-  
+
 - ✅ `swe_sol_eclipse_how()` - Solar eclipse attributes
   - Test: SolarEclipseHowTest.php (3/3 pass)
   - Magnitude: 1.0133, Saros: 139/30
-  
+
 - ✅ `swe_lun_eclipse_when()` - Lunar eclipse search
   - Test: LunarEclipseWhenTest.php
   - Example: 2024-03-25 penumbral found correctly
-  
+
 - ✅ `swe_lun_eclipse_how()` - Lunar eclipse attributes
   - Test: LunarEclipseHowTest.php
   - Umbral: 0.0854, Penumbral: 1.0372, Saros: 118/52
-  
+
 - ✅ `swe_lun_eclipse_when_loc()` - Local lunar eclipse search
   - Test: LunarEclipseWhenLocTest.php
   - Visibility: Moscow 2024-09-18 (moonrise/moonset during eclipse)
@@ -53,7 +53,7 @@
 - ✅ `swe_topo_arcus_visionis()` - Topocentric arcus visionis
 - ✅ Internal: 81 functions across 13 modules (100% C API compatible)
 
-**Test**: HeliacalSmokeTest.php  
+**Test**: HeliacalSmokeTest.php
 **Accuracy**: Event dates ±1 day, limiting magnitude ±0.5 mag
 
 ---
@@ -97,7 +97,7 @@
 - ✅ Gauquelin ('G') - GauquelinSectorTest.php
 - ✅ Sunshine ('I'/'i') - Special handling for Sun declination
 
-**Test**: HousesParityWithSwetestTest.php  
+**Test**: HousesParityWithSwetestTest.php
 **Accuracy**: <0.01° for all systems
 
 ---
@@ -129,7 +129,7 @@
 - ✅ `swe_get_ayanamsa_ex_ut()` - Extended ayanamsha (UT)
 - ✅ `swe_get_ayanamsa_name()` - Ayanamsha name
 
-**Test**: SiderealAyanamshaTest.php, ParityAyanamshaWithSwetestTest.php  
+**Test**: SiderealAyanamshaTest.php, ParityAyanamshaWithSwetestTest.php
 **Accuracy**: Sub-arcsecond for all ayanamsha modes
 
 ---
@@ -144,9 +144,9 @@
 - ✅ Proper motion correction
 - ✅ Sidereal transformations
 
-**Tests**: 
+**Tests**:
 - FixstarSmokeTest.php
-- Fixstar2ApiTest.php  
+- Fixstar2ApiTest.php
 - CompareFixstarApisTest.php
 - FixstarSiderealTest.php
 
@@ -193,7 +193,7 @@
 - ✅ `swe_lmt_to_lat()` / `swe_lat_to_lmt()` - Local time conversions
 - ✅ `swe_sidtime()` / `swe_sidtime0()` - Sidereal time
 
-**Tests**: JulianTest.php, DeltaTTest.php, UtcJdTest.php, SiderealTimeTest.php  
+**Tests**: JulianTest.php, DeltaTTest.php, UtcJdTest.php, SiderealTimeTest.php
 **Accuracy**: Sub-second for all conversions
 
 ---
@@ -208,7 +208,7 @@
 - ✅ `swe_refrac_extended()` - Extended refraction
 - ✅ `swe_set_lapse_rate()` - Set lapse rate
 
-**Tests**: CotransTest.php, CoordinatesRoundtripTest.php  
+**Tests**: CotransTest.php, CoordinatesRoundtripTest.php
 **Accuracy**: Round-trip errors <0.001°
 
 ---
@@ -222,7 +222,7 @@
 - ✅ Configuration: `swe_set_ephe_path()`, `swe_set_topo()`, `swe_close()`
 - ✅ Info: `swe_version()`, `swe_get_planet_name()`
 
-**Tests**: MathTest.php, MiscUtilityTest.php, CentisecTest.php  
+**Tests**: MathTest.php, MiscUtilityTest.php, CentisecTest.php
 **Coverage**: 100%
 
 ---
@@ -305,6 +305,6 @@
 
 ---
 
-**Generated**: 2025-01-12  
-**Maintainer**: AI Agent  
+**Generated**: 2025-01-12
+**Maintainer**: AI Agent
 **Status**: Active Development (No Simplifications)

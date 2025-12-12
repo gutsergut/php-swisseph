@@ -186,11 +186,11 @@ Misc Utilities         ███████████████████
 - ✅ **Note**: All signatures use reference parameters (`&$param`) matching C API exactly
 
 **Additional Calculations**
-- ⬜ Osculating nodes/apsides (SE_NODBIT_OSCU)
+- ✅ Osculating nodes/apsides (SE_NODBIT_OSCU) **IMPLEMENTED** (tests: 3/5 pass)
 - ⬜ True nodes with nutation
-- ⬜ "True" ayanamsha modes (require swe_fixstar)
+- ✅ "True" ayanamsha modes (swe_fixstar available) **WORKING**
 - ⬜ Planetary stations and retrogrades
-- ⬜ Occultations
+- ✅ Occultations **SMOKE TESTED** (3 functions work)
 - ⬜ And many more...
 
 </details>
