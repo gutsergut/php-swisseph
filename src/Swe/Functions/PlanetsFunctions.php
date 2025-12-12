@@ -303,7 +303,8 @@ final class PlanetsFunctions
          **********************************/
         if (!($iflag & Constants::SEFLG_TRUEPOS) && !($iflag & Constants::SEFLG_NOABERR)) {
             // SEFLG_NOABERR is on, if SEFLG_HELCTR or SEFLG_BARYCTR
-            Coordinates::aberrLight($xx, $xxctr, $iflag);
+            // For planetocentric: use center planet (xxctr) for aberration, not Earth
+            \Swisseph\Swe\FixedStars\StarTransforms::aberrLight($xx, $xxctr);
             /*
              * Apparent speed is also influenced by
              * the difference of speed of the earth between t and t-dt.
