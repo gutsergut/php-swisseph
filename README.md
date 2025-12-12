@@ -7,7 +7,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 106/200+ implemented (53%)
+**Core Functions**: 107/200+ implemented (54%)
 
 ```
 Planets & Calculation  ████████████████░░░░  16/28 (57%)
@@ -17,7 +17,7 @@ Nodes & Apsides        ████████░░░░░░░░░░░
 Rise/Set/Transit       ████████████████░░░░  4/7   (57%)
 Time & Conversions     ████████████████████  11/11 (100%)
 Coordinate Transform   ████████████████████  7/7   (100%)
-Orbital Elements       ███████████████░░░░░  3/4   (75%)
+Orbital Elements       ████████████████░░░░  4/5   (80%)
 Stars & Fixed Objects  ████████████████████  11/11 (100%)
 Eclipses & Phenomena   ████████████░░░░░░░░  12/15 (80%)
 Heliacal Phenomena     ████████████████████  7/7   (100%) 🎉
@@ -117,9 +117,10 @@ Misc Utilities         ███████████████████
 </details>
 
 <details>
-<summary><b>Orbital Elements (3)</b></summary>
+<summary><b>Orbital Elements (4)</b></summary>
 
-- ✅ `swe_get_orbital_elements` - Keplerian elements
+- ✅ `swe_get_orbital_elements` - Keplerian elements **TESTED**
+- ✅ `swe_orbit_max_min_true_distance` - Orbital max/min/true distance **IMPLEMENTED**
 - ✅ Internal: True anomaly from mean anomaly
 - ✅ Internal: Eccentric anomaly solver
 </details>
