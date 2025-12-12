@@ -2091,3 +2091,43 @@ if (!function_exists('swe_sol_eclipse_where')) {
         return \Swisseph\Swe\Functions\SolarEclipseWhereFunctions::where($tjd_ut, $ifl, $geopos, $attr, $serr);
     }
 }
+
+if (!function_exists('swe_lun_occult_when_loc')) {
+    /**
+     * Find next lunar occultation visible from specific geographic location
+     *
+     * @param float $tjdStart Search start time (Julian Day, UT)
+     * @param int $ipl Planet number (SE_*)
+     * @param string|null $starname Fixed star name (or null for planet)
+     * @param int $ifl Ephemeris flag (SEFLG_*)
+     * @param array $geopos Geographic position [longitude, latitude, altitude_m]
+     * @param array &$tret Time array (output), declare as tret[10]
+     * @param array &$attr Eclipse attributes (output), declare as attr[20]
+     * @param int $backward Search direction (0=forward, 1=backward, SE_ECL_ONE_TRY=single)
+     * @param string|null &$serr Error string (output)
+     * @return int Return flags (SE_ECL_*)
+     */
+    function swe_lun_occult_when_loc(
+        float $tjdStart,
+        int $ipl,
+        ?string $starname,
+        int $ifl,
+        array $geopos,
+        array &$tret,
+        array &$attr,
+        int $backward,
+        ?string &$serr
+    ): int {
+        return \Swisseph\Swe\Functions\LunarOccultationWhenLocFunctions::whenLoc(
+            $tjdStart,
+            $ipl,
+            $starname,
+            $ifl,
+            $geopos,
+            $tret,
+            $attr,
+            $backward,
+            $serr
+        );
+    }
+}
