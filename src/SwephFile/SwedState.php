@@ -67,6 +67,12 @@ final class SwedState
     /** Whether topocentric position was set */
     public bool $geoposIsSet = false;
 
+    /** Nutation interpolation flag */
+    public bool $do_interpolate_nut = false;
+
+    /** Nutation interpolation cache */
+    public object $interpol;
+
     private function __construct()
     {
         // Initialize file data array (7 files)
@@ -84,6 +90,18 @@ final class SwedState
 
         // Initialize topocentric data
         $this->topd = new TopoData();
+
+        // Initialize nutation interpolation cache
+        $this->interpol = (object)[
+            'tjd_nut0' => 0.0,
+            'tjd_nut2' => 0.0,
+            'nut_dpsi0' => 0.0,
+            'nut_dpsi1' => 0.0,
+            'nut_dpsi2' => 0.0,
+            'nut_deps0' => 0.0,
+            'nut_deps1' => 0.0,
+            'nut_deps2' => 0.0,
+        ];
 
         // Initialize nutation matrices (3x3 matrices as flat arrays)
         $this->nutMatrix = array_fill(0, 9, 0.0);

@@ -624,6 +624,42 @@ if (!function_exists('swe_close')) {
     }
 }
 
+if (!function_exists('swe_set_interpolate_nut')) {
+    /**
+     * Enable or disable nutation interpolation
+     *
+     * Full port from swephlib.c:3558-3576 without simplifications.
+     *
+     * Controls whether Swiss Ephemeris interpolates nutation values
+     * for intermediate times. When changed, clears interpolation cache.
+     *
+     * @param bool $do_interpolate TRUE to enable interpolation, FALSE to disable
+     * @return void
+     */
+    function swe_set_interpolate_nut(bool $do_interpolate): void
+    {
+        $swed = \Swisseph\SwephFile\SwedState::getInstance();
+
+        // Early return if flag unchanged (optimization from C)
+        if ($swed->do_interpolate_nut === $do_interpolate) {
+            return;
+        }
+
+        // Set flag (explicit conversion to match C logic)
+        $swed->do_interpolate_nut = $do_interpolate ? true : false;
+
+        // Reset interpolation cache
+        $swed->interpol->tjd_nut0 = 0.0;
+        $swed->interpol->tjd_nut2 = 0.0;
+        $swed->interpol->nut_dpsi0 = 0.0;
+        $swed->interpol->nut_dpsi1 = 0.0;
+        $swed->interpol->nut_dpsi2 = 0.0;
+        $swed->interpol->nut_deps0 = 0.0;
+        $swed->interpol->nut_deps1 = 0.0;
+        $swed->interpol->nut_deps2 = 0.0;
+    }
+}
+
 if (!function_exists('swe_set_astro_models')) {
     /**
      * Set astronomical models for Swiss Ephemeris calculations
