@@ -7,7 +7,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 95/200+ implemented (48%)
+**Core Functions**: 98/200+ implemented (49%)
 
 ```
 Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
@@ -18,8 +18,8 @@ Rise/Set/Transit       ████████████████░░░
 Time & Conversions     ████████████████████  11/11 (100%)
 Coordinate Transform   ████████████████████  7/7   (100%)
 Orbital Elements       ███████████████░░░░░  3/4   (75%)
-Stars & Fixed Objects  ████████████████████  8/8   (100%)
-Eclipses & Phenomena   █████████░░░░░░░░░░░  9/15  (60%)
+Stars & Fixed Objects  ████████████████████  11/11 (100%)
+Eclipses & Phenomena   ████████████░░░░░░░░  12/15 (80%)
 Heliacal Phenomena     ████████████████████  7/7   (100%) 🎉
 Misc Utilities         ████████████████████  24/24 (100%)
 ```
@@ -157,9 +157,9 @@ Misc Utilities         ███████████████████
 - ✅ `swe_fixstar2_mag` - Fixed star v2 magnitude
 
 **Legacy Star Functions (3)**
-- ⬜ `swe_fixstar` - Legacy fixed star API
-- ⬜ `swe_fixstar_ut` - Legacy fixed star (UT)
-- ⬜ `swe_fixstar_mag` - Legacy fixed star magnitude
+- ✅ `swe_fixstar` - Legacy fixed star API **TESTED**
+- ✅ `swe_fixstar_ut` - Legacy fixed star (UT) **TESTED**
+- ✅ `swe_fixstar_mag` - Legacy fixed star magnitude **TESTED**
 
 **Eclipses & Phenomena (15)**
 - ✅ `swe_sol_eclipse_when_loc` - Solar eclipse for location **TESTED**
@@ -171,9 +171,9 @@ Misc Utilities         ███████████████████
 - ✅ `swe_pheno_ut` - Phenomena (UT) **TESTED**
 - ✅ `swe_sol_eclipse_where` - Geographic path of solar eclipse **IMPLEMENTED**
 - ✅ `swe_lun_eclipse_when_loc` - Local lunar eclipse search **TESTED**
-- ⬜ `swe_lun_occult_when_glob` - Global occultation search
-- ⬜ `swe_lun_occult_when_loc` - Local occultation search
-- ⬜ `swe_lun_occult_where` - Geographic path of occultation
+- ✅ `swe_lun_occult_when_glob` - Global occultation search **SMOKE TESTED**
+- ✅ `swe_lun_occult_when_loc` - Local occultation search **SMOKE TESTED**
+- ✅ `swe_lun_occult_where` - Geographic path of occultation **SMOKE TESTED**
 - ⬜ And more...
 
 **Heliacal Phenomena (7)** ✅ **COMPLETE**
