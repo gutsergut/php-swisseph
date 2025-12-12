@@ -624,6 +624,52 @@ if (!function_exists('swe_close')) {
     }
 }
 
+if (!function_exists('swe_set_astro_models')) {
+    /**
+     * Set astronomical models for Swiss Ephemeris calculations
+     *
+     * Full port from swephlib.c:4183-4237 without simplifications.
+     *
+     * Controls which models are used for:
+     * - Delta T calculation
+     * - Precession (long-term and short-term)
+     * - Nutation
+     * - Frame bias
+     * - JPL Horizons approximation modes
+     * - Sidereal time
+     *
+     * @param string $samod Model specification:
+     *   - "D,P,P,N,B,J,J,S" format (8 comma-separated integers)
+     *   - "SE<version>" (e.g., "SE2.06", "SE1.80") - applies version preset
+     *   - "" (empty) - uses current SE version defaults
+     * @param int $iflag Calculation flags (for ephemeris number detection)
+     * @return void
+     */
+    function swe_set_astro_models(string $samod, int $iflag): void
+    {
+        \Swisseph\Swe\Functions\AstroModelsFunctions::setAstroModels($samod, $iflag);
+    }
+}
+
+if (!function_exists('swe_get_astro_models')) {
+    /**
+     * Get current astronomical models configuration
+     *
+     * Full port from swephlib.c:4409-4555 without simplifications.
+     *
+     * Returns the current models being used for astronomical calculations.
+     *
+     * @param string|null &$samod Output: model string "D,P,P,N,B,J,J,S" (optional input to set models first)
+     * @param string|null &$sdet Output: detailed human-readable description
+     * @param int $iflag Calculation flags (for ephemeris number detection)
+     * @return void
+     */
+    function swe_get_astro_models(?string &$samod, ?string &$sdet, int $iflag): void
+    {
+        \Swisseph\Swe\Functions\AstroModelsFunctions::getAstroModels($samod, $sdet, $iflag);
+    }
+}
+
 if (!function_exists('swe_get_current_file_data')) {
     /**
      * Get data from internal file structures used in last swe_calc() or swe_fixstar() call.

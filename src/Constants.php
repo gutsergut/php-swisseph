@@ -258,6 +258,7 @@ final class Constants
     public const JPL_DE431_END   = 7930192.5;
 
     // Astronomical model indices (for astro_models array in SwedState)
+    public const SE_MODEL_DELTAT = 0;
     public const SE_MODEL_PREC_LONGTERM = 1;
     public const SE_MODEL_PREC_SHORTTERM = 2;
     public const SE_MODEL_NUT = 3;
@@ -306,6 +307,27 @@ final class Constants
     public const SEMOD_BIAS_IAU2000 = 2;        // IAU 2000 frame bias
     public const SEMOD_BIAS_IAU2006 = 3;        // IAU 2006 frame bias
     public const SEMOD_BIAS_DEFAULT = self::SEMOD_BIAS_IAU2006;
+
+    // Delta T models (swephexp.h + swephlib.c)
+    public const SEMOD_NDELTAT = 5;
+    public const SEMOD_DELTAT_STEPHENSON_MORRISON_1984 = 1;
+    public const SEMOD_DELTAT_STEPHENSON_1997 = 2;
+    public const SEMOD_DELTAT_STEPHENSON_MORRISON_2004 = 3;
+    public const SEMOD_DELTAT_ESPENAK_MEEUS_2006 = 4;
+    public const SEMOD_DELTAT_STEPHENSON_ETC_2016 = 5;
+    public const SEMOD_DELTAT_DEFAULT = self::SEMOD_DELTAT_STEPHENSON_ETC_2016;
+
+    // JPL Horizons approximation modes
+    public const SEMOD_JPLHOR_LONG_AGREEMENT = 1;  // good agreement 1800-today
+    public const SEMOD_JPLHOR_DEFAULT = self::SEMOD_JPLHOR_LONG_AGREEMENT;
+    public const SEMOD_JPLHORA_1 = 1;
+    public const SEMOD_JPLHORA_2 = 2;
+    public const SEMOD_JPLHORA_3 = 3;
+    public const SEMOD_JPLHORA_DEFAULT = self::SEMOD_JPLHORA_3;
+
+    // Swiss Ephemeris version constants for model presets
+    public const SE_TIDAL_DE406 = -25.8;  // tidal acceleration for DE406
+    public const SE_TIDAL_DEFAULT = self::SE_TIDAL_DE406;
 
     // Fixed star catalog filenames (swephexp.h:386-387)
     public const SE_STARFILE_OLD = 'fixstars.cat';  // Old binary format
