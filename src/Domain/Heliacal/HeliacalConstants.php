@@ -70,6 +70,11 @@ class HeliacalConstants
     public const LAPSE_SA = 0.0065;      // Standard atmosphere lapse rate [K/m]
     public const LAPSE_DA = 0.0098;      // Dry adiabatic lapse rate [K/m]
 
+    // Angular conversions
+    public const DEGTORAD = M_PI / 180.0; // Degrees to radians
+    public const RADTODEG = 180.0 / M_PI; // Radians to degrees
+    public const MIN2DEG = 1.0 / 60.0;    // Arcminutes to degrees
+
     // Visibility limits
     public const LOWEST_APP_ALT = -3.5;  // Lowest apparent altitude to calculate [Deg]
     public const BNIGHT = 1479.0;        // Sky brightness threshold [nL]
