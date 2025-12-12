@@ -7,7 +7,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 127/200+ implemented (64%)  
+**Core Functions**: 135/200+ implemented (68%)
 **Categories Complete**: 12/12 (100%) 🎉🎊✨
 
 ```
@@ -15,14 +15,15 @@ Planets & Calculation  ███████████████████
 Houses & Angles        ████████████████████  7/7   (100%)
 Sidereal & Ayanamsha   ████████████████████  6/6   (100%)
 Nodes & Apsides        ████████████████████  2/2   (100%)
-Rise/Set/Transit       ████████████████████  7/7   (100%) 🎉
+Rise/Set/Transit       ████████████████████  7/7   (100%)
+Crossings & Transits   ████████████████████  8/8   (100%) 🎉
 Time & Conversions     ████████████████████  11/11 (100%)
 Coordinate Transform   ████████████████████  7/7   (100%)
 Orbital Elements       ████████████████████  2/2   (100%)
 Stars & Fixed Objects  ████████████████████  11/11 (100%)
 Eclipses & Phenomena   ████████████████████  15/15 (100%)
 Heliacal Phenomena     ████████████████████  7/7   (100%)
-Misc Utilities         ████████████████████  24/24 (100%)
+Misc Utilities         ████████████████████  31/31 (100%) 🎉
 ```
 
 ### ✅ Implemented Functions
@@ -126,6 +127,26 @@ Misc Utilities         ███████████████████
 </details>
 
 <details>
+<summary><b>Crossings & Transits (8) 🎉 COMPLETE!</b></summary>
+
+- ✅ `swe_solcross` - Find when Sun crosses specified longitude (TT) **FULL PORT** ⭐
+- ✅ `swe_solcross_ut` - Sun longitude crossing (UT) **FULL PORT** ⭐
+- ✅ `swe_mooncross` - Find when Moon crosses specified longitude (TT) **FULL PORT** ⭐
+- ✅ `swe_mooncross_ut` - Moon longitude crossing (UT) **FULL PORT** ⭐
+- ✅ `swe_mooncross_node` - Moon crossing own node (TT) **FULL PORT** ⭐
+- ✅ `swe_mooncross_node_ut` - Moon crossing own node (UT) **FULL PORT** ⭐
+- ✅ `swe_helio_cross` - Planet crossing heliocentric longitude (TT) **FULL PORT** ⭐
+- ✅ `swe_helio_cross_ut` - Planet crossing heliocentric longitude (UT) **FULL PORT** ⭐
+
+**Features:**
+- ✨ High-precision crossing detection using bisection method
+- ✨ Supports forward & backward search (direction parameter)
+- ✨ Moon node crossings with longitude & latitude at crossing point
+- ✨ Heliocentric crossings for all major planets
+- ✨ All functions return Julian day of crossing event
+</details>
+
+<details>
 <summary><b>Time & Conversions (11)</b></summary>
 
 - ✅ `swe_julday` - Calendar to Julian Day
@@ -161,17 +182,39 @@ Misc Utilities         ███████████████████
 </details>
 
 <details>
-<summary><b>Misc Utilities (24)</b></summary>
+<summary><b>Misc Utilities (31) 🎉 COMPLETE!</b></summary>
 
 - ✅ `swe_deltat` - Delta-T (ΔT = TT - UT)
+- ✅ `swe_deltat_ex` - Delta-T with ephemeris selection
 - ✅ `swe_version` - Library version string
 - ✅ `swe_set_ephe_path` - Set ephemeris file path
 - ✅ `swe_close` - Cleanup (no-op for compatibility)
 - ✅ `swe_set_topo` - Set topocentric observer position
+- ✅ `swe_get_library_path` - Get library installation path
 - ✅ `swe_degnorm` - Normalize degrees to [0,360)
 - ✅ `swe_radnorm` - Normalize radians to [0,2π)
 - ✅ `swe_deg_midp` - Midpoint between two degrees
 - ✅ `swe_rad_midp` - Midpoint between two radians
+- ✅ `swe_difdegn` - Normalized difference between degrees
+- ✅ `swe_difdeg2n` - Normalized difference (shortest arc)
+- ✅ `swe_difrad2n` - Normalized radian difference
+- ✅ `swe_csnorm` - Normalize centiseconds
+- ✅ `swe_difcsn` - Centisecond difference
+- ✅ `swe_difcs2n` - Centisecond difference (shortest arc)
+- ✅ `swe_csroundsec` - Round centiseconds to seconds
+- ✅ `swe_cs2timestr` - Convert centiseconds to time string
+- ✅ `swe_cs2lonlatstr` - Convert centiseconds to longitude/latitude string
+- ✅ `swe_cs2degstr` - Convert centiseconds to degree string
+- ✅ `swe_d2l` - Convert double to long (centiseconds)
+- ✅ `swe_day_of_week` - Get day of week from Julian day
+- ✅ `swe_date_conversion` - Validate and convert calendar dates
+- ✅ `swe_get_tid_acc` - Get current tidal acceleration value
+- ✅ `swe_set_delta_t_userdef` - Set user-defined Delta-T
+- ✅ `swe_lmt_to_lat` - Convert Local Mean Time → Local Apparent Time
+- ✅ `swe_lat_to_lmt` - Convert Local Apparent Time → Local Mean Time
+- ✅ `swe_time_equ` - Equation of time (E = LAT - LMT)
+- ✅ `swe_cotrans` - Coordinate transformation (rotation around x-axis)
+- ✅ `swe_cotrans_sp` - Coordinate transformation with speeds
 - ✅ `swe_split_deg` - Split degrees to d°m's"
 - ✅ `swe_refrac` - Atmospheric refraction (Bennett)
 - ✅ `swe_refrac_extended` - Extended refraction model
