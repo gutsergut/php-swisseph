@@ -113,7 +113,8 @@ class GauquelinSectorFunctions
             $nutlo[1] *= Constants::RADTODEG;
 
             // Calculate ARMC (sidereal time at Greenwich + longitude)
-            $armc = swe_degnorm(swe_sidtime0($tUt, $eps + $nutlo[1], $nutlo[0]) * 15.0 + $geopos[0]);
+            // swe_sidtime0 requires 4 parameters: jdut, eps, nut, nut2 (nut2=0 for standard call)
+            $armc = swe_degnorm(swe_sidtime0($tUt, $eps + $nutlo[1], $nutlo[0], 0) * 15.0 + $geopos[0]);
 
             // Get position of star or planet
             if ($doFixstar) {
@@ -132,7 +133,8 @@ class GauquelinSectorFunctions
             }
 
             // Calculate Gauquelin sector using house position with 'G' system
-            $dgsect = swe_house_pos($armc, $geopos[1], $eps + $nutlo[1], 'G', $x0, null);
+            $houseErr = null;
+            $dgsect = swe_house_pos($armc, $geopos[1], $eps + $nutlo[1], 'G', $x0, $houseErr);
 
             return Constants::OK;
         }
