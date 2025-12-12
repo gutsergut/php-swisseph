@@ -23,7 +23,7 @@ echo "Test 1: Find next total eclipse after 2024-01-01\n";
 echo str_repeat('-', 70) . "\n";
 
 $tjdStart = swe_julday(2024, 1, 1, 0.0, Constants::SE_GREG_CAL);
-$tret = [];
+$tret = array_fill(0, 10, 0.0); // Must pre-allocate array
 $serr = '';
 
 $retflag = swe_sol_eclipse_when_glob(
@@ -41,11 +41,16 @@ if ($retflag === Constants::SE_ERR) {
 }
 
 // Convert to calendar date
-if ($tret[0] > 0) {
-    list($year, $month, $day, $hour) = swe_revjul($tret[0], Constants::SE_GREG_CAL);
-    $hours = floor($hour);
-    $minutes = floor(($hour - $hours) * 60);
-    $seconds = floor((($hour - $hours) * 60 - $minutes) * 60);
+if (isset($tret[0]) && $tret[0] > 0) {
+    $cal = swe_revjul($tret[0], Constants::SE_GREG_CAL);
+    $year = $cal['y'];
+    $month = $cal['m'];
+    $day = $cal['d'];
+    $hour = $cal['ut'];
+
+    $hours = (int)floor($hour);
+    $minutes = (int)floor(($hour - $hours) * 60);
+    $seconds = (int)floor((($hour - $hours) * 60 - $minutes) * 60);
 
     echo sprintf("Found eclipse at: %04d-%02d-%02d %02d:%02d:%02d UT\n",
         $year, $month, $day, $hours, $minutes, $seconds);
