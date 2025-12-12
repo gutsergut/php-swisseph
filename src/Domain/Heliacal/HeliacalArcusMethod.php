@@ -11,7 +11,7 @@ use Swisseph\ErrorCodes;
 /**
  * Heliacal event computation via Arcus Visionis method
  * Full port from swehel.c lines 2114-2451 (moon_event_arc_vis, heliacal_ut_arc_vis)
- * 
+ *
  * WITHOUT SIMPLIFICATIONS - complete C algorithm:
  * - Binary search for heliacal events using TopoArcVisionis
  * - Moon crescent visibility with phase checking
@@ -24,10 +24,10 @@ final class HeliacalArcusMethod
     /**
      * Moon event calculation using Arcus Visionis method
      * Port from swehel.c:2114-2209 (moon_event_arc_vis)
-     * 
+     *
      * Finds lunar crescent visibility (evening first or morning last)
      * by searching for minimum TAV around new moon.
-     * 
+     *
      * @param float $JDNDaysUTStart Starting JD in UT
      * @param array $dgeo Geographic position [lon, lat, height_m]
      * @param array $datm Atmospheric conditions [pressure_mbar, temp_C, RH, VR_km]
@@ -195,11 +195,11 @@ final class HeliacalArcusMethod
     /**
      * Heliacal event calculation using Arcus Visionis method
      * Port from swehel.c:2211-2451 (heliacal_ut_arc_vis)
-     * 
+     *
      * Main algorithm for finding heliacal rising/setting using AV method.
      * Uses variable step size (powers of 2) for coarse search, then
      * fine-tunes with VR (minimum TAV walk) or PTO (horizon crossing).
-     * 
+     *
      * @param float $JDNDaysUTStart Starting JD in UT
      * @param array $dgeo Geographic position [lon, lat, height_m]
      * @param array $datm Atmospheric conditions [pressure_mbar, temp_C, RH, VR_km]

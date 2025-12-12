@@ -10,7 +10,7 @@ use Swisseph\Swe;
 /**
  * Heliacal event computation via Visual Limiting Magnitude method
  * Full port from swehel.c lines 3043-3334 (get_acronychal_day, heliacal_ut_vis_lim, moon_event_vis_lim)
- * 
+ *
  * WITHOUT SIMPLIFICATIONS - complete C algorithm:
  * - VLM method using sky brightness and object magnitude
  * - Acronychal rising/setting detection via solar altitude thresholds
@@ -23,10 +23,10 @@ final class HeliacalVisLimitMethod
     /**
      * Get acronychal rising or setting day
      * Port from swehel.c:3043-3105 (get_acronychal_day)
-     * 
+     *
      * Finds the day when object rises/sets opposite to the sun
      * (solar altitude around -12° during astronomical twilight).
-     * 
+     *
      * @param float $tjd Starting JD in UT
      * @param array $dgeo Geographic position [lon, lat, height_m]
      * @param array $datm Atmospheric conditions [pressure_mbar, temp_C, RH, VR_km]
@@ -143,12 +143,12 @@ final class HeliacalVisLimitMethod
     /**
      * Heliacal event calculation using Visual Limiting Magnitude method
      * Port from swehel.c:3163-3247 (heliacal_ut_vis_lim)
-     * 
+     *
      * Main VLM algorithm:
      * 1. Find conjunction with Sun (or ascensio obliqua for stars)
      * 2. Find heliacal day using get_heliacal_day
      * 3. Calculate detailed visibility times (first/optimum/last)
-     * 
+     *
      * @param float $tjd_start Starting JD in UT
      * @param array $dgeo Geographic position [lon, lat, height_m]
      * @param array $datm Atmospheric conditions [pressure_mbar, temp_C, RH, VR_km]
@@ -253,13 +253,13 @@ final class HeliacalVisLimitMethod
     /**
      * Moon event calculation using Visual Limiting Magnitude method
      * Port from swehel.c:3249-3334 (moon_event_vis_lim)
-     * 
+     *
      * Finds lunar crescent visibility using VLM method:
      * 1. Find conjunction with Sun
      * 2. Find heliacal day
      * 3. Find t_optimum, t_first, t_last visibility
      * 4. Correct for sunrise/sunset if moon visible during day
-     * 
+     *
      * @param float $tjdstart Starting JD in UT
      * @param array $dgeo Geographic position [lon, lat, height_m]
      * @param array $datm Atmospheric conditions [pressure_mbar, temp_C, RH, VR_km]

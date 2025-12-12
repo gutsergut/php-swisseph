@@ -10,7 +10,7 @@ use Swisseph\State;
 /**
  * Heliacal rising/setting public API functions
  * Full port from swehel.c lines 3336-3512 (heliacal_ut, MoonEventJDut, swe_heliacal_ut)
- * 
+ *
  * WITHOUT SIMPLIFICATIONS - complete C algorithm:
  * - Dispatcher between AV (Arcus Visionis) and VLM (Visual Limiting Magnitude) methods
  * - Multi-synodic period search with configurable limits
@@ -23,9 +23,9 @@ final class HeliacalFunctions
     /**
      * Internal dispatcher: AV vs VLM method
      * Port from swehel.c:3336-3343 (heliacal_ut)
-     * 
+     *
      * Chooses calculation method based on SE_HELFLAG_AVKIND flags.
-     * 
+     *
      * @param float $JDNDaysUTStart Starting JD in UT
      * @param array $dgeo Geographic position [lon, lat, height_m]
      * @param array $datm Atmospheric conditions [pressure_mbar, temp_C, RH, VR_km]
@@ -79,7 +79,7 @@ final class HeliacalFunctions
     /**
      * Moon event dispatcher: AV vs VLM method
      * Port from swehel.c (MoonEventJDut - appears in comments but defined in code flow)
-     * 
+     *
      * @param float $JDNDaysUTStart Starting JD in UT
      * @param array $dgeo Geographic position [lon, lat, height_m]
      * @param array $datm Atmospheric conditions [pressure_mbar, temp_C, RH, VR_km]
@@ -129,14 +129,14 @@ final class HeliacalFunctions
     /**
      * PUBLIC API: Calculate heliacal rising/setting
      * Port from swehel.c:3435-3512 (swe_heliacal_ut)
-     * 
+     *
      * Complete implementation matching C API signature:
      * - Multi-synodic period search (default 5, max 20 with SE_HELFLAG_LONG_SEARCH)
      * - Automatic parameter defaults via defaultHeliacalParameters
      * - Topocentric setup via swe_set_topo
      * - Separate Moon/planet/star handling
      * - Event type validation per object type
-     * 
+     *
      * @param float $JDNDaysUTStart Starting JD in UT
      * @param array $dgeo Geographic position [lon°, lat°, height_m]
      *                    height must be between -1000 and 20000m

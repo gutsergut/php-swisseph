@@ -8,7 +8,9 @@ final class Constants
     public const SE_GREG_CAL = 1;
     // Error codes
     public const SE_OK = 0;    // success / no error
+    public const OK = 0;       // alias for heliacal modules compatibility
     public const SE_ERR = -1; // generic error code to mirror Swiss Ephemeris style
+    public const ERR = -1;     // alias for heliacal modules compatibility
 
     // Minimal subset of planet ids (Swiss Ephemeris compatible mapping)
     public const SE_SUN = 0;
@@ -347,5 +349,26 @@ final class Constants
     // Geographic altitude limits for eclipse calculations (from sweph.h:198-199)
     public const SEI_ECL_GEOALT_MAX = 25000.0;    // maximum altitude in meters
     public const SEI_ECL_GEOALT_MIN = -500.0;     // minimum altitude in meters
+
+    // Heliacal event flags (from swephexp.h:434-449 + heliacal module)
+    public const SE_HELFLAG_LONG_SEARCH = 128;          // Extended search period (up to 20 synodic periods)
+    public const SE_HELFLAG_HIGH_PRECISION = 256;       // High precision mode (use nutation)
+    public const SE_HELFLAG_OPTICAL_PARAMS = 512;       // Use optical instrument parameters (telescope)
+    public const SE_HELFLAG_NO_DETAILS = 1024;          // Don't return detailed data (t_optimum, t_last)
+    public const SE_HELFLAG_SEARCH_1_PERIOD = 2048;     // Search only 1 synodic period
+    public const SE_HELFLAG_VISLIM_DARK = 4096;         // Visibility limit for dark conditions
+    public const SE_HELFLAG_VISLIM_NOMOON = 8192;       // Visibility limit without moon
+    public const SE_HELFLAG_VISLIM_PHOTOPIC = 16384;    // Force photopic (light-adapted) vision
+    public const SE_HELFLAG_VISLIM_SCOTOPIC = 32768;    // Force scotopic (dark-adapted) vision
+    public const SE_HELFLAG_AV = 65536;                 // Use arcus visionis method
+    public const SE_HELFLAG_AVKIND_VR = 65536;          // Arcus visionis: VR method (minimum TAV walk)
+    public const SE_HELFLAG_AVKIND_PTO = 131072;        // Arcus visionis: PTO method (Ptolemaic horizon) (1 << 17)
+    public const SE_HELFLAG_AVKIND_MIN7 = 262144;       // Arcus visionis: MIN7 method (solar alt -7°) (1 << 18)
+    public const SE_HELFLAG_AVKIND_MIN9 = 524288;       // Arcus visionis: MIN9 method (solar alt -9°) (1 << 19)
+    public const SE_HELFLAG_AVKIND = 983040;            // All arcus visionis methods (VR|PTO|MIN7|MIN9)
+
+    // Heliacal event types (from internal code flow)
+    public const SE_ACRONYCHAL_RISING = 5;              // Acronychal rising (object rises as sun sets)
+    public const SE_ACRONYCHAL_SETTING = 6;             // Acronychal setting (object sets as sun rises)
 }
 

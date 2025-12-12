@@ -2427,14 +2427,14 @@ if (!function_exists('swe_heliacal_ut')) {
     /**
      * Calculate heliacal rising/setting events
      * Port from swehel.c:3435-3512 (swe_heliacal_ut)
-     * 
+     *
      * Full implementation WITHOUT SIMPLIFICATIONS:
      * - Multi-synodic period search (default 5, max 20)
      * - Both AV (Arcus Visionis) and VLM (Visual Limiting Magnitude) methods
      * - Complete atmospheric modeling (extinction, refraction, sky brightness)
      * - Observer physiology (age, Snellen ratio, scotopic/photopic vision)
      * - Separate handling for Moon, planets, and fixed stars
-     * 
+     *
      * @param float $JDNDaysUTStart Starting JD in UT
      * @param array $dgeo Geographic position [lon°, lat°, height_m]
      *                    height must be between -1000 and 20000m
@@ -2502,14 +2502,14 @@ if (!function_exists('swe_heliacal_pheno_ut')) {
     /**
      * Calculate heliacal phenomena details
      * Port from swehel.c (swe_heliacal_pheno_ut)
-     * 
+     *
      * Returns detailed visibility information at a specific time:
      * - Topocentric arcus visionis
      * - Best and worst visibility times
      * - Azimuth/altitude for object and Sun
      * - Moon parameters (Yallop q-test, crescent width/length)
      * - Atmospheric conditions (extinction, sky brightness)
-     * 
+     *
      * @param float $JDNDaysUT Julian day in UT
      * @param array $dgeo Geographic position [lon, lat, height_m]
      * @param array $datm Atmospheric conditions [pressure, temp, RH, VR]
@@ -2567,13 +2567,13 @@ if (!function_exists('swe_vis_limit_mag')) {
     /**
      * Calculate visual limiting magnitude
      * Port from swehel.c (swe_vis_limit_mag)
-     * 
+     *
      * Determines limiting magnitude based on:
      * - Sky brightness (astronomical twilight, Moon, light pollution)
      * - Observer parameters (age, Snellen ratio)
      * - Atmospheric extinction
      * - Optical parameters (if telescope used)
-     * 
+     *
      * @param float $JDNDaysUT Julian day in UT
      * @param array $dgeo Geographic position [lon, lat, height_m]
      * @param array $datm Atmospheric conditions [pressure, temp, RH, VR]
@@ -2614,10 +2614,10 @@ if (!function_exists('swe_heliacal_angle')) {
     /**
      * Calculate heliacal angle
      * Port from swehel.c (swe_heliacal_angle)
-     * 
+     *
      * Computes the arcus visionis (visibility arc) for an object at given
      * azimuth/altitude considering atmospheric and observer conditions.
-     * 
+     *
      * @param float $JDNDaysUT Julian day in UT
      * @param array $dgeo Geographic position [lon, lat, height_m]
      * @param array $datm Atmospheric conditions [pressure, temp, RH, VR]
@@ -2672,11 +2672,11 @@ if (!function_exists('swe_topo_arcus_visionis')) {
     /**
      * Calculate topocentric arcus visionis
      * Port from swehel.c (swe_topo_arcus_visionis)
-     * 
+     *
      * Computes the minimum altitude difference between object and Sun
      * required for visibility, considering topocentric position and
      * all atmospheric/observer factors.
-     * 
+     *
      * @param float $JDNDaysUT Julian day in UT
      * @param array $dgeo Geographic position [lon, lat, height_m]
      * @param array $datm Atmospheric conditions [pressure, temp, RH, VR]
