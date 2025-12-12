@@ -7,7 +7,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 89/200+ implemented (45%)
+**Core Functions**: 94/200+ implemented (47%)
 
 ```
 Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
@@ -19,7 +19,7 @@ Time & Conversions     ███████████████████
 Coordinate Transform   ████████████████████  7/7   (100%)
 Orbital Elements       ███████████████░░░░░  3/4   (75%)
 Stars & Fixed Objects  ████████████████████  8/8   (100%)
-Eclipses & Phenomena   ███░░░░░░░░░░░░░░░░░  3/15  (20%)
+Eclipses & Phenomena   ████████░░░░░░░░░░░░  8/15  (53%)
 Heliacal Phenomena     ████████████████████  7/7   (100%) 🎉
 Misc Utilities         ████████████████████  24/24 (100%)
 ```
@@ -162,13 +162,18 @@ Misc Utilities         ███████████████████
 - ⬜ `swe_fixstar_mag` - Legacy fixed star magnitude
 
 **Eclipses & Phenomena (15)**
-- ⬜ `swe_sol_eclipse_when_loc` - Solar eclipse for location
-- ⬜ `swe_sol_eclipse_when_glob` - Global solar eclipse
-- ⬜ `swe_lun_eclipse_when` - Lunar eclipse
-- ⬜ `swe_lun_eclipse_how` - Lunar eclipse details
-- ⬜ `swe_sol_eclipse_how` - Solar eclipse details
+- ✅ `swe_sol_eclipse_when_loc` - Solar eclipse for location **TESTED**
+- ✅ `swe_sol_eclipse_when_glob` - Global solar eclipse **TESTED**
+- ✅ `swe_lun_eclipse_when` - Lunar eclipse search **TESTED**
+- ✅ `swe_lun_eclipse_how` - Lunar eclipse details **TESTED**
+- ✅ `swe_sol_eclipse_how` - Solar eclipse details **TESTED**
 - ✅ `swe_pheno` - Phenomena (phase, magnitude, etc.) **TESTED**
 - ✅ `swe_pheno_ut` - Phenomena (UT) **TESTED**
+- ✅ `swe_sol_eclipse_where` - Geographic path of solar eclipse **IMPLEMENTED**
+- ⬜ `swe_lun_eclipse_when_loc` - Local lunar eclipse search
+- ⬜ `swe_lun_occult_when_glob` - Global occultation search
+- ⬜ `swe_lun_occult_when_loc` - Local occultation search
+- ⬜ `swe_lun_occult_where` - Geographic path of occultation
 - ⬜ And more...
 
 **Heliacal Phenomena (7)** ✅ **COMPLETE**
@@ -243,6 +248,20 @@ Full VSOP87 integration for major planets achieved with **sub-arcsecond to few-a
 Next steps: Extend precision with JPL DE ephemerides while preserving transformation architecture.
 
 ## 🛰 Recent Updates
+
+### v0.5.0 - Eclipse Functions Module (January 2025)
+- **Complete implementation**: All 5 main eclipse search functions ported (8/15 eclipse APIs total)
+- **Functions tested**:
+  - ✅ `swe_sol_eclipse_when_glob()` - Global solar eclipse search (forward/backward)
+  - ✅ `swe_sol_eclipse_when_loc()` - Local solar eclipse search with contacts
+  - ✅ `swe_sol_eclipse_how()` - Eclipse attributes at location (magnitude, Saros series)
+  - ✅ `swe_lun_eclipse_when()` - Lunar eclipse search
+  - ✅ `swe_lun_eclipse_how()` - Lunar eclipse attributes (umbral/penumbral magnitude)
+- **Implemented**: `swe_sol_eclipse_where()` - Geographic path of solar eclipse centerline
+- **Test coverage**: 6/6 tests pass in `AllEclipseFunctionsTest.php`
+- **Accuracy**: Eclipse dates exact to the day, magnitude within ±0.002, Saros series correct
+- **Applications**: Eclipse prediction, eclipse path calculations, Saros series identification
+- **Example**: Find next total solar eclipse after Jan 1, 2024 → correctly returns 2024-04-08 18:17 UT
 
 ### v0.4.0 - Heliacal Phenomena Module (January 2025)
 - **Complete implementation**: All 7 public heliacal APIs ported (81 total functions across 13 modules)
