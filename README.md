@@ -7,7 +7,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 82/200+ implemented (41%)
+**Core Functions**: 89/200+ implemented (45%)
 
 ```
 Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
@@ -20,7 +20,7 @@ Coordinate Transform   ███████████████████
 Orbital Elements       ███████████████░░░░░  3/4   (75%)
 Stars & Fixed Objects  ████████████████████  8/8   (100%)
 Eclipses & Phenomena   ███░░░░░░░░░░░░░░░░░  3/15  (20%)
-Heliacal Phenomena     ░░░░░░░░░░░░░░░░░░░░  0/8   (0%)
+Heliacal Phenomena     ████████████████████  7/7   (100%) 🎉
 Misc Utilities         ████████████████████  24/24 (100%)
 ```
 
@@ -171,11 +171,14 @@ Misc Utilities         ███████████████████
 - ✅ `swe_pheno_ut` - Phenomena (UT) **TESTED**
 - ⬜ And more...
 
-**Heliacal Phenomena (8)**
-- ⬜ `swe_heliacal_ut` - Heliacal events
-- ⬜ `swe_heliacal_pheno_ut` - Heliacal phenomena
-- ⬜ `swe_vis_limit_mag` - Visual limiting magnitude
-- ⬜ And more...
+**Heliacal Phenomena (7)** ✅ **COMPLETE**
+- ✅ `swe_heliacal_ut` - Heliacal rising/setting events
+- ✅ `swe_heliacal_pheno_ut` - Detailed heliacal phenomena (30-element array)
+- ✅ `swe_vis_limit_mag` - Visual limiting magnitude (Schaefer method)
+- ✅ `swe_heliacal_angle` - Heliacal angle calculation
+- ✅ `swe_topo_arcus_visionis` - Topocentric arcus visionis
+- ✅ Internal: 81 functions across 13 modules (100% C API compatible)
+- ✅ **Note**: All signatures use reference parameters (`&$param`) matching C API exactly
 
 **Additional Calculations**
 - ⬜ Osculating nodes/apsides (SE_NODBIT_OSCU)
@@ -189,7 +192,7 @@ Misc Utilities         ███████████████████
 
 ## 🌟 Features
 
-- ✅ **51 functions** ported with identical signatures to C API
+- ✅ **58 public API functions** ported with identical signatures to C API
 - ✅ **High accuracy**: Planetary positions within 100m, angles within 0.01°
 - ✅ **Complete coordinate systems**: Geocentric, heliocentric, barycentric
 - ✅ **Sidereal calculations**: All 47 ayanamsha modes with `SE_SIDBIT_*` options
@@ -199,6 +202,7 @@ Misc Utilities         ███████████████████
 - ✅ **Coordinate conversions**: Equatorial ↔ Ecliptic ↔ Horizontal transformations
 - ✅ **Time utilities**: Julian day conversions, ΔT (Delta-T), sidereal time (GMST/GAST)
 - ✅ **Refraction models**: True altitude, apparent altitude, Bennett's formula
+- ✅ **Heliacal phenomena**: Rising/setting events, visual limiting magnitude, arcus visionis
 - ✅ **Pure PHP**: No C extensions required, works on any PHP 8.1+ environment
 
 ## 🌓 High-Precision Moon (Q4 2025)
@@ -239,6 +243,15 @@ Full VSOP87 integration for major planets achieved with **sub-arcsecond to few-a
 Next steps: Extend precision with JPL DE ephemerides while preserving transformation architecture.
 
 ## 🛰 Recent Updates
+
+### v0.4.0 - Heliacal Phenomena Module (January 2025)
+- **Complete implementation**: All 7 public heliacal APIs ported (81 total functions across 13 modules)
+- **Functions**: `swe_heliacal_ut()`, `swe_heliacal_pheno_ut()`, `swe_vis_limit_mag()`, `swe_heliacal_angle()`, `swe_topo_arcus_visionis()`
+- **Critical architecture**: All signatures use reference parameters (`&$param`) matching C API exactly
+- **Applications**: Heliacal rising/setting calculations, visual limiting magnitude (Schaefer), arcus visionis (TAV)
+- **Methods**: Arcus Visionis (AV) and Visual Limiting Magnitude (VLM) calculation methods
+- **Accuracy targets**: Event dates ±1 day, limiting magnitude ±0.5 mag
+- **Documentation**: See `docs/HELIACAL.md` for detailed API reference
 
 ### v0.3.0 - Coordinate Transformation Fixes (January 2025)
 - **Critical fix**: `swe_cotrans()` now correctly works with polar coordinates (was using cartesian)
