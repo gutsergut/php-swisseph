@@ -7,10 +7,10 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 98/200+ implemented (49%)
+**Core Functions**: 106/200+ implemented (53%)
 
 ```
-Planets & Calculation  ████████░░░░░░░░░░░░  8/20  (40%)
+Planets & Calculation  ████████████████░░░░  16/28 (57%)
 Houses & Angles        ████████████████████  5/5   (100%)
 Sidereal & Ayanamsha   ████████████████████  6/6   (100%)
 Nodes & Apsides        ████████░░░░░░░░░░░░  2/5   (40%)
@@ -27,11 +27,19 @@ Misc Utilities         ███████████████████
 ### ✅ Implemented Functions
 
 <details>
-<summary><b>Planets & Calculation (8)</b></summary>
+<summary><b>Planets & Calculation (16)</b></summary>
 
-- ✅ `swe_calc` - Calculate planet positions (TT)
-- ✅ `swe_calc_ut` - Calculate planet positions (UT)
-- ✅ `swe_get_planet_name` - Get planet name by index
+- ✅ `swe_calc` - Calculate planet positions (TT) **TESTED**
+- ✅ `swe_calc_ut` - Calculate planet positions (UT) **TESTED**
+- ✅ `swe_get_planet_name` - Get planet name by index **TESTED**
+- ✅ `swe_solcross` - Find when Sun crosses longitude (TT) **TESTED**
+- ✅ `swe_solcross_ut` - Sun crossing (UT) **TESTED**
+- ✅ `swe_mooncross` - Find when Moon crosses longitude (TT) **TESTED**
+- ✅ `swe_mooncross_ut` - Moon crossing (UT) **TESTED**
+- ✅ `swe_mooncross_node` - Find when Moon crosses node (TT) **TESTED**
+- ✅ `swe_mooncross_node_ut` - Moon node crossing (UT) **TESTED**
+- ✅ `swe_helio_cross` - Heliocentric longitude crossing (TT) **TESTED**
+- ✅ `swe_helio_cross_ut` - Heliocentric crossing (UT) **TESTED**
 - ✅ Internal: Moshier planetary algorithms (Sun, Moon, Mercury-Pluto)
 - ✅ Internal: **VSOP87 integration** for major planets (Mercury-Neptune) - **sub-arcsecond to few-arcsecond accuracy!**
 - ✅ Internal: Light-time correction scaffolding
