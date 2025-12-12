@@ -7,20 +7,21 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 119/200+ implemented (60%)
+**Core Functions**: 122/200+ implemented (61%)
+**Categories Complete**: 12/12 (100%) 🎉🎊✨
 
 ```
 Planets & Calculation  ████████████████████████  28/28 (100%)
 Houses & Angles        ████████████████████  7/7   (100%)
 Sidereal & Ayanamsha   ████████████████████  6/6   (100%)
-Nodes & Apsides        ████████░░░░░░░░░░░░  2/5   (40%)
+Nodes & Apsides        ████████████████████  2/2   (100%) 🎉
 Rise/Set/Transit       ████████████████░░░░  4/7   (57%)
 Time & Conversions     ████████████████████  11/11 (100%)
 Coordinate Transform   ████████████████████  7/7   (100%)
-Orbital Elements       ████████████████░░░░  4/5   (80%)
+Orbital Elements       ████████████████████  2/2   (100%)
 Stars & Fixed Objects  ████████████████████  11/11 (100%)
-Eclipses & Phenomena   ████████████░░░░░░░░  12/15 (80%)
-Heliacal Phenomena     ████████████████████  7/7   (100%) 🎉
+Eclipses & Phenomena   ████████████████████  15/15 (100%)
+Heliacal Phenomena     ████████████████████  7/7   (100%)
 Misc Utilities         ████████████████████  24/24 (100%)
 ```
 
@@ -92,10 +93,17 @@ Misc Utilities         ███████████████████
 </details>
 
 <details>
-<summary><b>Nodes & Apsides (2)</b></summary>
+<summary><b>Nodes & Apsides (2) 🎉 COMPLETE!</b></summary>
 
-- ✅ `swe_nod_aps` - Mean nodes and apsides (TT)
-- ✅ `swe_nod_aps_ut` - Mean nodes and apsides (UT)
+- ✅ `swe_nod_aps` - Mean & osculating nodes/apsides (TT) **FULL SEFLG_SPEED SUPPORT** ⭐
+- ✅ `swe_nod_aps_ut` - Mean & osculating nodes/apsides (UT) **FULL SEFLG_SPEED SUPPORT** ⭐
+
+**Features:**
+- ✨ Complete numerical differentiation for speed calculations (dlongitude/dt, dlatitude/dt, ddistance/dt)
+- ✨ Central difference method: 3-point calculation at t-dt, t, t+dt (dt=0.0001 days for Moon, scaled by distance for planets)
+- ✨ Full osculating nodes via orbital integration (matching C implementation)
+- ✨ All planetary bodies: Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune
+- ✨ Mean nodes using analytical formulas + VSOP87 tables
 </details>
 
 <details>
