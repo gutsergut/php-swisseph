@@ -186,7 +186,7 @@ Misc Utilities         ███████████████████
 - ✅ `swe_fixstar_ut` - Legacy fixed star (UT) **TESTED**
 - ✅ `swe_fixstar_mag` - Legacy fixed star magnitude **TESTED**
 
-**Eclipses & Phenomena (15)**
+**Eclipses & Phenomena (15)** 🎉 **COMPLETE**
 - ✅ `swe_sol_eclipse_when_loc` - Solar eclipse for location **TESTED**
 - ✅ `swe_sol_eclipse_when_glob` - Global solar eclipse **TESTED**
 - ✅ `swe_lun_eclipse_when` - Lunar eclipse search **TESTED**
@@ -199,7 +199,9 @@ Misc Utilities         ███████████████████
 - ✅ `swe_lun_occult_when_glob` - Global occultation search **SMOKE TESTED**
 - ✅ `swe_lun_occult_when_loc` - Local occultation search **SMOKE TESTED**
 - ✅ `swe_lun_occult_where` - Geographic path of occultation **SMOKE TESTED**
-- ⬜ And more...
+- ✅ `swe_gauquelin_sector` - Gauquelin sector position (36 sectors) **TESTED**
+- ✅ `swe_refrac` - Atmospheric refraction (Bennett/Saemundsson) **TESTED**
+- ✅ `swe_refrac_extended` - Extended refraction with lapse rate **TESTED**
 
 **Heliacal Phenomena (7)** ✅ **COMPLETE**
 - ✅ `swe_heliacal_ut` - Heliacal rising/setting events
