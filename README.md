@@ -7,11 +7,12 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**C API Coverage**: 100/106 functions (**94.3%**) 🎉  
-**PHP Functions**: 113 (includes wrappers & utilities)  
+**C API Coverage**: 100/106 functions (**94.3%**) 🎉
+**PHP Functions**: 113 unique exports (143 total with duplicates)
 **Categories Complete**: 13/13 (**100%**) 🎉🎊✨
+**Test Files**: 142+ tests covering all critical functions
 
-**Detailed audit**: See [AUDIT_REPORT.md](AUDIT_REPORT.md) and [FUNCTION_MAPPING.md](FUNCTION_MAPPING.md)
+**Detailed audit**: See [FUNCTION_AUDIT.md](FUNCTION_AUDIT.md)
 
 ```
 Planets & Calculation  ████████████████████████  28/28 (100%)
@@ -41,6 +42,8 @@ Misc Utilities         ███████████████████
 - ✅ `swe_pheno_ut` - Planetary phenomena (UT) **TESTED**
 - ✅ `swe_get_planet_name` - Get planet name by index **TESTED**
 - ✅ `swe_get_current_file_data` - Get ephemeris file metadata **FULL PORT** ⭐
+
+**Test Coverage**: 17+ test files (all planets Mercury-Neptune), smoke tests, accuracy tests
 - ✅ `swe_get_library_path` - Get library path **STUB**
 - ✅ `swe_version` - Get library version **STUB**
 - ✅ `swe_close` - Close Swiss Ephemeris **NO-OP**
@@ -78,10 +81,12 @@ Misc Utilities         ███████████████████
 - ✅ `swe_houses_armc_ex2` - Calculate houses from ARMC with speeds
 - ✅ `swe_house_pos` - Find house position of planet
 - ✅ `swe_house_name` - Get house system name
+
+**Test Coverage**: 8+ test files (HousesTest, Koch, Equal, Parity, APC house position)
 </details>
 
 <details>
-<summary><b>Sidereal & Ayanamsha (10)</b></summary>
+<summary><b>Sidereal & Ayanamsha (11) 🎉 COMPLETE!</b></summary>
 
 - ✅ `swe_set_sid_mode` - Set sidereal mode (47 ayanamshas)
 - ✅ `swe_get_ayanamsa` - Get ayanamsha (UT)
@@ -94,6 +99,8 @@ Misc Utilities         ███████████████████
 - ✅ `swe_time_equ` - Equation of time
 - ✅ `swe_lmt_to_lat` - Local Mean Time → Local Apparent Time
 - ✅ `swe_lat_to_lmt` - Local Apparent Time → Local Mean Time
+
+**Test Coverage**: 5+ test files (SiderealTest, Ayanamsha, Time, Bits, FixedStar)
 </details>
 
 <details>
@@ -252,17 +259,23 @@ Misc Utilities         ███████████████████
 ### 🚧 Planned Functions
 
 <details>
-<summary><b>Not Yet Implemented (149+)</b></summary>
+<summary><b>Stars & Fixed Objects (6) 🎉 COMPLETE!</b></summary>
 
-**Stars & Fixed Objects (5)**
-- ✅ `swe_fixstar2` - Fixed star positions with full transformations
-- ✅ `swe_fixstar2_ut` - Fixed star v2 (UT)
-- ✅ `swe_fixstar2_mag` - Fixed star v2 magnitude
+**New API (faster, 10-100x)**
+- ✅ `swe_fixstar2` - Fixed star positions with full transformations **TESTED**
+- ✅ `swe_fixstar2_ut` - Fixed star v2 (UT) **TESTED**
+- ✅ `swe_fixstar2_mag` - Fixed star v2 magnitude **TESTED**
 
-**Legacy Star Functions (3)**
+**Legacy API (compatibility)**
 - ✅ `swe_fixstar` - Legacy fixed star API **TESTED**
 - ✅ `swe_fixstar_ut` - Legacy fixed star (UT) **TESTED**
 - ✅ `swe_fixstar_mag` - Legacy fixed star magnitude **TESTED**
+
+**Test Coverage**: 4+ test files (LegacyFixstar, Fixstar2Api, Smoke, SiderealFixedStar)
+</details>
+
+<details>
+<summary><b>Not Yet Implemented (6 functions from extended C API)</b></summary>
 
 **Eclipses & Phenomena (15)** 🎉 **COMPLETE**
 - ✅ `swe_sol_eclipse_when_loc` - Solar eclipse for location **TESTED**
@@ -281,14 +294,18 @@ Misc Utilities         ███████████████████
 - ✅ `swe_refrac` - Atmospheric refraction (Bennett/Saemundsson) **TESTED**
 - ✅ `swe_refrac_extended` - Extended refraction with lapse rate **TESTED**
 
-**Heliacal Phenomena (7)** ✅ **COMPLETE**
-- ✅ `swe_heliacal_ut` - Heliacal rising/setting events
-- ✅ `swe_heliacal_pheno_ut` - Detailed heliacal phenomena (30-element array)
-- ✅ `swe_vis_limit_mag` - Visual limiting magnitude (Schaefer method)
-- ✅ `swe_heliacal_angle` - Heliacal angle calculation
-- ✅ `swe_topo_arcus_visionis` - Topocentric arcus visionis
-- ✅ Internal: 81 functions across 13 modules (100% C API compatible)
-- ✅ **Note**: All signatures use reference parameters (`&$param`) matching C API exactly
+**Heliacal Phenomena (5)** 🎉 **COMPLETE**
+- ✅ `swe_heliacal_ut` - Heliacal rising/setting events **TESTED**
+- ✅ `swe_heliacal_pheno_ut` - Detailed heliacal phenomena (30-element array) **TESTED**
+- ✅ `swe_vis_limit_mag` - Visual limiting magnitude (Schaefer method) **TESTED**
+- ✅ `swe_heliacal_angle` - Heliacal angle calculation **TESTED**
+- ✅ `swe_topo_arcus_visionis` - Topocentric arcus visionis **TESTED**
+
+**Features:**
+- ✨ Complete port of 81 internal functions across 13 modules
+- ✨ Schaefer visibility algorithm with atmospheric extinction
+- ✨ All signatures use reference parameters (`&$param`) matching C API
+- ✨ Full integration with planetary calculations
 
 **Additional Calculations**
 - ✅ Osculating nodes/apsides (SE_NODBIT_OSCU) **IMPLEMENTED** (tests: 3/5 pass)

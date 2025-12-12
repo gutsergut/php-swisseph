@@ -1,7 +1,7 @@
 # Swiss Ephemeris - Полное сопоставление функций C API → PHP
 
-**Дата**: 13 декабря 2025 г.  
-**C API**: Swiss Ephemeris v2.10.03  
+**Дата**: 13 декабря 2025 г.
+**C API**: Swiss Ephemeris v2.10.03
 **PHP Port**: v0.8.0
 
 ## Легенда статусов
