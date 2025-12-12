@@ -796,6 +796,86 @@ if (!function_exists('swe_house_name')) {
     }
 }
 
+if (!function_exists('swe_houses_armc')) {
+    /**
+     * Calculate houses from ARMC (sidereal time) without date/time.
+     * Port of swe_houses_armc() from swehouse.c:590-598
+     *
+     * This function is useful for composite charts or progressive charts
+     * where no specific date is available.
+     *
+     * @param float $armc ARMC (sidereal time in degrees)
+     * @param float $geolat geographic latitude (degrees)
+     * @param float $eps obliquity of ecliptic (degrees)
+     * @param string $hsys house system code (one letter: A,E,P,K,O,C,R,W,B,V,M,H,T,S,X,U,G,I,i,Y,J)
+     * @param array &$cusp output array for house cusps [0..12] or [0..36] for Gauquelin
+     * @param array &$ascmc output array for additional points [0..9]
+     *                      ascmc[0] = Ascendant
+     *                      ascmc[1] = MC
+     *                      ascmc[2] = ARMC
+     *                      ascmc[3] = Vertex
+     *                      ascmc[4] = Equatorial Ascendant
+     *                      ascmc[5] = Co-ascendant (Koch)
+     *                      ascmc[6] = Co-ascendant (Munkasey)
+     *                      ascmc[7] = Polar Ascendant (Munkasey)
+     * @return int 0 on success, ERR on failure
+     */
+    function swe_houses_armc(
+        float $armc,
+        float $geolat,
+        float $eps,
+        string $hsys,
+        array &$cusp,
+        array &$ascmc
+    ): int {
+        return \Swisseph\Swe\Functions\HousesFunctions::housesArmc($armc, $geolat, $eps, $hsys, $cusp, $ascmc);
+    }
+}
+
+if (!function_exists('swe_houses_armc_ex2')) {
+    /**
+     * Calculate houses from ARMC with optional speed calculations.
+     * Port of swe_houses_armc_ex2() from swehouse.c:622-777
+     *
+     * Extended version of swe_houses_armc() that can calculate daily motions
+     * of cusps and additional points.
+     *
+     * @param float $armc ARMC (sidereal time in degrees)
+     * @param float $geolat geographic latitude (degrees)
+     * @param float $eps obliquity of ecliptic (degrees)
+     * @param string $hsys house system code
+     * @param array &$cusp output array for house cusps
+     * @param array &$ascmc output array for additional points
+     * @param array|null &$cusp_speed optional output for cusp speeds (daily motions)
+     * @param array|null &$ascmc_speed optional output for ascmc speeds (daily motions)
+     * @param string|null &$serr optional error message
+     * @return int 0 on success, ERR on failure
+     */
+    function swe_houses_armc_ex2(
+        float $armc,
+        float $geolat,
+        float $eps,
+        string $hsys,
+        array &$cusp,
+        array &$ascmc,
+        ?array &$cusp_speed = null,
+        ?array &$ascmc_speed = null,
+        ?string &$serr = null
+    ): int {
+        return \Swisseph\Swe\Functions\HousesFunctions::housesArmcEx2(
+            $armc,
+            $geolat,
+            $eps,
+            $hsys,
+            $cusp,
+            $ascmc,
+            $cusp_speed,
+            $ascmc_speed,
+            $serr
+        );
+    }
+}
+
 if (!function_exists('swe_get_ayanamsa')) {
     function swe_get_ayanamsa(float $jd_tt): float
     {

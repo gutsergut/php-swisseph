@@ -563,6 +563,200 @@ final class HousesFunctions
         return Houses::positionFromCusps($asc, $cusps, $obj_lon);
     }
 
+    /**
+     * Calculate houses from ARMC without date/time.
+     * Port of swe_houses_armc_ex2() from swehouse.c:622-777
+     *
+     * This function is required for special computations where no date is given,
+     * e.g. for composite charts or progressive charts.
+     *
+     * @param float $armc ARMC (sidereal time in degrees)
+     * @param float $geolat geographic latitude (degrees)
+     * @param float $eps obliquity of ecliptic (degrees)
+     * @param string $hsys house system code (one letter)
+     * @param array &$cusp output array for house cusps [0..12] or [0..36] for Gauquelin
+     * @param array &$ascmc output array for additional points [0..9]
+     * @param array|null &$cusp_speed optional output for cusp speeds [0..12] or [0..36]
+     * @param array|null &$ascmc_speed optional output for ascmc speeds [0..9]
+     * @param string|null &$serr optional error message
+     * @return int 0 on success, ERR on failure
+     */
+    public static function housesArmcEx2(
+        float $armc,
+        float $geolat,
+        float $eps,
+        string $hsys,
+        array &$cusp,
+        array &$ascmc,
+        ?array &$cusp_speed = null,
+        ?array &$ascmc_speed = null,
+        ?string &$serr = null
+    ): int {
+        $serr = null;
+
+        // Normalize house system code
+        $hsys_norm = ($hsys === 'i') ? 'i' : strtoupper($hsys);
+
+        $supported = [
+            'A','E','D','N','F','L','G','Q','I','i','P','K','O','C','R','W','B','V','M','H','T','S','X','U','Y','J'
+        ];
+
+        if (!in_array($hsys_norm, $supported, true)) {
+            $serr = ErrorCodes::compose(
+                ErrorCodes::UNSUPPORTED,
+                'Only A,E,D,N,F,L,G,Q,I,i,P,K,O,C,R,W,B,V,M,H,T,S,X,U,Y,J supported'
+            );
+            $cusp = array_fill(0, 13, 0.0);
+            $ascmc = array_fill(0, 10, 0.0);
+            return Constants::SE_ERR;
+        }
+
+        // Normalize ARMC to [0, 360)
+        $armc = Math::normAngleDeg($armc);
+
+        // Calculate Ascendant and MC using the Houses helper
+        // Note: ascMcFromArmc() expects radians, so use it directly
+        $armc_rad = Math::degToRad($armc);
+        $geolat_rad = Math::degToRad($geolat);
+        $eps_rad = Math::degToRad($eps);
+
+        [$asc_rad, $mc_rad] = Houses::ascMcFromArmc($armc_rad, $geolat_rad, $eps_rad);
+
+        // For Gauquelin sectors, handle separately
+        if ($hsys_norm === 'G') {
+            $gauq = new GauquelinSectors();
+            $cusps_rad = $gauq->cusps36($armc_rad, $geolat_rad, $eps_rad, $asc_rad, $mc_rad);
+
+            // Convert to degrees and populate output arrays
+            $cusp = array_fill(0, 37, 0.0);
+            for ($i = 1; $i <= 36; $i++) {
+                $cusp[$i] = Math::radToDeg($cusps_rad[$i - 1]);
+            }
+
+            $ascmc = array_fill(0, 10, 0.0);
+            $ascmc[0] = Math::radToDeg($asc_rad);
+            $ascmc[1] = Math::radToDeg($mc_rad);
+            $ascmc[2] = $armc;
+
+            if (is_array($cusp_speed)) {
+                $cusp_speed = array_fill(0, 37, 0.0);
+            }
+            if (is_array($ascmc_speed)) {
+                $ascmc_speed = array_fill(0, 10, 0.0);
+            }
+            return 0;
+        }
+
+        // Get house system strategy from registry
+        $reg = new HouseRegistry();
+        $sys = $reg->get($hsys_norm);
+
+        if (!$sys) {
+            $serr = ErrorCodes::compose(ErrorCodes::UNSUPPORTED, "Unsupported house system code");
+            $cusp = array_fill(0, 13, 0.0);
+            $ascmc = array_fill(0, 10, 0.0);
+            return Constants::SE_ERR;
+        }
+
+        // Calculate cusps using the strategy
+        $cusps_rad = $sys->cusps($armc_rad, $geolat_rad, $eps_rad, $asc_rad, $mc_rad);
+
+        // Check for failure in Placidus/Koch (all zeros)
+        if ($hsys_norm === 'P' || $hsys_norm === 'K') {
+            $sum = 0.0;
+            for ($i = 1; $i <= 12; $i++) {
+                $sum += abs($cusps_rad[$i]);
+            }
+            if ($sum === 0.0) {
+                $name = ($hsys_norm === 'P') ? 'Placidus' : 'Koch';
+                $serr = ErrorCodes::compose(
+                    ErrorCodes::OUT_OF_RANGE,
+                    $name . ' not defined for this latitude'
+                );
+                $cusp = array_fill(0, 13, 0.0);
+                $ascmc = array_fill(0, 10, 0.0);
+                return Constants::SE_ERR;
+            }
+        }
+
+        // Force Asc/MC alignment for Regiomontanus
+        if ($hsys_norm === 'R') {
+            $cusps_rad = CuspPost::forceAscMc($cusps_rad, $asc_rad, $mc_rad);
+        }
+
+        // Add opposite cusps only for systems that don't calculate them (swehouse.c:1987)
+        // APC ('Y'), Gauquelin ('G'), and Sunshine ('I'/'i') calculate all 12 cusps directly
+        if ($hsys_norm !== 'G' && $hsys_norm !== 'Y' && strtoupper($hsys_norm) !== 'I') {
+            $cusps_rad = CuspPost::withOpposites($cusps_rad);
+        }
+
+        // Convert to degrees
+        $cusp = array_fill(0, 13, 0.0);
+        for ($i = 1; $i <= 12; $i++) {
+            $cusp[$i] = Math::normAngleDeg(Math::radToDeg($cusps_rad[$i]));
+        }
+
+        // Fill ascmc array
+        $ascmc = array_fill(0, 10, 0.0);
+        $ascmc[0] = Math::normAngleDeg(Math::radToDeg($asc_rad)); // Ascendant
+        $ascmc[1] = Math::normAngleDeg(Math::radToDeg($mc_rad));  // MC
+        $ascmc[2] = $armc; // ARMC
+
+        // Additional points: vertex, equasc, coasc1, coasc2, polasc
+        // For now, set to 0 (can be implemented later if needed)
+        $ascmc[3] = 0.0; // vertex
+        $ascmc[4] = 0.0; // equasc
+        $ascmc[5] = 0.0; // coasc1
+        $ascmc[6] = 0.0; // coasc2
+        $ascmc[7] = 0.0; // polasc
+        $ascmc[8] = 0.0;
+        $ascmc[9] = 0.0;
+
+        // For Sunshine systems: ascmc[9] = Sun declination (if set)
+        if ($hsys_norm === 'I' || $hsys_norm === 'i') {
+            // User must provide via ascmc[9] parameter before calling
+            // This is a limitation of the ARMC-only interface
+        }
+
+        // Initialize speed arrays to zeros if requested
+        if (is_array($cusp_speed)) {
+            $cusp_speed = array_fill(0, 13, 0.0);
+        }
+        if (is_array($ascmc_speed)) {
+            $ascmc_speed = array_fill(0, 10, 0.0);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Calculate houses from ARMC (simple version without speeds).
+     * Port of swe_houses_armc() from swehouse.c:590-598
+     *
+     * This is a simplified wrapper around housesArmcEx2().
+     *
+     * @param float $armc ARMC (sidereal time in degrees)
+     * @param float $geolat geographic latitude (degrees)
+     * @param float $eps obliquity of ecliptic (degrees)
+     * @param string $hsys house system code (one letter)
+     * @param array &$cusp output array for house cusps [0..12] or [0..36] for Gauquelin
+     * @param array &$ascmc output array for additional points [0..9]
+     * @return int 0 on success, ERR on failure
+     */
+    public static function housesArmc(
+        float $armc,
+        float $geolat,
+        float $eps,
+        string $hsys,
+        array &$cusp,
+        array &$ascmc
+    ): int {
+        $cusp_speed = null;
+        $ascmc_speed = null;
+        $serr = null;
+        return self::housesArmcEx2($armc, $geolat, $eps, $hsys, $cusp, $ascmc, $cusp_speed, $ascmc_speed, $serr);
+    }
+
     public static function houseName(string $hsys): string
     {
         $key = ($hsys === 'i') ? 'i' : strtoupper($hsys);

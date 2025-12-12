@@ -160,7 +160,7 @@ final class Houses
      * @param float $cose cos(obliquity)
      * @return float ecliptic longitude (degrees)
      */
-    private static function asc1(float $x1, float $f, float $sine, float $cose): float
+    public static function asc1(float $x1, float $f, float $sine, float $cose): float
     {
         $VERY_SMALL = 1e-10; // from swehouse.h:87
         $x1 = Math::normAngleDeg($x1);
@@ -240,7 +240,7 @@ final class Houses
      * @param float $eps_rad obliquity in radians
      * @return float MC in degrees
      */
-    private static function armcToMc(float $armc_deg, float $eps_rad): float
+    public static function armcToMc(float $armc_deg, float $eps_rad): float
     {
         $VERY_SMALL = 1e-10;
         $armc_deg = Math::normAngleDeg($armc_deg);
