@@ -39,6 +39,7 @@ use Swisseph\Swe\Functions\LunarEclipseWhenFunctions;
 use Swisseph\Swe\Functions\LunarEclipseWhenLocFunctions;
 use Swisseph\Swe\Functions\LunarOccultationWhenGlobFunctions;
 use Swisseph\Swe\Functions\SolarEclipseWhereFunctions;
+use Swisseph\Swe\Functions\GauquelinSectorFunctions;
 
 if (!function_exists('swe_julday')) {
     /**
@@ -2127,6 +2128,73 @@ if (!function_exists('swe_lun_occult_when_loc')) {
             $tret,
             $attr,
             $backward,
+            $serr
+        );
+    }
+}
+
+if (!function_exists('swe_gauquelin_sector')) {
+    /**
+     * Calculate Gauquelin sector position of a planet or fixed star
+     *
+     * Port of C function: int32 swe_gauquelin_sector(double t_ut, int32 ipl, char *starname, int32 iflag, int32 imeth, double *geopos, double atpress, double attemp, double *dgsect, char *serr)
+     *
+     * Gauquelin sectors are a system of 36 sectors based on the diurnal rotation
+     * of celestial bodies, used in statistical astrology studies by Michel Gauquelin.
+     *
+     * Sectors are numbered 1-36:
+     * - Sectors 1-18: from rise to set (above horizon)
+     * - Sectors 19-36: from set to rise (below horizon)
+     * - Sector 1: rise point
+     * - Sector 10: upper culmination (MC)
+     * - Sector 19: set point
+     * - Sector 28: lower culmination (IC)
+     *
+     * @param float $t_ut Time in Julian days (UT)
+     * @param int $ipl Planet number (SE_SUN, SE_MOON, etc.) - ignored if starname is given
+     * @param string|null $starname Fixed star name, or null/empty for planets
+     * @param int $iflag Ephemeris flags (SEFLG_SWIEPH | SEFLG_TOPOCTR, etc.)
+     * @param int $imeth Method for calculation:
+     *   - 0: Use Placidus house position with latitude
+     *   - 1: Use Placidus house position without latitude (lat=0)
+     *   - 2: Use rise/set of disc center (no refraction)
+     *   - 3: Use rise/set of disc center (with refraction)
+     *   - 4: Use rise/set without refraction (same as 2)
+     * @param array $geopos Geographic position [longitude, latitude, height]:
+     *   - geopos[0]: longitude in degrees (east positive)
+     *   - geopos[1]: latitude in degrees (north positive)
+     *   - geopos[2]: height in meters above sea level
+     * @param float $atpress Atmospheric pressure in mbar (only for imeth=3)
+     *   - 0 = use default 1013.25 mbar
+     *   - If height > 0 and atpress=0, pressure is estimated
+     * @param float $attemp Atmospheric temperature in °C (only for imeth=3)
+     * @param float &$dgsect Output: Gauquelin sector position (1.0 to 37.0)
+     *   - 0.0 = error (circumpolar body without rise/set)
+     * @param string|null &$serr Error message
+     * @return int OK (0) on success, ERR (-1) on error
+     */
+    function swe_gauquelin_sector(
+        float $t_ut,
+        int $ipl,
+        ?string $starname,
+        int $iflag,
+        int $imeth,
+        array $geopos,
+        float $atpress,
+        float $attemp,
+        float &$dgsect,
+        ?string &$serr = null
+    ): int {
+        return GauquelinSectorFunctions::gauquelinSector(
+            $t_ut,
+            $ipl,
+            $starname,
+            $iflag,
+            $imeth,
+            $geopos,
+            $atpress,
+            $attemp,
+            $dgsect,
             $serr
         );
     }
