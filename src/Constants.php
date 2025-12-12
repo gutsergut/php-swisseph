@@ -26,6 +26,15 @@ final class Constants
     public const SE_MEAN_APOG = 12;
     public const SE_OSCU_APOG = 13;
     public const SE_EARTH = 14;
+    public const SE_CHIRON = 15;
+    public const SE_PHOLUS = 16;
+    public const SE_CERES = 17;
+    public const SE_PALLAS = 18;
+    public const SE_JUNO = 19;
+    public const SE_VESTA = 20;
+    public const SE_INTP_APOG = 21;  // Interpolated lunar apogee
+    public const SE_INTP_PERG = 22;  // Interpolated lunar perigee
+    public const SE_NPLANETS = 23;   // Number of planets
 
     // Special calculation object for ecliptic and nutation (swephexp.h:99)
     public const SE_ECL_NUT = -1;

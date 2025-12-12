@@ -40,6 +40,7 @@ use Swisseph\Swe\Functions\LunarEclipseWhenLocFunctions;
 use Swisseph\Swe\Functions\LunarOccultationWhenGlobFunctions;
 use Swisseph\Swe\Functions\SolarEclipseWhereFunctions;
 use Swisseph\Swe\Functions\GauquelinSectorFunctions;
+use Swisseph\Swe\Functions\CrossingFunctions;
 
 if (!function_exists('swe_julday')) {
     /**
@@ -2197,5 +2198,219 @@ if (!function_exists('swe_gauquelin_sector')) {
             $dgsect,
             $serr
         );
+    }
+}
+
+if (!function_exists('swe_solcross')) {
+    /**
+     * Compute Sun's crossing over some longitude (Ephemeris Time)
+     *
+     * Port of C function: double swe_solcross(double x2cross, double jd_et, int flag, char *serr)
+     *
+     * Finds the next time when the Sun crosses a specified ecliptic longitude.
+     * The returned time is in Ephemeris Time (ET/TT).
+     *
+     * @param float $x2cross Longitude to cross (degrees, 0-360)
+     * @param float $jd_et Starting Julian day (Ephemeris Time)
+     * @param int $flag Calculation flags:
+     *   - SEFLG_HELCTR: 0=geocentric Sun, 1=heliocentric Earth
+     *   - SEFLG_TRUEPOS: 0=apparent positions, 1=true positions
+     *   - SEFLG_NONUT: 0=with nutation, 1=without nutation
+     * @param string|null &$serr Error message
+     * @return float Julian day of crossing (ET), or < $jd_et on error
+     */
+    function swe_solcross(
+        float $x2cross,
+        float $jd_et,
+        int $flag,
+        ?string &$serr = null
+    ): float {
+        return CrossingFunctions::solcross($x2cross, $jd_et, $flag, $serr);
+    }
+}
+
+if (!function_exists('swe_solcross_ut')) {
+    /**
+     * Compute Sun's crossing over some longitude (Universal Time)
+     *
+     * Port of C function: double swe_solcross_ut(double x2cross, double jd_ut, int flag, char *serr)
+     *
+     * @param float $x2cross Longitude to cross (degrees, 0-360)
+     * @param float $jd_ut Starting Julian day (Universal Time)
+     * @param int $flag Calculation flags (same as swe_solcross)
+     * @param string|null &$serr Error message
+     * @return float Julian day of crossing (UT), or < $jd_ut on error
+     */
+    function swe_solcross_ut(
+        float $x2cross,
+        float $jd_ut,
+        int $flag,
+        ?string &$serr = null
+    ): float {
+        return CrossingFunctions::solcrossUt($x2cross, $jd_ut, $flag, $serr);
+    }
+}
+
+if (!function_exists('swe_mooncross')) {
+    /**
+     * Compute Moon's crossing over some longitude (Ephemeris Time)
+     *
+     * Port of C function: double swe_mooncross(double x2cross, double jd_et, int flag, char *serr)
+     *
+     * @param float $x2cross Longitude to cross (degrees, 0-360)
+     * @param float $jd_et Starting Julian day (Ephemeris Time)
+     * @param int $flag Calculation flags:
+     *   - SEFLG_TRUEPOS: 0=apparent, 1=true positions
+     *   - SEFLG_NONUT: 0=with nutation, 1=without nutation
+     * @param string|null &$serr Error message
+     * @return float Julian day of crossing (ET), or < $jd_et on error
+     */
+    function swe_mooncross(
+        float $x2cross,
+        float $jd_et,
+        int $flag,
+        ?string &$serr = null
+    ): float {
+        return CrossingFunctions::mooncross($x2cross, $jd_et, $flag, $serr);
+    }
+}
+
+if (!function_exists('swe_mooncross_ut')) {
+    /**
+     * Compute Moon's crossing over some longitude (Universal Time)
+     *
+     * Port of C function: double swe_mooncross_ut(double x2cross, double jd_ut, int flag, char *serr)
+     *
+     * If sidereal is chosen (SEFLG_SIDEREAL), default mode is Fagan/Bradley.
+     * For different ayanamshas, call swe_set_sid_mode() first.
+     *
+     * @param float $x2cross Longitude to cross (degrees, 0-360)
+     * @param float $jd_ut Starting Julian day (Universal Time)
+     * @param int $flag Calculation flags:
+     *   - SEFLG_TRUEPOS: 0=apparent, 1=true positions
+     *   - SEFLG_NONUT: 0=with nutation, 1=without nutation
+     *   - SEFLG_SIDEREAL: 0=tropical, 1=sidereal
+     * @param string|null &$serr Error message
+     * @return float Julian day of crossing (UT), or < $jd_ut on error
+     */
+    function swe_mooncross_ut(
+        float $x2cross,
+        float $jd_ut,
+        int $flag,
+        ?string &$serr = null
+    ): float {
+        return CrossingFunctions::mooncrossUt($x2cross, $jd_ut, $flag, $serr);
+    }
+}
+
+if (!function_exists('swe_mooncross_node')) {
+    /**
+     * Compute next Moon crossing over node (Ephemeris Time)
+     *
+     * Port of C function: double swe_mooncross_node(double jd_et, int flag, double *xlon, double *xlat, char *serr)
+     *
+     * Finds when Moon crosses its orbital node (zero ecliptic latitude).
+     * Returns the longitude and latitude at the crossing point.
+     *
+     * @param float $jd_et Starting Julian day (Ephemeris Time)
+     * @param int $flag Calculation flags
+     * @param float &$xlon Output: longitude at node crossing (degrees)
+     * @param float &$xlat Output: latitude at node crossing (degrees, ~0)
+     * @param string|null &$serr Error message
+     * @return float Julian day of node crossing (ET), or < $jd_et on error
+     */
+    function swe_mooncross_node(
+        float $jd_et,
+        int $flag,
+        float &$xlon,
+        float &$xlat,
+        ?string &$serr = null
+    ): float {
+        return CrossingFunctions::mooncrossNode($jd_et, $flag, $xlon, $xlat, $serr);
+    }
+}
+
+if (!function_exists('swe_mooncross_node_ut')) {
+    /**
+     * Compute next Moon crossing over node (Universal Time)
+     *
+     * Port of C function: double swe_mooncross_node_ut(double jd_ut, int flag, double *xlon, double *xlat, char *serr)
+     *
+     * @param float $jd_ut Starting Julian day (Universal Time)
+     * @param int $flag Calculation flags
+     * @param float &$xlon Output: longitude at node crossing (degrees)
+     * @param float &$xlat Output: latitude at node crossing (degrees, ~0)
+     * @param string|null &$serr Error message
+     * @return float Julian day of node crossing (UT), or < $jd_ut on error
+     */
+    function swe_mooncross_node_ut(
+        float $jd_ut,
+        int $flag,
+        float &$xlon,
+        float &$xlat,
+        ?string &$serr = null
+    ): float {
+        return CrossingFunctions::mooncrossNodeUt($jd_ut, $flag, $xlon, $xlat, $serr);
+    }
+}
+
+if (!function_exists('swe_helio_cross')) {
+    /**
+     * Compute planet's heliocentric crossing over longitude (Ephemeris Time)
+     *
+     * Port of C function: int32 swe_helio_cross(int ipl, double x2cross, double jd_et, int iflag, int dir, double *jd_cross, char *serr)
+     *
+     * Finds when a planet crosses a specified heliocentric ecliptic longitude.
+     * Can search forward (dir >= 0) or backward (dir < 0).
+     *
+     * Note: Only for rough calculations. Not valid for Sun, Moon, nodes, or apsides.
+     *
+     * @param int $ipl Planet number (SE_MERCURY through SE_PLUTO, SE_CHIRON, etc.)
+     * @param float $x2cross Longitude to cross (degrees, 0-360)
+     * @param float $jd_et Starting Julian day (Ephemeris Time)
+     * @param int $iflag Calculation flags (SEFLG_HELCTR automatically added)
+     * @param int $dir Direction: >=0 for forward, <0 for backward
+     * @param float &$jd_cross Output: Julian day of crossing (ET)
+     * @param string|null &$serr Error message
+     * @return int OK (0) on success, ERR (-1) on error
+     */
+    function swe_helio_cross(
+        int $ipl,
+        float $x2cross,
+        float $jd_et,
+        int $iflag,
+        int $dir,
+        float &$jd_cross,
+        ?string &$serr = null
+    ): int {
+        return CrossingFunctions::helioCross($ipl, $x2cross, $jd_et, $iflag, $dir, $jd_cross, $serr);
+    }
+}
+
+if (!function_exists('swe_helio_cross_ut')) {
+    /**
+     * Compute planet's heliocentric crossing over longitude (Universal Time)
+     *
+     * Port of C function: int32 swe_helio_cross_ut(int ipl, double x2cross, double jd_ut, int iflag, int dir, double *jd_cross, char *serr)
+     *
+     * @param int $ipl Planet number
+     * @param float $x2cross Longitude to cross (degrees, 0-360)
+     * @param float $jd_ut Starting Julian day (Universal Time)
+     * @param int $iflag Calculation flags
+     * @param int $dir Direction: >=0 for forward, <0 for backward
+     * @param float &$jd_cross Output: Julian day of crossing (UT)
+     * @param string|null &$serr Error message
+     * @return int OK (0) on success, ERR (-1) on error
+     */
+    function swe_helio_cross_ut(
+        int $ipl,
+        float $x2cross,
+        float $jd_ut,
+        int $iflag,
+        int $dir,
+        float &$jd_cross,
+        ?string &$serr = null
+    ): int {
+        return CrossingFunctions::helioCrossUt($ipl, $x2cross, $jd_ut, $iflag, $dir, $jd_cross, $serr);
     }
 }
