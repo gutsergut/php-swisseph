@@ -378,9 +378,9 @@ final class Coordinates
      */
     public static function deflectLight(array &$xx, float $dt, int $iflag): void
     {
-        $swed = SwedState::get();
-        $pedp = $swed->pldat[Constants::SEI_EARTH] ?? null;
-        $psdp = $swed->pldat[Constants::SEI_SUNBARY] ?? null;
+        $swed = \Swisseph\SwephFile\SwedState::getInstance();
+        $pedp = $swed->pldat[\Swisseph\SwephFile\SwephConstants::SEI_EARTH] ?? null;
+        $psdp = $swed->pldat[\Swisseph\SwephFile\SwephConstants::SEI_SUNBARY] ?? null;
 
         if ($pedp === null || $psdp === null) {
             // If Earth/Sun data not available, skip deflection
@@ -432,8 +432,8 @@ final class Coordinates
      */
     public static function aberrLight(array &$xx, array $xxctr, int $iflag): void
     {
-        $swed = SwedState::get();
-        $pedp = $swed->pldat[Constants::SEI_EARTH] ?? null;
+        $swed = \Swisseph\SwephFile\SwedState::getInstance();
+        $pedp = $swed->pldat[\Swisseph\SwephFile\SwephConstants::SEI_EARTH] ?? null;
 
         if ($pedp === null) {
             // If Earth data not available, skip aberration
@@ -443,7 +443,7 @@ final class Coordinates
         $xearth = $pedp->x;
 
         // Apply topocentric correction if needed
-        if (($iflag & Constants::SEFLG_TOPOCTR) && isset($swed->topd->xobs)) {
+        if (($iflag & \Swisseph\Constants::SEFLG_TOPOCTR) && isset($swed->topd->xobs)) {
             for ($i = 0; $i <= 5; $i++) {
                 $xearth[$i] += $swed->topd->xobs[$i];
             }

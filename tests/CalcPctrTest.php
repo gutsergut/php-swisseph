@@ -15,6 +15,9 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Swisseph\Constants;
 
+// Initialize ephemeris path
+swe_set_ephe_path(__DIR__ . '/../../eph/ephe');
+
 echo "\n=== swe_calc_pctr() Test ===\n\n";
 
 // Test 1: Venus-centric Mars position

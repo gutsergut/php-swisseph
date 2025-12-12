@@ -327,7 +327,7 @@ final class PlanetsFunctions
          ************************************************/
         if (!($iflag & Constants::SEFLG_NONUT)) {
             $swed = SwedState::getInstance();
-            Coordinates::nutate($xx, $swed->nut->matrix, $swed->nut->matrixVelocity, $iflag, false);
+            Coordinates::nutate($xx, $swed->nutMatrix, $swed->nutMatrixVelocity, $iflag, false);
         }
 
         // now we have equatorial cartesian coordinates; save them
@@ -340,15 +340,38 @@ final class PlanetsFunctions
          * with sidereal calc. this will be overwritten *
          * afterwards.                                  *
          ************************************************/
-        Coordinates::coortrf2($xx, 0, 3, $oe->seps, $oe->ceps);
+        $pos = [$xx[0], $xx[1], $xx[2]];
+        $out = [];
+        Coordinates::coortrf2($pos, $out, $oe->seps, $oe->ceps);
+        $xx[0] = $out[0];
+        $xx[1] = $out[1];
+        $xx[2] = $out[2];
+
         if ($iflag & Constants::SEFLG_SPEED) {
-            Coordinates::coortrf2($xx, 3, 3, $oe->seps, $oe->ceps);
+            $vel = [$xx[3], $xx[4], $xx[5]];
+            $outv = [];
+            Coordinates::coortrf2($vel, $outv, $oe->seps, $oe->ceps);
+            $xx[3] = $outv[0];
+            $xx[4] = $outv[1];
+            $xx[5] = $outv[2];
         }
+
         if (!($iflag & Constants::SEFLG_NONUT)) {
             $swed = SwedState::getInstance();
-            Coordinates::coortrf2($xx, 0, 3, $swed->nut->snut, $swed->nut->cnut);
+            $pos = [$xx[0], $xx[1], $xx[2]];
+            $out = [];
+            Coordinates::coortrf2($pos, $out, $swed->snut, $swed->cnut);
+            $xx[0] = $out[0];
+            $xx[1] = $out[1];
+            $xx[2] = $out[2];
+
             if ($iflag & Constants::SEFLG_SPEED) {
-                Coordinates::coortrf2($xx, 3, 3, $swed->nut->snut, $swed->nut->cnut);
+                $vel = [$xx[3], $xx[4], $xx[5]];
+                $outv = [];
+                Coordinates::coortrf2($vel, $outv, $swed->snut, $swed->cnut);
+                $xx[3] = $outv[0];
+                $xx[4] = $outv[1];
+                $xx[5] = $outv[2];
             }
         }
 
