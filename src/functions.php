@@ -710,32 +710,59 @@ if (!function_exists('swe_get_current_file_data')) {
     /**
      * Get data from internal file structures used in last swe_calc() or swe_fixstar() call.
      *
-     * Port of swe_get_current_file_data() from sweph.c:8351-8360.
+     * Full port from sweph.c:8351-8360 without simplifications.
+     *
+     * Returns ephemeris file metadata for the last calculated object.
+     * All return values are zero for JPL files or star files.
      *
      * C API: const char *swe_get_current_file_data(int ifno, double *tfstart, double *tfend, int *denum);
      *
      * @param int $ifno File number (0=planet, 1=moon, 2=main asteroid, 3=other asteroid, 4=star)
-     * @param float &$tfstart Output: start date of file
-     * @param float &$tfend Output: end date of file
-     * @param int &$denum Output: JPL ephemeris number (406/431/etc)
-     * @return string|null Full file pathname, or null if no data
+     * @param float &$tfstart Output: start date of file (JD)
+     * @param float &$tfend Output: end date of file (JD)
+     * @param int &$denum Output: JPL ephemeris number (e.g., 406, 431) or 0 for Swiss Ephemeris
+     * @return string|null Full file pathname, or null if no data available
      */
     function swe_get_current_file_data(int $ifno, float &$tfstart, float &$tfend, int &$denum): ?string
     {
-        // Initialize outputs
-        $tfstart = 0.0;
-        $tfend = 0.0;
-        $denum = 0;
-
-        // In pure PHP port without full file system implementation, return null
-        // C code: if (ifno < 0 || ifno > 4) return NULL;
+        // C: if (ifno < 0 || ifno > 4) return NULL;
         if ($ifno < 0 || $ifno > 4) {
+            $tfstart = 0.0;
+            $tfend = 0.0;
+            $denum = 0;
             return null;
         }
 
-        // C code would check swed.fidat[ifno] and return file data
-        // For now, return null (not yet implemented)
-        return null;
+        // Access SwedState to get file data
+        $swed = \Swisseph\SwephFile\SwedState::getInstance();
+
+        // C: struct file_data *pfp = &swed.fidat[ifno];
+        if (!isset($swed->fidat[$ifno])) {
+            $tfstart = 0.0;
+            $tfend = 0.0;
+            $denum = 0;
+            return null;
+        }
+
+        $pfp = $swed->fidat[$ifno];
+
+        // C: if (strlen(pfp->fnam) == 0) return NULL;
+        if (strlen($pfp->fnam) === 0) {
+            $tfstart = 0.0;
+            $tfend = 0.0;
+            $denum = 0;
+            return null;
+        }
+
+        // C: *tfstart = pfp->tfstart;
+        // C: *tfend = pfp->tfend;
+        // C: *denum = pfp->sweph_denum;
+        $tfstart = $pfp->tfstart;
+        $tfend = $pfp->tfend;
+        $denum = $pfp->sweph_denum;
+
+        // C: return pfp->fnam;
+        return $pfp->fnam;
     }
 }
 
