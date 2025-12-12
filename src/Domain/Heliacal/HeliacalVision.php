@@ -225,14 +225,10 @@ class HeliacalVision
     ): float {
         $log10 = 2.302585092994; // ln(10)
 
-        // These functions will be implemented in later modules
-        // For now, using placeholders
-        // TODO: Implement Bsky() in HeliacalBrightness.php
-        // TODO: Implement Deltam() in HeliacalAtmosphere.php
-        $Bsk = 0.0; // Placeholder: HeliacalBrightness::Bsky(...)
-        $kX = 0.0;  // Placeholder: HeliacalAtmosphere::Deltam(...)
-
-        // Optical correction factors
+        // Calculate sky brightness and atmospheric extinction
+        $Bsk = HeliacalBrightness::Bsky($AltO, $AziO, $AltM, $AziM, $JDNDaysUT, $AltS, $AziS,
+                                        $sunra, $Lat, $HeightEye, $datm, $helflag, $serr);
+        $kX = HeliacalAtmosphere::Deltam($AltO, $AltS, $sunra, $Lat, $HeightEye, $datm, $helflag, $serr);
         $CorrFactor1 = self::OpticFactor($Bsk, $kX, $dobs, $JDNDaysUT, "", 1, $helflag);
         $CorrFactor2 = self::OpticFactor($Bsk, $kX, $dobs, $JDNDaysUT, "", 0, $helflag);
 
