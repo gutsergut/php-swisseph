@@ -7,15 +7,15 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 
 ## 📊 Implementation Progress
 
-**Core Functions**: 122/200+ implemented (61%)
+**Core Functions**: 127/200+ implemented (64%)  
 **Categories Complete**: 12/12 (100%) 🎉🎊✨
 
 ```
 Planets & Calculation  ████████████████████████  28/28 (100%)
 Houses & Angles        ████████████████████  7/7   (100%)
 Sidereal & Ayanamsha   ████████████████████  6/6   (100%)
-Nodes & Apsides        ████████████████████  2/2   (100%) 🎉
-Rise/Set/Transit       ████████████████░░░░  4/7   (57%)
+Nodes & Apsides        ████████████████████  2/2   (100%)
+Rise/Set/Transit       ████████████████████  7/7   (100%) 🎉
 Time & Conversions     ████████████████████  11/11 (100%)
 Coordinate Transform   ████████████████████  7/7   (100%)
 Orbital Elements       ████████████████████  2/2   (100%)
@@ -107,11 +107,22 @@ Misc Utilities         ███████████████████
 </details>
 
 <details>
-<summary><b>Rise/Set/Transit (3)</b></summary>
+<summary><b>Rise/Set/Transit (7) 🎉 COMPLETE!</b></summary>
 
-- ✅ `swe_rise_trans` - Rise/set/transit times with refraction
-- ✅ `swe_rise_trans_true_hor` - Rise/set with true horizon
-- ✅ Internal: Gauquelin sectors (methods 2-5)
+- ✅ `swe_rise_trans` - Rise/set/transit times with refraction **TESTED**
+- ✅ `swe_rise_trans_true_hor` - Rise/set with true horizon **TESTED**
+- ✅ `swe_azalt` - Convert equatorial/ecliptic → horizontal (azimuth/altitude) **FULL PORT** ⭐
+- ✅ `swe_azalt_rev` - Convert horizontal → equatorial/ecliptic **FULL PORT** ⭐
+- ✅ `swe_refrac` - Atmospheric refraction correction **TESTED**
+- ✅ `swe_refrac_extended` - Extended refraction with dip angle **TESTED**
+- ✅ `swe_set_lapse_rate` - Set temperature lapse rate for refraction **TESTED**
+
+**Features:**
+- ✨ Full atmospheric refraction models (Bennett, Sæmundsson)
+- ✨ Geometric dip angle calculation for elevated observers
+- ✨ Apparent ↔ true altitude conversions
+- ✨ Customizable atmospheric parameters (pressure, temperature, lapse rate)
+- ✨ Internal Gauquelin sector calculations (methods 2-5)
 </details>
 
 <details>
