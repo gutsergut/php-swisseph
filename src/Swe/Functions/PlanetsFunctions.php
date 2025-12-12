@@ -146,6 +146,9 @@ final class PlanetsFunctions
     /**
      * Calculate Chiron using Swiss Ephemeris asteroid files
      *
+     * Chiron is stored in seas_*.se1 files (main asteroid belt files)
+     * Uses SwephPlanCalculator → SwephCalculator to read ephemeris data
+     *
      * @param float $jd_tt Julian day in TT
      * @param int $iflag Calculation flags
      * @param array &$xx Output coordinates
@@ -154,9 +157,23 @@ final class PlanetsFunctions
      */
     private static function calcChiron(float $jd_tt, int $iflag, array &$xx, ?string &$serr): int
     {
-        // Chiron requires asteroid ephemeris support which is not yet fully ported
-        $serr = 'SE_CHIRON: asteroid ephemeris support not yet implemented';
-        return Constants::SE_ERR;
+        // Use SwephStrategy which already supports reading asteroid ephemeris files
+        $strategy = EphemerisStrategyFactory::forFlags($iflag | Constants::SEFLG_SWIEPH, Constants::SE_CHIRON);
+
+        if ($strategy === null) {
+            $serr = 'SE_CHIRON: Swiss Ephemeris strategy not available';
+            return Constants::SE_ERR;
+        }
+
+        $res = $strategy->compute($jd_tt, Constants::SE_CHIRON, $iflag | Constants::SEFLG_SWIEPH);
+
+        if ($res->retc < 0) {
+            $serr = $res->serr;
+            return Constants::SE_ERR;
+        }
+
+        $xx = $res->x;
+        return $iflag;
     }
 
     /**
