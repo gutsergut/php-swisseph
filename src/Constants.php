@@ -389,8 +389,17 @@ final class Constants
     public const SE_HELFLAG_AVKIND_MIN9 = 524288;       // Arcus visionis: MIN9 method (solar alt -9°) (1 << 19)
     public const SE_HELFLAG_AVKIND = 983040;            // All arcus visionis methods (VR|PTO|MIN7|MIN9)
 
-    // Heliacal event types (from internal code flow)
+    // Heliacal event types (from swephexp.h:424-433)
+    public const SE_HELIACAL_RISING = 1;                // Morning first (heliacal rising)
+    public const SE_HELIACAL_SETTING = 2;               // Evening last (heliacal setting)
+    public const SE_EVENING_FIRST = 3;                  // Evening first (first appearance after superior conj)
+    public const SE_MORNING_LAST = 4;                   // Morning last (last appearance before superior conj)
     public const SE_ACRONYCHAL_RISING = 5;              // Acronychal rising (object rises as sun sets)
     public const SE_ACRONYCHAL_SETTING = 6;             // Acronychal setting (object sets as sun rises)
-}
 
+    // Aliases (from swephexp.h:426-427)
+    public const SE_MORNING_FIRST = self::SE_HELIACAL_RISING;   // Alias for heliacal rising
+    public const SE_EVENING_LAST = self::SE_HELIACAL_SETTING;   // Alias for heliacal setting
+
+    // Heliacal vision flags (from swephexp.h:470)
+    public const SE_SCOTOPIC_FLAG = 1;                  // Scotopic (dark-adapted) vision flag

@@ -78,7 +78,7 @@ final class HeliacalAscensional
         bool $desc_obl,
         float &$daop,
         ?string &$serr
-    ): int {
+    ): array {
         $epheflag = $iflag & (Constants::SEFLG_JPLEPH | Constants::SEFLG_SWIEPH | Constants::SEFLG_MOSEPH);
 
         // Get equatorial coordinates
@@ -157,7 +157,7 @@ final class HeliacalAscensional
         $aopl = 0.0;
 
         // Ascensio obliqua of Sun
-        $retval = self::get_asc_obl($tjd, Constants::SE_SUN, "", $iflag, $dgeo, $desc_obl, $aosun, $serr);
+        [$retval, $aosun] = self::get_asc_obl($tjd, Constants::SE_SUN, "", $iflag, $dgeo, $desc_obl, $aosun, $serr);
         if ($retval !== Constants::OK) {
             return $retval;
         }
@@ -168,7 +168,7 @@ final class HeliacalAscensional
         }
 
         // Ascensio obliqua of object
-        $retval = self::get_asc_obl($tjd, $ipl, $star, $iflag, $dgeo, $desc_obl, $aopl, $serr);
+        [$retval, $aopl] = self::get_asc_obl($tjd, $ipl, $star, $iflag, $dgeo, $desc_obl, $aopl, $serr);
         if ($retval !== Constants::OK) {
             return $retval;
         }

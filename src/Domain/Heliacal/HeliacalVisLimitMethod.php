@@ -236,10 +236,12 @@ final class HeliacalVisLimitMethod
             // - morning first, evening last
             // - venus and mercury's evening first and morning last
             if ($ipl === Constants::SE_MERCURY || $ipl === Constants::SE_VENUS || $TypeEvent <= 2) {
-                $retval = HeliacalPhenomena::get_heliacal_details($tday, $dgeo, $datm, $dobs, $ObjectName, $TypeEvent, $helflag2, $dret, $serr);
+                [$retval, $dret_details] = HeliacalPhenomena::get_heliacal_details($tday, $dgeo, $datm, $dobs, $ObjectName, $TypeEvent, $helflag2, $serr);
                 if ($retval === Constants::ERR) {
                     goto swe_heliacal_err;
                 }
+                // Update dret with detailed times
+                $dret = $dret_details;
             }
         }
 

@@ -2900,20 +2900,20 @@ if (!function_exists('swe_heliacal_angle')) {
         array &$dret,
         ?string &$serr = null
     ): int {
-        return HeliacalArcusVisionis::swe_heliacal_angle(
-            $mag,
-            $dobs,
-            $AziO,
-            $AltM,
-            $AziM,
+        [$retval, $dret] = HeliacalArcusVisionis::swe_heliacal_angle(
             $JDNDaysUT,
-            $AziS,
             $dgeo,
             $datm,
+            $dobs,
             $helflag,
-            $dret,
+            $mag,
+            $AziO,
+            $AziS,
+            $AziM,
+            $AltM,
             $serr
         );
+        return $retval;
     }
 }
 
@@ -2961,23 +2961,22 @@ if (!function_exists('swe_topo_arcus_visionis')) {
         array &$dret,
         ?string &$serr = null
     ): int {
-        return HeliacalArcusVisionis::swe_topo_arcus_visionis(
+        [$retval, $arcus_visionis] = HeliacalArcusVisionis::swe_topo_arcus_visionis(
             $JDNDaysUT,
             $dgeo,
             $datm,
             $dobs,
-            $ObjectName,
             $helflag,
             $mag,
             $AziO,
             $AltO,
             $AziS,
-            $AltS,
             $AziM,
             $AltM,
-            $dret,
             $serr
         );
+        $dret = array_fill(0, 1, 0.0);
+        $dret[0] = $arcus_visionis;
+        return $retval;
     }
 }
-
