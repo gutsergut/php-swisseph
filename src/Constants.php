@@ -404,4 +404,7 @@ final class Constants
     // Heliacal vision flags (from swephexp.h:470-471)
     public const SE_SCOTOPIC_FLAG = 1;                  // Scotopic (dark-adapted) vision flag
     public const SE_MIXEDOPIC_FLAG = 2;                 // Mixed scotopic/photopic vision flag
+
+    // Fixed stars constants (from swephexp.h)
+    public const SE_MAX_STNAME = 256;                   // Maximum size of fixstar name
 }

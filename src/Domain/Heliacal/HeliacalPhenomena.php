@@ -567,15 +567,17 @@ final class HeliacalPhenomena
         }
 
         // Get rise/set times
-        [$retval, $RiseSetS] = HeliacalGeometry::RiseSet(
-            $JDNDaysUT - 4.0 / 24.0, $dgeo, $datm, "sun", $RS, $helflag, 0, $serr
+        $RiseSetS = 0.0;
+        $retval = HeliacalGeometry::RiseSet(
+            $JDNDaysUT - 4.0 / 24.0, $dgeo, $datm, "sun", $RS, $helflag, 0, $RiseSetS, $serr
         );
         if ($retval === Constants::ERR) {
             return [Constants::ERR, $darr];
         }
 
-        [$retval, $RiseSetO] = HeliacalGeometry::RiseSet(
-            $JDNDaysUT - 4.0 / 24.0, $dgeo, $datm, $ObjectName, $RS, $helflag, 0, $serr
+        $RiseSetO = 0.0;
+        $retval = HeliacalGeometry::RiseSet(
+            $JDNDaysUT - 4.0 / 24.0, $dgeo, $datm, $ObjectName, $RS, $helflag, 0, $RiseSetO, $serr
         );
         if ($retval === Constants::ERR) {
             return [Constants::ERR, $darr];

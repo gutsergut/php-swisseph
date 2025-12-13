@@ -175,10 +175,10 @@ final class HeliacalAscensional
             return $retval;
         }
 
-        $dsunpl = HeliacalUtils::swe_degnorm($aosun - $aopl);
+        $dsunpl = \swe_degnorm($aosun - $aopl);
 
         if ($is_acronychal) {
-            $dsunpl = HeliacalUtils::swe_degnorm($dsunpl - 180.0);
+            $dsunpl = \swe_degnorm($dsunpl - 180.0);
         }
 
         if ($dsunpl > 180.0) {
@@ -346,7 +346,7 @@ final class HeliacalAscensional
 
         while (
             $dsunpl_save === -999999999.0 ||
-            fabs($dsunpl) + fabs($dsunpl_save) > 180.0 ||
+            abs($dsunpl) + abs($dsunpl_save) > 180.0 ||
             ($retro && !($dsunpl_save < 0 && $dsunpl >= 0)) ||
             (!$retro && !($dsunpl_save >= 0 && $dsunpl < 0))
         ) {
@@ -381,7 +381,7 @@ final class HeliacalAscensional
         }
 
         $i = 0;
-        while (fabs($dsunpl) > 0.00001) {
+        while (abs($dsunpl) > 0.00001) {
             $i++;
             if ($i > 5000) {
                 $serr = "loop in get_asc_obl_with_sun() (2)";

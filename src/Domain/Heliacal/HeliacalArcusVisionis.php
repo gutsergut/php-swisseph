@@ -88,7 +88,7 @@ final class HeliacalArcusVisionis
 
         // Bisection method: http://en.wikipedia.org/wiki/Bisection_method
         if (($Yl * $Yr) <= 0) {
-            while (fabs($xR - $Xl) > HeliacalConstants::EPSILON) {
+            while (abs($xR - $Xl) > HeliacalConstants::EPSILON) {
                 // Calculate midpoint of domain
                 $Xm = ($xR + $Xl) / 2.0;
                 $AltSi = $AltO - $Xm;
@@ -220,7 +220,7 @@ final class HeliacalArcusVisionis
         }
 
         // Bisection method: http://en.wikipedia.org/wiki/Bisection_method
-        while (fabs($xR - $Xl) > 0.1) {
+        while (abs($xR - $Xl) > 0.1) {
             // Calculate midpoint of domain
             $Xm = ($xR + $Xl) / 2.0;
             $DELTAx = 0.025;

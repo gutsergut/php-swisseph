@@ -84,7 +84,8 @@ final class LegacyStarFunctions
 
         // C: if ((retc = swi_fixstar_load_record(star, srecord, NULL, NULL, NULL, serr)) != OK)
         //      goto return_err;
-        $retc = LegacyStarFile::loadRecord($star, $srecord, null, $serr);
+        $dparams_temp = null;
+        $retc = LegacyStarFile::loadRecord($star, $srecord, $dparams_temp, $serr);
         if ($retc !== Constants::SE_OK) {
             self::clearOutput($xx);
             return Constants::SE_ERR;

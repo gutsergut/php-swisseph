@@ -114,4 +114,6 @@ class HeliacalConstants
     public const SE_HELFLAG_AVKIND_MIN7 = 262144;       // Arcus visionis: MIN7 method (1 << 18)
     public const SE_HELFLAG_AVKIND_MIN9 = 524288;       // Arcus visionis: MIN9 method (1 << 19)
     public const SE_HELFLAG_AVKIND = 983040;            // All arcus visionis methods (VR|PTO|MIN7|MIN9)
+
+    public const TJD_INVALID = 99999999.0;
 }

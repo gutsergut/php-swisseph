@@ -133,9 +133,9 @@ class HeliacalBrightness
 
         // Extract date from JD for sunspot cycle
         $date = Swe::swe_revjul($JDNDayUT, Swe::SE_GREG_CAL);
-        $YearB = $date['year'];
-        $MonthB = $date['month'];
-        $DayB = floor($date['day']);
+        $YearB = $date['y'];
+        $MonthB = $date['m'];
+        $DayB = floor($date['d']);
 
         // Sunspot cycle adjustment (11.1 year period, reference epoch 1990.33)
         $B0 = 0.0000000000001;
