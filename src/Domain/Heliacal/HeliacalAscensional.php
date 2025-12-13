@@ -94,8 +94,9 @@ final class HeliacalAscensional
 
         // Get equatorial coordinates
         if ($ipl === -1) {
-            // Fixed star
-            $retval = \swe_fixstar2($star, $tjd, $epheflag | Constants::SEFLG_EQUATORIAL, $x, $serr);
+            // Fixed star - use swe_fixstar (not swe_fixstar2) to match C implementation
+            $star_copy = $star; // swe_fixstar may modify the star name
+            $retval = \swe_fixstar($star_copy, $tjd, $epheflag | Constants::SEFLG_EQUATORIAL, $x, $serr);
             if ($retval < 0) {
                 return [Constants::ERR, 0.0];
             }
@@ -175,6 +176,7 @@ final class HeliacalAscensional
         }
 
         // For acronychal events, flip the direction
+        $original_desc_obl = $desc_obl;
         if ($is_acronychal) {
             $desc_obl = !$desc_obl;
         }
@@ -195,7 +197,12 @@ final class HeliacalAscensional
             $dsunpl -= 360.0;
         }
 
-        return Constants::OK;        return [Constants::OK, $dsunpl];
+        if (getenv('DEBUG_HELIACAL_VERBOSE')) {
+            error_log(sprintf("[ASC_OBL_DIFF] tjd=%.5f: aosun=%.5f, aopl=%.5f, dsunpl=%.5f (desc_obl=%d, acro=%d)",
+                $tjd, $aosun, $aopl, $dsunpl, $original_desc_obl ? 1 : 0, $is_acronychal ? 1 : 0));
+        }
+
+        return Constants::OK;
     }
 
     /**
@@ -615,8 +622,12 @@ final class HeliacalAscensional
                 break;
             case -1: // Star
                 $ndays = 300;
-                // Note: would need call_swe_fixstar_mag()
-                $dmag = 2.0; // Assume magnitude 2
+                // Get actual star magnitude
+                $dmag = 0.0;
+                $mag_serr = '';
+                if (\swe_fixstar_mag($ObjectName, $dmag, $mag_serr) === Constants::ERR) {
+                    $dmag = 2.0; // Default if lookup fails
+                }
                 $daystep = 15.0;
                 $tfac = 10.0;
                 if ($dmag > 2) {

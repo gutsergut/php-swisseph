@@ -159,7 +159,7 @@ final class LegacyStarFile
         }
 
         // Not found
-        if (strlen($star) < Constants::AS_MAXCH - 20) {
+        if (strlen($star) < \Swisseph\SwephFile\SwephConstants::AS_MAXCH - 20) {
             $serr = sprintf('star %s not found', $star);
         } else {
             $serr = 'star not found';
