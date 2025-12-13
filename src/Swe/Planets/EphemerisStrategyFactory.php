@@ -17,7 +17,15 @@ final class EphemerisStrategyFactory
     {
         if ($iflag & Constants::SEFLG_VSOP87) {
             $s = new Vsop87Strategy();
-            return $s->supports($ipl, $iflag) ? $s : null;
+            if ($s->supports($ipl, $iflag)) {
+                return $s;
+            }
+            // Fallback to SWIEPH for planets not supported by VSOP87 (e.g. Pluto)
+            $sw = new SwephStrategy();
+            if ($sw->supports($ipl, $iflag | Constants::SEFLG_SWIEPH)) {
+                return $sw;
+            }
+            return null;
         }
 
         if ($iflag & Constants::SEFLG_SWIEPH) {

@@ -88,9 +88,33 @@ final class Vsop87PlanetSupportTest extends TestCase
     public function testPlutoNotSupportedByVsop87(): void
     {
         $strategy = new Vsop87Strategy();
-        $res = $strategy->compute(2451545.0, Constants::SE_PLUTO, Constants::SEFLG_VSOP87);
-        $this->assertLessThan(0, $res->retc);
-        $this->assertStringContainsString('Pluto', $res->serr ?? '');
-        $this->assertStringContainsString('does not support', $res->serr ?? '');
+        // Pluto is not supported - supports() should return false
+        $this->assertFalse(
+            $strategy->supports(Constants::SE_PLUTO, Constants::SEFLG_VSOP87),
+            'VSOP87 should not support Pluto'
+        );
+    }
+
+    /**
+     * Test that Pluto falls back to SWIEPH when VSOP87 is requested
+     */
+    public function testPlutoFallsBackToSwieph(): void
+    {
+        self::ensureEphe();
+        // When requesting Pluto with VSOP87 flag, factory should fallback to SWIEPH
+        $strategy = \Swisseph\Swe\Planets\EphemerisStrategyFactory::forFlags(
+            Constants::SEFLG_VSOP87,
+            Constants::SE_PLUTO
+        );
+        $this->assertInstanceOf(
+            \Swisseph\Swe\Planets\SwephStrategy::class,
+            $strategy,
+            'Pluto with VSOP87 flag should fallback to SwephStrategy'
+        );
+
+        // And it should compute successfully
+        $res = $strategy->compute(2451545.0, Constants::SE_PLUTO, Constants::SEFLG_SWIEPH);
+        $this->assertGreaterThanOrEqual(0, $res->retc, 'Pluto via SWIEPH should succeed: ' . ($res->serr ?? ''));
+        $this->assertCount(6, $res->x);
     }
 }

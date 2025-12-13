@@ -11,10 +11,14 @@ class Vsop87Strategy implements EphemerisStrategy
 
     public function supports(int $ipl, int $iflag): bool
     {
+        // VSOP87 supports only Mercury-Neptune (no Pluto - no analytical solution)
         return (bool)($iflag & Constants::SEFLG_VSOP87)
             && $ipl !== Constants::SE_SUN
             && $ipl !== Constants::SE_MOON
-            && $ipl !== Constants::SE_EARTH;
+            && $ipl !== Constants::SE_EARTH
+            && $ipl !== Constants::SE_PLUTO
+            && $ipl >= Constants::SE_MERCURY
+            && $ipl <= Constants::SE_NEPTUNE;
     }
 
     public function compute(float $jd_tt, int $ipl, int $iflag): StrategyResult
