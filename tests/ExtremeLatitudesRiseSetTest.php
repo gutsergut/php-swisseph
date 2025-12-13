@@ -51,16 +51,24 @@ class ExtremeLatitudesRiseSetTest extends TestCase
         $this->assertNotEquals(Constants::ERR, $rc, "Rise calculation failed: $serr");
 
         // Check if rise time is found
-        if ($rc >= 0 && $tret > 0) {
+        if ($rc >= 0 && $tret > 0 && $tret !== 0.0) {
             echo "\n";
             echo "Arctic Circle (66.5°N) - Summer Solstice\n";
             echo "Rise time: JD {$tret}\n";
 
-            [$y, $m, $d, $h] = swe_revjul($tret, Constants::SE_GREG_CAL);
+            $revjul = swe_revjul($tret, Constants::SE_GREG_CAL);
+            $y = $revjul['y'];
+            $m = $revjul['m'];
+            $d = $revjul['d'];
+            $h = $revjul['ut'];
             $hh = (int)$h;
             $mm = (int)(($h - $hh) * 60);
             $ss = (int)((($h - $hh) * 60 - $mm) * 60);
             echo sprintf("Rise: %04d-%02d-%02d %02d:%02d:%02d UT\n", $y, $m, $d, $hh, $mm, $ss);
+        } else {
+            echo "\n";
+            echo "Arctic Circle (66.5°N) - Summer Solstice\n";
+            echo "Rise: NONE (could not calculate)\n";
         }
 
         // Now test set
@@ -69,8 +77,12 @@ class ExtremeLatitudesRiseSetTest extends TestCase
         $rc_set = swe_rise_trans($jd_ut, Constants::SE_SUN, '', $flags, $rsmi,
                                  [$lon, $lat, $alt], 0, 0, null, $tret_set, $serr);
 
-        if ($rc_set >= 0 && $tret[0] > 0) {
-            [$y, $m, $d, $h] = swe_revjul($tret[0], Constants::SE_GREG_CAL);
+        if ($rc_set >= 0 && $tret_set > 0 && $tret_set !== 0.0) {
+            $revjul = swe_revjul($tret_set, Constants::SE_GREG_CAL);
+            $y = $revjul['y'];
+            $m = $revjul['m'];
+            $d = $revjul['d'];
+            $h = $revjul['ut'];
             $hh = (int)$h;
             $mm = (int)(($h - $hh) * 60);
             $ss = (int)((($h - $hh) * 60 - $mm) * 60);
@@ -109,26 +121,43 @@ class ExtremeLatitudesRiseSetTest extends TestCase
         echo "\n";
         echo "Arctic Circle (66.5°N) - Winter Solstice\n";
 
-        if ($rc >= 0 && $tret > 0) {
-            [$y, $m, $d, $h] = swe_revjul($tret, Constants::SE_GREG_CAL);
-            $hh = (int)$h;
-            $mm = (int)(($h - $hh) * 60);
-            $ss = (int)((($h - $hh) * 60 - $mm) * 60);
-            echo sprintf("Rise: %04d-%02d-%02d %02d:%02d:%02d UT\n", $y, $m, $d, $hh, $mm, $ss);
+        if ($rc >= 0 && $tret > 0 && $tret !== 0.0) {
+            $revjul = swe_revjul($tret, Constants::SE_GREG_CAL);
+            if (is_array($revjul) && isset($revjul['y'], $revjul['m'], $revjul['d'], $revjul['ut'])) {
+                $y = $revjul['y'];
+                $m = $revjul['m'];
+                $d = $revjul['d'];
+                $h = $revjul['ut'];
+                $hh = (int)$h;
+                $mm = (int)(($h - $hh) * 60);
+                $ss = (int)((($h - $hh) * 60 - $mm) * 60);
+                echo sprintf("Rise: %04d-%02d-%02d %02d:%02d:%02d UT\n", $y, $m, $d, $hh, $mm, $ss);
+            } else {
+                echo "Rise: INVALID DATE (revjul failed)\n";
+            }
         } else {
             echo "Rise: NONE (polar night)\n";
         }
 
         $rsmi = Constants::SE_CALC_SET;
+        $tret_set = 0.0;
         $rc_set = swe_rise_trans($jd_ut, Constants::SE_SUN, '', $flags, $rsmi,
-                                 [$lon, $lat, $alt], 0, 0, $tret, $serr);
+                                 [$lon, $lat, $alt], 0, 0, null, $tret_set, $serr);
 
-        if ($rc_set >= 0 && $tret[0] > 0) {
-            [$y, $m, $d, $h] = swe_revjul($tret[0], Constants::SE_GREG_CAL);
-            $hh = (int)$h;
-            $mm = (int)(($h - $hh) * 60);
-            $ss = (int)((($h - $hh) * 60 - $mm) * 60);
-            echo sprintf("Set:  %04d-%02d-%02d %02d:%02d:%02d UT\n\n", $y, $m, $d, $hh, $mm, $ss);
+        if ($rc_set >= 0 && $tret_set > 0 && $tret_set !== 0.0) {
+            $revjul = swe_revjul($tret_set, Constants::SE_GREG_CAL);
+            if (is_array($revjul) && isset($revjul['y'], $revjul['m'], $revjul['d'], $revjul['ut'])) {
+                $y = $revjul['y'];
+                $m = $revjul['m'];
+                $d = $revjul['d'];
+                $h = $revjul['ut'];
+                $hh = (int)$h;
+                $mm = (int)(($h - $hh) * 60);
+                $ss = (int)((($h - $hh) * 60 - $mm) * 60);
+                echo sprintf("Set:  %04d-%02d-%02d %02d:%02d:%02d UT\n\n", $y, $m, $d, $hh, $mm, $ss);
+            } else {
+                echo "Set:  INVALID DATE (revjul failed)\n\n";
+            }
         } else {
             echo "Set: NONE (polar night)\n\n";
         }
@@ -163,8 +192,12 @@ class ExtremeLatitudesRiseSetTest extends TestCase
         echo "\n";
         echo "North Pole (90°N) - Spring Equinox\n";
 
-        if ($rc >= 0 && $tret > 0) {
-            [$y, $m, $d, $h] = swe_revjul($tret, Constants::SE_GREG_CAL);
+        if ($rc >= 0 && $tret > 0 && $tret !== 0.0) {
+            $revjul = swe_revjul($tret, Constants::SE_GREG_CAL);
+            $y = $revjul['y'];
+            $m = $revjul['m'];
+            $d = $revjul['d'];
+            $h = $revjul['ut'];
             $hh = (int)$h;
             $mm = (int)(($h - $hh) * 60);
             $ss = (int)((($h - $hh) * 60 - $mm) * 60);
@@ -180,13 +213,17 @@ class ExtremeLatitudesRiseSetTest extends TestCase
         // Test set around autumn equinox
         $jd_ut = swe_julday(2025, 9, 22, 12.0, Constants::SE_GREG_CAL);
         $rsmi = Constants::SE_CALC_SET;
-        $tret_set3 = 0.0;
+        $tret_set = 0.0;
 
         $rc_set = swe_rise_trans($jd_ut, Constants::SE_SUN, '', $flags, $rsmi,
-                                 [$lon, $lat, $alt], 0, 0, null, $tret_set3, $serr);
+                                 [$lon, $lat, $alt], 0, 0, null, $tret_set, $serr);
 
-        if ($rc_set >= 0 && $tret_set3 > 0) {
-            [$y, $m, $d, $h] = swe_revjul($tret_set3, Constants::SE_GREG_CAL);
+        if ($rc_set >= 0 && $tret_set > 0 && $tret_set !== 0.0) {
+            $revjul = swe_revjul($tret_set, Constants::SE_GREG_CAL);
+            $y = $revjul['y'];
+            $m = $revjul['m'];
+            $d = $revjul['d'];
+            $h = $revjul['ut'];
             $hh = (int)$h;
             $mm = (int)(($h - $hh) * 60);
             $ss = (int)((($h - $hh) * 60 - $mm) * 60);
@@ -227,27 +264,43 @@ class ExtremeLatitudesRiseSetTest extends TestCase
         echo "\n";
         echo "Tromsø, Norway (69.65°N) - Moon\n";
 
-        if ($rc >= 0 && $tret > 0) {
-            [$y, $m, $d, $h] = swe_revjul($tret, Constants::SE_GREG_CAL);
-            $hh = (int)$h;
-            $mm = (int)(($h - $hh) * 60);
-            $ss = (int)((($h - $hh) * 60 - $mm) * 60);
-            echo sprintf("Rise: %04d-%02d-%02d %02d:%02d:%02d UT\n", $y, $m, $d, $hh, $mm, $ss);
+        if ($rc >= 0 && $tret > 0 && $tret !== 0.0) {
+            $revjul = swe_revjul($tret, Constants::SE_GREG_CAL);
+            if (is_array($revjul) && isset($revjul['y'], $revjul['m'], $revjul['d'], $revjul['ut'])) {
+                $y = $revjul['y'];
+                $m = $revjul['m'];
+                $d = $revjul['d'];
+                $h = $revjul['ut'];
+                $hh = (int)$h;
+                $mm = (int)(($h - $hh) * 60);
+                $ss = (int)((($h - $hh) * 60 - $mm) * 60);
+                echo sprintf("Rise: %04d-%02d-%02d %02d:%02d:%02d UT\n", $y, $m, $d, $hh, $mm, $ss);
+            } else {
+                echo "Rise: INVALID DATE (revjul failed)\n";
+            }
         } else {
             echo "Rise: NONE (Moon below horizon or circumpolar)\n";
         }
 
         $rsmi = Constants::SE_CALC_SET;
-        $tret_set4 = 0.0;
+        $tret_set = 0.0;
         $rc_set = swe_rise_trans($jd_ut, Constants::SE_MOON, '', $flags, $rsmi,
-                                 [$lon, $lat, $alt], 0, 0, null, $tret_set4, $serr);
+                                 [$lon, $lat, $alt], 0, 0, null, $tret_set, $serr);
 
-        if ($rc_set >= 0 && $tret_set4 > 0) {
-            [$y, $m, $d, $h] = swe_revjul($tret_set4, Constants::SE_GREG_CAL);
-            $hh = (int)$h;
-            $mm = (int)(($h - $hh) * 60);
-            $ss = (int)((($h - $hh) * 60 - $mm) * 60);
-            echo sprintf("Set:  %04d-%02d-%02d %02d:%02d:%02d UT\n\n", $y, $m, $d, $hh, $mm, $ss);
+        if ($rc_set >= 0 && $tret_set > 0 && $tret_set !== 0.0) {
+            $revjul = swe_revjul($tret_set, Constants::SE_GREG_CAL);
+            if (is_array($revjul) && isset($revjul['y'], $revjul['m'], $revjul['d'], $revjul['ut'])) {
+                $y = $revjul['y'];
+                $m = $revjul['m'];
+                $d = $revjul['d'];
+                $h = $revjul['ut'];
+                $hh = (int)$h;
+                $mm = (int)(($h - $hh) * 60);
+                $ss = (int)((($h - $hh) * 60 - $mm) * 60);
+                echo sprintf("Set:  %04d-%02d-%02d %02d:%02d:%02d UT\n\n", $y, $m, $d, $hh, $mm, $ss);
+            } else {
+                echo "Set:  INVALID DATE (revjul failed)\n\n";
+            }
         } else {
             echo "Set: NONE (Moon below horizon or circumpolar)\n\n";
         }
