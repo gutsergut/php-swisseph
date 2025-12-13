@@ -201,7 +201,7 @@ final class LegacyStarFunctions
         //      strcpy(srecord, slast_stardata); goto found;
         // }
         $srecord = '';
-        $dparams = null;
+        $dparams = []; // Initialize as empty array, not null, so loadRecord will fill it
 
         if (self::$lastStarData !== null && self::$lastStarName === $sstar) {
             $srecord = self::$lastStarData;
@@ -221,7 +221,7 @@ final class LegacyStarFunctions
         self::$lastStarName = $sstar;
 
         // C: if (dparams == NULL) ... load dparams
-        if ($dparams === null) {
+        if (empty($dparams)) { // Changed: check if empty instead of null
             $retc = LegacyStarFile::loadRecord($star, $srecord, $dparams, $serr);
             if ($retc !== Constants::SE_OK) {
                 return Constants::SE_ERR;
