@@ -241,6 +241,12 @@ final class HeliacalAscensional
         $x = array_fill(0, 6, 0.0);
         $xs = array_fill(0, 6, 0.0);
 
+        // DEBUG
+        if (getenv('DEBUG_HELIACAL')) {
+            error_log(sprintf("[FIND_CONJUNCT] tjd_start=%.5f, tjd0=%.5f, dsynperiod=%.2f, tjdcon(initial)=%.5f",
+                $tjd_start, $tjd0, $dsynperiod, $tjdcon));
+        }
+
         while ($ds > 0.5) {
             // Calculate planet position with speed
             if (\swe_calc($tjdcon, $ipl, $epheflag | Constants::SEFLG_SPEED, $x, $serr) === Constants::ERR) {
@@ -259,6 +265,11 @@ final class HeliacalAscensional
 
             // Newton iteration: tjd -= f(t) / f'(t)
             $tjdcon -= $ds / ($x[3] - $xs[3]);
+        }
+
+        // DEBUG
+        if (getenv('DEBUG_HELIACAL')) {
+            error_log(sprintf("[FIND_CONJUNCT] Final tjdcon=%.5f (ds=%.6f)", $tjdcon, $ds));
         }
 
         $tjd = $tjdcon;
@@ -541,6 +552,13 @@ final class HeliacalAscensional
         $tend = $tjd + $ndays * $direct_day;
         $retval_old = -2;
 
+        if (getenv('DEBUG_HELIACAL')) {
+            error_log(sprintf(
+                "[GET_HELIACAL_DAY] START: ipl=%d, TypeEvent=%d, tjd=%.5f, ndays=%d, daystep=%.1f, direct_day=%.1f, direct_time=%.1f, tfac=%.1f, tend=%.5f",
+                $ipl, $TypeEvent, $tjd, $ndays, $daystep, $direct_day, $direct_time, $tfac, $tend
+            ));
+        }
+
         for ($tday = $tjd, $i = 0;
              ($direct_day > 0 && $tday < $tend) || ($direct_day < 0 && $tday > $tend);
              $tday += $daystep * $direct_day, $i++) {
@@ -561,6 +579,9 @@ final class HeliacalAscensional
             // Sun does not rise: try next day
             if ($retval === -2) {
                 $retval_old = $retval;
+                if (getenv('DEBUG_HELIACAL') && $i < 3) {
+                    error_log(sprintf("[GET_HELIACAL_DAY] i=%d, tday=%.5f: Sun does not rise", $i, $tday));
+                }
                 continue;
             }
 
@@ -573,6 +594,13 @@ final class HeliacalAscensional
                 return Constants::ERR;
             }
 
+            if (getenv('DEBUG_HELIACAL') && $i < 5) {
+                error_log(sprintf(
+                    "[GET_HELIACAL_DAY] i=%d, tday=%.5f, tret=%.5f: retval=%d, vlm=%.3f, obm=%.3f, vdelta=%.3f, retval_old=%d, daystep=%.1f",
+                    $i, $tday, $tret, $retval, $darr[0], $darr[7], $darr[0] - $darr[7], $retval_old, $daystep
+                ));
+            }
+
             // Object appeared above horizon: reduce daystep
             if ($retval_old === -2 && $retval >= 0 && $daystep > 1) {
                 $retval_old = $retval;
@@ -581,6 +609,9 @@ final class HeliacalAscensional
                 if ($ipl >= Constants::SE_MARS || $ipl === -1) {
                     $daystep = 5.0;
                 }
+                if (getenv('DEBUG_HELIACAL')) {
+                    error_log(sprintf("[GET_HELIACAL_DAY] Object appeared, reducing daystep to %.1f, tday now %.5f", $daystep, $tday));
+                }
                 continue;
             }
 
@@ -588,6 +619,9 @@ final class HeliacalAscensional
 
             // Object below horizon: try next day
             if ($retval === -2) {
+                if (getenv('DEBUG_HELIACAL') && $i < 3) {
+                    error_log(sprintf("[GET_HELIACAL_DAY] i=%d: Object below horizon", $i));
+                }
                 continue;
             }
 
@@ -611,12 +645,37 @@ final class HeliacalAscensional
                     $tret += 1.0 / $div * $direct_time;
                 }
 
+                // Save current valid darr before potentially overwriting with -2 result
+                $darr_prev = $darr;
+
                 [$retval, $darr] = HeliacalArcusVisionis::swe_vis_limit_mag(
                     $tret, $dgeo, $datm, $dobs, $ObjectName, $helflag, $serr
                 );
                 if ($retval === Constants::ERR) {
                     return Constants::ERR;
                 }
+
+                // If retval is -2, restore previous valid darr
+                if ($retval === -2) {
+                    $darr = $darr_prev;
+                }
+
+                if (getenv('DEBUG_HELIACAL') && $i < 3) {
+                    static $minute_count = 0;
+                    if ($minute_count++ < 10) {
+                        error_log(sprintf(
+                            "[GET_HELIACAL_DAY] Minute search: tret=%.5f, vd=%.3f, vlm=%.3f, obm=%.3f, retval=%d",
+                            $tret, $vd, $darr[0], $darr[7], $retval
+                        ));
+                    }
+                }
+            }
+
+            if (getenv('DEBUG_HELIACAL') && $i < 3) {
+                error_log(sprintf(
+                    "[GET_HELIACAL_DAY] After minute search: i=%d, visible_at_sunsetrise=%d, vd=%.3f, vdelta will be %.3f",
+                    $i, $visible_at_sunsetrise, $vd, $darr[0] - $darr[7]
+                ));
             }
 
             // Move away from sunset if needed (vis_limit_mag has strange behavior there)
@@ -637,18 +696,34 @@ final class HeliacalAscensional
 
             $vdelta = $darr[0] - $darr[7];
 
+            if (getenv('DEBUG_HELIACAL') && $i < 3) {
+                error_log(sprintf(
+                    "[GET_HELIACAL_DAY] Final vdelta check: i=%d, vdelta=%.3f (vlm=%.3f - obm=%.3f)",
+                    $i, $vdelta, $darr[0], $darr[7]
+                ));
+            }
+
             // Object is visible: save time of appearance
             if ($vdelta > 0) {
                 if (($ipl >= Constants::SE_MARS || $ipl === -1) && $daystep > 1) {
                     $tday -= $daystep * $direct_day;
                     $daystep = 1.0;
+                    if (getenv('DEBUG_HELIACAL')) {
+                        error_log(sprintf("[GET_HELIACAL_DAY] Object visible but daystep>1, refining: daystep=%.1f, tday=%.5f", $daystep, $tday));
+                    }
                 } else {
                     $thel = $tret;
+                    if (getenv('DEBUG_HELIACAL')) {
+                        error_log(sprintf("[GET_HELIACAL_DAY] SUCCESS! Found event at JD %.5f after %d iterations", $tret, $i));
+                    }
                     return Constants::OK;
                 }
             }
         }
 
+        if (getenv('DEBUG_HELIACAL')) {
+            error_log("[GET_HELIACAL_DAY] FAILED: heliacal event does not happen (loop exhausted)");
+        }
         $serr = "heliacal event does not happen";
         return -2;
     }

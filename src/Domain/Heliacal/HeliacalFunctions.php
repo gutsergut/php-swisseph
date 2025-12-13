@@ -317,6 +317,12 @@ final class HeliacalFunctions
             $tadd = 30;
         }
 
+        // DEBUG
+        if (getenv('DEBUG_HELIACAL')) {
+            error_log(sprintf("[HELIACAL_MAIN] tjd0=%.5f, dsynperiod=%.2f, tadd=%.2f, tjdmax=%.5f, MaxCountSynodicPeriod=%d",
+                $tjd0, $dsynperiod, $tadd, $tjdmax, $MaxCountSynodicPeriod));
+        }
+
         // outer loop over n synodic periods
         $retval = -2; // indicates another synodic period needed
         for ($tjd = $tjd0; $tjd < $tjdmax && $retval === -2; $tjd += $tadd) {
