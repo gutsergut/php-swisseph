@@ -344,12 +344,17 @@ final class SwephPlanCalculator
                 return Constants::SE_OK;
             } else {
                 // Compute planet position
+                // C code sweph.c:1077: for asteroids, pass psdp->x (Sun position) as xsunb
+                // This is used inside SwephCalculator to convert heliocentric → barycentric
+                // for bodies with ipl >= SEI_ANYBODY (i.e., all asteroids)
+                $xsunb = ($ipli >= SwephConstants::SEI_ANYBODY) ? $xps : null;
+
                 $retc = SwephCalculator::calculate(
                     $tjd,
                     $ipli,
                     $ifno,
                     $iflag,
-                    null,
+                    $xsunb,
                     $doSave,
                     $xp,
                     $serr

@@ -7,7 +7,7 @@ namespace Swisseph\SwephFile;
  */
 final class SwephConstants
 {
-    /** Planet indices for internal use - MUST match C code sweph.h:133-145 */
+    /** Planet indices for internal use - MUST match C code sweph.h:133-155 */
     public const SEI_EMB = 0;        // Earth-Moon Barycenter
     public const SEI_EARTH = 0;      // Earth (same slot as EMB, computed from EMB - Moon)
     public const SEI_SUN = 0;        // Sun (same slot as EMB initially)
@@ -21,13 +21,13 @@ final class SwephConstants
     public const SEI_NEPTUNE = 8;
     public const SEI_PLUTO = 9;
     public const SEI_SUNBARY = 10;   // Barycentric Sun
-    public const SEI_ANYBODY = 13;   // Any asteroid
-    public const SEI_CHIRON = 14;
-    public const SEI_PHOLUS = 15;
-    public const SEI_CERES = 16;
-    public const SEI_PALLAS = 17;
-    public const SEI_JUNO = 18;
-    public const SEI_VESTA = 19;
+    public const SEI_ANYBODY = 11;   // Any asteroid (sweph.h:145)
+    public const SEI_CHIRON = 12;    // sweph.h:146
+    public const SEI_PHOLUS = 13;    // sweph.h:147
+    public const SEI_CERES = 14;     // sweph.h:149
+    public const SEI_PALLAS = 15;    // sweph.h:150
+    public const SEI_JUNO = 16;      // sweph.h:151
+    public const SEI_VESTA = 17;     // sweph.h:152
 
     /** Number of planets */
     public const SEI_NPLANETS = 18;

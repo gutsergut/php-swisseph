@@ -80,7 +80,7 @@ final class SwedState
             $this->fidat[$i] = new FileData();
         }
 
-        // Initialize planet data array (18 planets)
+        // Initialize planet data array (SEI_NPLANETS = 18: indices 0-17)
         for ($i = 0; $i < 18; $i++) {
             $this->pldat[$i] = new PlanData();
         }

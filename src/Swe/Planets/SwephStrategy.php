@@ -19,10 +19,10 @@ final class SwephStrategy implements EphemerisStrategy
         if (!($iflag & Constants::SEFLG_SWIEPH)) {
             return false;
         }
-        // Support main planets, Earth, and Chiron
+        // Support main planets, Earth, and main belt asteroids (Chiron through Vesta)
         return ($ipl >= Constants::SE_SUN && $ipl <= Constants::SE_PLUTO)
             || $ipl === Constants::SE_EARTH
-            || $ipl === Constants::SE_CHIRON;
+            || ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA);
     }
 
     public function compute(float $jd_tt, int $ipl, int $iflag): StrategyResult
@@ -33,8 +33,8 @@ final class SwephStrategy implements EphemerisStrategy
         }
         $ipli = SwephConstants::PNOEXT2INT[$ipl];
 
-        // Determine file number: Chiron uses main asteroid file, others use planet file
-        $ifno = ($ipl === Constants::SE_CHIRON)
+        // Determine file number: main belt asteroids (Chiron through Vesta) use main asteroid file
+        $ifno = ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA)
             ? SwephConstants::SEI_FILE_MAIN_AST
             : SwephConstants::SEI_FILE_PLANET;
 

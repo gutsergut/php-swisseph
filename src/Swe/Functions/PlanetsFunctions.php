@@ -33,9 +33,10 @@ final class PlanetsFunctions
     {
         $xx = Output::emptyForFlags($iflag);
 
-        // Диапазон поддерживаемых планет (расширен для Node, Apogee, Chiron и фиктивных планет)
+        // Диапазон поддерживаемых планет (расширен для Node, Apogee, Chiron, main belt asteroids и фиктивных планет)
         // SE_SUN..SE_PLUTO (0-9), SE_MEAN_NODE (10), SE_TRUE_NODE (11),
-        // SE_MEAN_APOG (12), SE_OSCU_APOG (13), SE_EARTH (14), SE_CHIRON (15)
+        // SE_MEAN_APOG (12), SE_OSCU_APOG (13), SE_EARTH (14),
+        // SE_CHIRON..SE_VESTA (15-20) - Main belt asteroids
         // SE_FICT_OFFSET..SE_FICT_MAX (40-999) - Uranian/fictitious bodies
         $validRange = ($ipl >= Constants::SE_SUN && $ipl <= Constants::SE_PLUTO)
             || $ipl === Constants::SE_MEAN_NODE
@@ -43,7 +44,7 @@ final class PlanetsFunctions
             || $ipl === Constants::SE_MEAN_APOG
             || $ipl === Constants::SE_OSCU_APOG
             || $ipl === Constants::SE_EARTH
-            || $ipl === Constants::SE_CHIRON
+            || ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA)
             || FictitiousPlanets::isFictitious($ipl);
 
         if (!$validRange) {
@@ -71,9 +72,9 @@ final class PlanetsFunctions
             return self::calcOscuApogee($jd_tt, $iflag, $xx, $serr);
         }
 
-        // Специальная обработка для Chiron - используем asteroid ephemeris
-        if ($ipl === Constants::SE_CHIRON) {
-            return self::calcChiron($jd_tt, $iflag, $xx, $serr);
+        // Специальная обработка для main belt asteroids (Chiron through Vesta)
+        if ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA) {
+            return self::calcAsteroid($jd_tt, $ipl, $iflag, $xx, $serr);
         }
 
         // Специальная обработка для Uranian/fictitious planets
@@ -284,28 +285,30 @@ final class PlanetsFunctions
     }
 
     /**
-     * Calculate Chiron using Swiss Ephemeris asteroid files
+     * Calculate main belt asteroids (Chiron, Pholus, Ceres, Pallas, Juno, Vesta)
      *
-     * Chiron is stored in seas_*.se1 files (main asteroid belt files)
+     * These are stored in seas_*.se1 files (main asteroid ephemeris files)
      * Uses SwephPlanCalculator → SwephCalculator to read ephemeris data
      *
      * @param float $jd_tt Julian day in TT
+     * @param int $ipl Planet number (SE_CHIRON..SE_VESTA)
      * @param int $iflag Calculation flags
      * @param array &$xx Output coordinates
      * @param string|null &$serr Error message
      * @return int iflag on success, SE_ERR on error
      */
-    private static function calcChiron(float $jd_tt, int $iflag, array &$xx, ?string &$serr): int
+    private static function calcAsteroid(float $jd_tt, int $ipl, int $iflag, array &$xx, ?string &$serr): int
     {
-        // Use SwephStrategy which already supports reading asteroid ephemeris files
-        $strategy = EphemerisStrategyFactory::forFlags($iflag | Constants::SEFLG_SWIEPH, Constants::SE_CHIRON);
+        // Use SwephStrategy which supports reading asteroid ephemeris files
+        $strategy = EphemerisStrategyFactory::forFlags($iflag | Constants::SEFLG_SWIEPH, $ipl);
 
         if ($strategy === null) {
-            $serr = 'SE_CHIRON: Swiss Ephemeris strategy not available';
+            $name = self::getPlanetName($ipl);
+            $serr = "$name: Swiss Ephemeris strategy not available";
             return Constants::SE_ERR;
         }
 
-        $res = $strategy->compute($jd_tt, Constants::SE_CHIRON, $iflag | Constants::SEFLG_SWIEPH);
+        $res = $strategy->compute($jd_tt, $ipl, $iflag | Constants::SEFLG_SWIEPH);
 
         if ($res->retc < 0) {
             $serr = $res->serr;
