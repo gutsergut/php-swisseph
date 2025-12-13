@@ -9,6 +9,7 @@ use Swisseph\DeltaT;
 use Swisseph\ErrorCodes;
 use Swisseph\Output;
 use Swisseph\Swe\Planets\EphemerisStrategyFactory;
+use Swisseph\Swe\Planets\FictitiousPlanets;
 use Swisseph\VectorMath;
 use Swisseph\Coordinates;
 use Swisseph\Bias;
@@ -32,12 +33,14 @@ final class PlanetsFunctions
     {
         $xx = Output::emptyForFlags($iflag);
 
-        // Диапазон поддерживаемых планет (расширен для Node и Chiron)
+        // Диапазон поддерживаемых планет (расширен для Node, Chiron и фиктивных планет)
         // SE_SUN..SE_PLUTO (0-9), SE_MEAN_NODE (10), SE_EARTH (14), SE_CHIRON (15)
+        // SE_FICT_OFFSET..SE_FICT_MAX (40-999) - Uranian/fictitious bodies
         $validRange = ($ipl >= Constants::SE_SUN && $ipl <= Constants::SE_PLUTO)
             || $ipl === Constants::SE_MEAN_NODE
             || $ipl === Constants::SE_EARTH
-            || $ipl === Constants::SE_CHIRON;
+            || $ipl === Constants::SE_CHIRON
+            || FictitiousPlanets::isFictitious($ipl);
 
         if (!$validRange) {
             $serr = ErrorCodes::compose(ErrorCodes::INVALID_ARG, "ipl=$ipl out of supported range");
@@ -52,6 +55,11 @@ final class PlanetsFunctions
         // Специальная обработка для Chiron - используем asteroid ephemeris
         if ($ipl === Constants::SE_CHIRON) {
             return self::calcChiron($jd_tt, $iflag, $xx, $serr);
+        }
+
+        // Специальная обработка для Uranian/fictitious planets
+        if (FictitiousPlanets::isFictitious($ipl)) {
+            return self::calcFictitious($jd_tt, $ipl, $iflag, $xx, $serr);
         }
 
         // Проверка взаимоисключающих источников эфемерид
@@ -173,6 +181,163 @@ final class PlanetsFunctions
         }
 
         $xx = $res->x;
+        return $iflag;
+    }
+
+    /**
+     * Calculate Uranian/fictitious planets from osculating orbital elements
+     *
+     * Port of swemplan.c:swi_osc_el_plan() logic
+     * Supports SE_CUPIDO through SE_WALDEMATH (bodies 40-58) using Neely orbital elements
+     *
+     * @param float $jd_tt Julian day in TT
+     * @param int $ipl Planet number (SE_CUPIDO..SE_WALDEMATH)
+     * @param int $iflag Calculation flags
+     * @param array &$xx Output coordinates
+     * @param string|null &$serr Error message
+     * @return int iflag on success, SE_ERR on error
+     */
+    private static function calcFictitious(float $jd_tt, int $ipl, int $iflag, array &$xx, ?string &$serr): int
+    {
+        // Validate fictitious planet range
+        if (!FictitiousPlanets::isFictitious($ipl)) {
+            $serr = ErrorCodes::compose(
+                ErrorCodes::INVALID_ARG,
+                "Planet ipl=$ipl is not a fictitious body"
+            );
+            return Constants::SE_ERR;
+        }
+
+        // Check if planet is in built-in elements table
+        $iplFict = $ipl - Constants::SE_FICT_OFFSET;
+        if ($iplFict >= Constants::SE_NFICT_ELEM) {
+            $serr = ErrorCodes::compose(
+                ErrorCodes::INVALID_ARG,
+                "Fictitious planet ipl=$ipl (index=$iplFict) not in built-in elements table"
+            );
+            return Constants::SE_ERR;
+        }
+
+        // Compute heliocentric equatorial J2000 coordinates from osculating elements
+        // FictitiousPlanets::compute() returns equatorial J2000 cartesian
+        $xp = FictitiousPlanets::compute($jd_tt, $ipl, $serr);
+        if ($xp === null) {
+            return Constants::SE_ERR;
+        }
+
+        // Now apply coordinate transformations based on flags
+        // Similar to app_pos_etc_plan_osc in sweph.c
+
+        // Get SwedState for transformations
+        $state = SwedState::getInstance();
+        $state->oec->calculate($jd_tt);  // Ensure obliquity is calculated for current date
+
+        // 1. Convert heliocentric to geocentric if not heliocentric flag
+        if (!($iflag & Constants::SEFLG_HELCTR)) {
+            // Get Earth heliocentric position from SwedState cache or compute it
+            // The Earth position is cached after computing any planet position
+            // NOTE: earth_pd->x is equatorial J2000
+            $earth_pd = &$state->pldat[\Swisseph\SwephFile\SwephConstants::SEI_EARTH] ?? null;
+
+            // If Earth not yet computed, compute it now
+            if ($earth_pd === null || $earth_pd->teval !== $jd_tt) {
+                // Force Earth calculation by computing Sun (which requires Earth)
+                $xdummy = [];
+                $dummy_serr = null;
+                $earthStrategy = EphemerisStrategyFactory::forFlags(
+                    Constants::SEFLG_SWIEPH | Constants::SEFLG_HELCTR,
+                    Constants::SE_SUN
+                );
+                if ($earthStrategy !== null) {
+                    $earthStrategy->compute($jd_tt, Constants::SE_SUN, Constants::SEFLG_SWIEPH | Constants::SEFLG_HELCTR);
+                }
+                // Refresh reference
+                $earth_pd = &$state->pldat[\Swisseph\SwephFile\SwephConstants::SEI_EARTH] ?? null;
+            }
+
+            if ($earth_pd === null || !isset($earth_pd->x)) {
+                $serr = 'Earth heliocentric position not available for geocentric conversion';
+                return Constants::SE_ERR;
+            }
+
+            // Earth coordinates in earth_pd->x are heliocentric equatorial J2000
+            $xe = $earth_pd->x;
+
+            // Geocentric = heliocentric planet - heliocentric Earth
+            // Result: geocentric equatorial J2000
+            for ($i = 0; $i < 6; $i++) {
+                $xp[$i] = $xp[$i] - $xe[$i];
+            }
+        }
+
+        // At this point we have geocentric (or heliocentric) equatorial J2000 coordinates
+
+        // 2. Precess from J2000 to current date
+        $pos = [$xp[0], $xp[1], $xp[2]];
+        Precession::precess($pos, $jd_tt, 0, Constants::J2000_TO_J);
+        $xp[0] = $pos[0];
+        $xp[1] = $pos[1];
+        $xp[2] = $pos[2];
+
+        $vel = [$xp[3], $xp[4], $xp[5]];
+        Precession::precess($vel, $jd_tt, 0, Constants::J2000_TO_J);
+        $xp[3] = $vel[0];
+        $xp[4] = $vel[1];
+        $xp[5] = $vel[2];
+
+        // 3. Convert equatorial to ecliptic of date (unless SEFLG_EQUATORIAL requested)
+        if (!($iflag & Constants::SEFLG_EQUATORIAL)) {
+            $eps = $state->oec->eps;  // Obliquity of ecliptic for current date (radians)
+            // Rotate from equatorial to ecliptic (positive rotation around X-axis)
+            $xpn = $xp;
+            Coordinates::coortrf($xp, $xpn, $eps);  // Positive for equ->ecl
+            $xp[0] = $xpn[0];
+            $xp[1] = $xpn[1];
+            $xp[2] = $xpn[2];
+            // Also transform velocity
+            $xps = [$xp[3], $xp[4], $xp[5]];
+            $xpsn = [];
+            Coordinates::coortrf($xps, $xpsn, $eps);
+            $xp[3] = $xpsn[0];
+            $xp[4] = $xpsn[1];
+            $xp[5] = $xpsn[2];
+        }
+        // If SEFLG_EQUATORIAL is set, we keep the equatorial coordinates of date
+
+        // 3. Convert to XYZ format if requested
+        if ($iflag & Constants::SEFLG_XYZ) {
+            // Already in cartesian, just copy
+            // [x, y, z, vx, vy, vz]
+        } else {
+            // Convert to spherical (default output format)
+            // [lon, lat, dist, lon_speed, lat_speed, dist_speed]
+            $l = [];
+            Coordinates::cartPolSp($xp, $l);
+            // cartPolSp returns radians, convert to degrees
+            $xp = [
+                rad2deg($l[0]),  // longitude in degrees
+                rad2deg($l[1]),  // latitude in degrees
+                $l[2],           // distance in AU
+                rad2deg($l[3]),  // longitude speed in deg/day
+                rad2deg($l[4]),  // latitude speed in deg/day
+                $l[5],           // distance speed in AU/day
+            ];
+        }
+
+        // 4. Convert to radians if requested (and not XYZ)
+        if (($iflag & Constants::SEFLG_RADIANS) && !($iflag & Constants::SEFLG_XYZ)) {
+            $xp[0] = deg2rad($xp[0]);
+            $xp[1] = deg2rad($xp[1]);
+            $xp[3] = deg2rad($xp[3]);
+            $xp[4] = deg2rad($xp[4]);
+        }
+
+        // 5. Apply sidereal transformation if requested
+        if ($iflag & Constants::SEFLG_SIDEREAL) {
+            $xp[0] = Sidereal::adjustLongitude($xp[0], $jd_tt, $iflag);
+        }
+
+        $xx = $xp;
         return $iflag;
     }
 

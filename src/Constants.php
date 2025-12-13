@@ -44,6 +44,39 @@ final class Constants
     // Offsets for special object types
     public const SE_AST_OFFSET = 10000;      // Numbered asteroids start here
     public const SE_PLMOON_OFFSET = 9000;    // Planetary moons start here
+    public const SE_COMET_OFFSET = 1000;     // Comets start here
+
+    // Fictitious planets offset and limits (swephexp.h:131-136)
+    public const SE_FICT_OFFSET = 40;        // Fictitious bodies start here
+    public const SE_FICT_OFFSET_1 = 39;      // for internal use
+    public const SE_FICT_MAX = 999;          // Maximum fictitious body number
+    public const SE_NFICT_ELEM = 15;         // Number of fictitious elements in built-in table
+
+    // Hamburger or Uranian "planets" (swephexp.h:139-146)
+    public const SE_CUPIDO = 40;
+    public const SE_HADES = 41;
+    public const SE_ZEUS = 42;
+    public const SE_KRONOS = 43;
+    public const SE_APOLLON = 44;
+    public const SE_ADMETOS = 45;
+    public const SE_VULKANUS = 46;
+    public const SE_POSEIDON = 47;
+
+    // Other fictitious bodies (swephexp.h:148-158)
+    public const SE_ISIS = 48;               // Isis-Transpluto
+    public const SE_NIBIRU = 49;
+    public const SE_HARRINGTON = 50;
+    public const SE_NEPTUNE_LEVERRIER = 51;
+    public const SE_NEPTUNE_ADAMS = 52;
+    public const SE_PLUTO_LOWELL = 53;
+    public const SE_PLUTO_PICKERING = 54;
+    public const SE_VULCAN = 55;
+    public const SE_WHITE_MOON = 56;
+    public const SE_PROSERPINA = 57;
+    public const SE_WALDEMATH = 58;
+
+    // Fixed star indicator
+    public const SE_FIXSTAR = -10;
 
     // Calculation flags (values match Swiss Ephemeris exactly)
     public const SEFLG_JPLEPH = 1;       // use JPL ephemeris

@@ -5,7 +5,13 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 [![PHP Version](https://img.shields.io/badge/PHP-8.1%2B-777BB4.svg)](https://php.net)
 
-## 📊 Implementation Progress
+## � Documentation
+
+*   **[API Reference (English / Русский)](docs/API_Reference.md)** - Complete guide to all 107 functions.
+*   [Implementation Audit](FUNCTION_AUDIT.md) - Detailed status of each function.
+*   [Contract](docs/CONTRACT.md) - API compatibility contract.
+
+## �📊 Implementation Progress
 
 **C API Coverage**: 106/106 functions (**100%**) 🎉🎊✨
 **PHP Functions**: 107 unique exports (+1 helper: swe_jd_to_utc) 🎁
