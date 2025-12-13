@@ -76,6 +76,12 @@ final class SwephStrategy implements EphemerisStrategy
             return StrategyResult::okFinal($out);
         }
 
+        // SE_SUN + BARYCTR: специальный путь app_pos_etc_sbar
+        if ($ipl === Constants::SE_SUN && ($iflag & Constants::SEFLG_BARYCTR)) {
+            $final = PlanetApparentPipeline::appPosEtcSbar($jd_tt, $iflag);
+            return StrategyResult::okFinal($final);
+        }
+
         // Общий пайплайн видимого результата
         $final = PlanetApparentPipeline::computeFinal($jd_tt, $ipl, $iflag, $xpret);
         return StrategyResult::okFinal($final);
