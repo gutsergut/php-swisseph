@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Swisseph\Swe\Functions;
 
+use Swisseph\Constants;
+use Swisseph\Error;
+use Swisseph\Julian;
 use Swisseph\State;
 
 /**
@@ -82,20 +85,25 @@ final class MiscUtilityFunctions
         string $calendar,
         float &$tjd
     ): int {
+        // Validate calendar parameter
+        if ($calendar !== 'g' && $calendar !== 'j') {
+            return Constants::ERR;
+        }
+
         $gregflag = Constants::SE_JUL_CAL;
         if ($calendar === 'g') {
             $gregflag = Constants::SE_GREG_CAL;
         }
 
         // Convert to Julian Day
-        $jd = TimeFunctions::julday($year, $month, $day, $uttime, $gregflag);
+        $jd = Julian::toJulianDay($year, $month, $day, $uttime, $gregflag);
 
         // Reverse conversion to validate
-        $ryear = 0;
-        $rmon = 0;
-        $rday = 0;
-        $rut = 0.0;
-        TimeFunctions::revjul($jd, $gregflag, $ryear, $rmon, $rday, $rut);
+        $result = Julian::fromJulianDay($jd, $gregflag);
+        $ryear = $result['y'];
+        $rmon = $result['m'];
+        $rday = $result['d'];
+        $rut = $result['ut'];
 
         $tjd = $jd;
 

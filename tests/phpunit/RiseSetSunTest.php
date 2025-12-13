@@ -43,7 +43,7 @@ final class RiseSetSunTest extends TestCase
 
         $t_rise = null; $err = null;
         $rc = \swe_rise_trans($jd0, \Swisseph\Constants::SE_SUN, null, 0, \Swisseph\Constants::SE_CALC_RISE, $geopos, $atpress, $attemp, null, $t_rise, $err);
-        $this->assertSame(\Swisseph\Constants::SE_ERR, $rc);
+        $this->assertSame(-2, $rc);
         $this->assertIsString($err);
     }
 }

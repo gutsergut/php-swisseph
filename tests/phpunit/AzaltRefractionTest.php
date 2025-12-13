@@ -15,7 +15,7 @@ final class AzaltRefractionTest extends TestCase
         $xin = [40.0, 20.0];
         $hor = [];
         $err = null;
-        $rc = \swe_azalt($jd_ut, \Swisseph\Constants::SE_EQU2HOR, $xin, $geopos, $atpress, $attemp, $hor, $err);
+        $rc = \swe_azalt($jd_ut, \Swisseph\Constants::SE_EQU2HOR, $geopos, $atpress, $attemp, $xin, $hor, $err);
         $this->assertSame(0, $rc, $err ?? '');
 
         $eq2 = [];

@@ -187,9 +187,10 @@ final class PhenoFunctions
         $dd = self::PLA_DIAM[$ipl] ?? 0.0;
 
         if ($lbr[2] < $dd / 2.0 / Constants::AUNIT) {
-            $attr[3] = 180.0; // On surface of Earth
+            $attr[3] = 180.0 * 3600.0; // On surface of Earth (convert to arcsec)
         } else {
-            $attr[3] = asin($dd / 2.0 / Constants::AUNIT / $lbr[2]) * 2.0 * Constants::RADTODEG;
+            // Result in degrees, convert to arcsec (1° = 3600")
+            $attr[3] = asin($dd / 2.0 / Constants::AUNIT / $lbr[2]) * 2.0 * Constants::RADTODEG * 3600.0;
         }
 
         // Apparent magnitude
@@ -246,7 +247,7 @@ final class PhenoFunctions
             $serr = $serr2;
         }
 
-        return $iflag;
+        return Constants::SE_OK;
     }
 
     /**

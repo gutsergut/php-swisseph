@@ -570,9 +570,16 @@ if (!function_exists('swe_azalt')) {
         float $atpress,
         float $attemp,
         array $xin,
-        array &$xaz
-    ): void {
-        HorizonFunctions::azalt($tjd_ut, $calc_flag, $geopos, $atpress, $attemp, $xin, $xaz);
+        array &$xaz,
+        ?string &$serr = null
+    ): int {
+        try {
+            HorizonFunctions::azalt($tjd_ut, $calc_flag, $geopos, $atpress, $attemp, $xin, $xaz);
+            return 0;
+        } catch (\Exception $e) {
+            $serr = $e->getMessage();
+            return -1;
+        }
     }
 }
 if (!function_exists('swe_azalt_rev')) {
@@ -588,16 +595,24 @@ if (!function_exists('swe_azalt_rev')) {
      * @param array $geopos [longitude (deg), latitude (deg), height (m)]
      * @param array $xin Input [azimuth, true_altitude] in degrees
      * @param array $xout Output coordinates [coord1, coord2] in degrees
-     * @return void
+     * @param string|null $serr Error message (optional)
+     * @return int 0 on success, -1 on error
      */
     function swe_azalt_rev(
         float $tjd_ut,
         int $calc_flag,
         array $geopos,
         array $xin,
-        array &$xout
-    ): void {
-        HorizonFunctions::azalt_rev($tjd_ut, $calc_flag, $geopos, $xin, $xout);
+        array &$xout,
+        ?string &$serr = null
+    ): int {
+        try {
+            HorizonFunctions::azalt_rev($tjd_ut, $calc_flag, $geopos, $xin, $xout);
+            return 0;
+        } catch (\Exception $e) {
+            $serr = $e->getMessage();
+            return -1;
+        }
     }
 }
 if (!function_exists('swe_refrac')) {
