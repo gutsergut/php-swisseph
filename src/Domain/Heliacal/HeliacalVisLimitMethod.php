@@ -199,31 +199,41 @@ final class HeliacalVisLimitMethod
         if ($ipl === Constants::SE_MERCURY || $ipl === Constants::SE_VENUS || $TypeEvent <= 2) {
             if ($ipl === -1) {
                 // find date when star rises with sun (cosmic rising)
-                $retval = HeliacalAscensional::get_asc_obl_with_sun($tjd, $ipl, $ObjectName, $helflag, $TypeEvent, 0, $dgeo, $tjd, $serr);
+                $tjd_temp = $tjd;
+                $retval = HeliacalAscensional::get_asc_obl_with_sun($tjd, $ipl, $ObjectName, $helflag, $TypeEvent, 0, $dgeo, $tjd_temp, $serr);
+                $tjd = $tjd_temp;
                 if ($retval !== Constants::OK) {
                     goto swe_heliacal_err; // retval may be -2 or ERR
                 }
             } else {
                 // find date of conjunction of object with sun
-                $retval = HeliacalAscensional::find_conjunct_sun($tjd, $ipl, $helflag, $TypeEvent, $tjd, $serr);
+                $tjd_temp = $tjd;
+                $retval = HeliacalAscensional::find_conjunct_sun($tjd, $ipl, $helflag, $TypeEvent, $tjd_temp, $serr);
+                $tjd = $tjd_temp;
                 if ($retval === Constants::ERR) {
                     goto swe_heliacal_err;
                 }
             }
             // find the day and minute on which the object becomes visible
-            $retval = HeliacalAscensional::get_heliacal_day($tjd, $dgeo, $datm, $dobs, $ObjectName, $helflag2, $TypeEvent, $tday, $serr);
+            $tday_temp = $tday;
+            $retval = HeliacalAscensional::get_heliacal_day($tjd, $dgeo, $datm, $dobs, $ObjectName, $helflag2, $TypeEvent, $tday_temp, $serr);
+            $tday = $tday_temp;
             if ($retval !== Constants::OK) {
                 goto swe_heliacal_err;
             }
         // acronychal event
         } else {
-            $retval = HeliacalAscensional::get_asc_obl_with_sun($tjd, $ipl, $ObjectName, $helflag, $TypeEvent, 0, $dgeo, $tjd, $serr);
+            $tjd_temp = $tjd;
+            $retval = HeliacalAscensional::get_asc_obl_with_sun($tjd, $ipl, $ObjectName, $helflag, $TypeEvent, 0, $dgeo, $tjd_temp, $serr);
+            $tjd = $tjd_temp;
             if ($retval !== Constants::OK) {
                 goto swe_heliacal_err;
             }
 
             $tday = $tjd;
-            $retval = self::get_acronychal_day($tjd, $dgeo, $datm, $dobs, $ObjectName, $helflag2, $TypeEvent, $tday, $serr);
+            $tday_temp = $tday;
+            $retval = self::get_acronychal_day($tjd, $dgeo, $datm, $dobs, $ObjectName, $helflag2, $TypeEvent, $tday_temp, $serr);
+            $tday = $tday_temp;
             if ($retval !== Constants::OK) {
                 goto swe_heliacal_err;
             }

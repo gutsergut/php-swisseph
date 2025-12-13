@@ -323,11 +323,21 @@ final class HeliacalFunctions
             $serr = '';
             $retval = self::heliacal_ut($tjd, $dgeo, $datm, $dobs, $ObjectName, $TypeEvent, $helflag, $dret, $serr);
 
+            // DEBUG
+            if (getenv('DEBUG_HELIACAL')) {
+                error_log(sprintf("[HELIACAL_LOOP] tjd=%.2f, retval=%d, dret[0]=%.5f, err=%s", $tjd, $retval, $dret[0], $serr));
+            }
+
             // if resulting event date < start date: retry from half period later
             while ($retval !== -2 && $dret[0] < $tjd0) {
                 $tjd += $tadd;
                 $serr = '';
                 $retval = self::heliacal_ut($tjd, $dgeo, $datm, $dobs, $ObjectName, $TypeEvent, $helflag, $dret, $serr);
+
+                // DEBUG
+                if (getenv('DEBUG_HELIACAL')) {
+                    error_log(sprintf("[HELIACAL_RETRY] tjd=%.2f, retval=%d, dret[0]=%.5f", $tjd, $retval, $dret[0]));
+                }
             }
         }
 
