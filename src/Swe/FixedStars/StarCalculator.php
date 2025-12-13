@@ -365,6 +365,13 @@ final class StarCalculator
             }
         }
 
+        // Debug: check coordinates after transformation
+        if (getenv('DEBUG_STAR_CALC')) {
+            $coord_type = ($iflag & Constants::SEFLG_EQUATORIAL) ? 'EQUATORIAL' : 'ECLIPTIC';
+            error_log(sprintf("StarCalculator after ecliptic transform: iflag=0x%X, type=%s, x[0]=%.6f, x[1]=%.6f",
+                $iflag, $coord_type, $x[0] * Constants::RADTODEG, $x[1] * Constants::RADTODEG));
+        }
+
         // C: Sidereal positions
         if ($iflag & Constants::SEFLG_SIDEREAL) {
             $sidMode = \Swisseph\State::getSidMode()[0];
