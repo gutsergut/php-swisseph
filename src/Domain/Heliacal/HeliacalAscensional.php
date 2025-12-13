@@ -32,17 +32,27 @@ final class HeliacalAscensional
      *
      * Source: swehel.c lines 2569-2577
      */
+    /**
+     * Reference epochs for planetary conjunctions.
+     * Matches C tcon[] array from swehel.c lines 2566-2577.
+     *
+     * Format: [inferior/conjunction, superior/opposition] for each planet
+     * - Moon: [0,1]
+     * - Mercury (ipl=2): [2,3]
+     * - Venus (ipl=3): [4,5]
+     * - Mars (ipl=4): [6,7]
+     * etc.
+     */
     private const TCON = [
-        0.0, 0.0,           // SE_ECL_NUT (unused)
-        0.0, 0.0,           // Sun (unused)
-        2451550.0, 2451550.0,  // Moon
-        2451604.0, 2451670.0,  // Mercury
-        2451980.0, 2452280.0,  // Venus
-        2451727.0, 2452074.0,  // Mars
-        2451673.0, 2451877.0,  // Jupiter
-        2451675.0, 2451868.0,  // Saturn
-        2451581.0, 2451768.0,  // Uranus
-        2451568.0, 2451753.0,  // Neptune
+        0.0, 0.0,              // [0,1] unused placeholder
+        2451550.0, 2451550.0,  // [2,3] Moon (ipl=1)
+        2451604.0, 2451670.0,  // [4,5] Mercury (ipl=2)
+        2451980.0, 2452280.0,  // [6,7] Venus (ipl=3)
+        2451727.0, 2452074.0,  // [8,9] Mars (ipl=4)
+        2451673.0, 2451877.0,  // [10,11] Jupiter (ipl=5)
+        2451675.0, 2451868.0,  // [12,13] Saturn (ipl=6)
+        2451581.0, 2451768.0,  // [14,15] Uranus (ipl=7)
+        2451568.0, 2451753.0,  // [16,17] Neptune (ipl=8)
     ];
 
     /**
@@ -236,6 +246,12 @@ final class HeliacalAscensional
         $dsynperiod = HeliacalPhenomena::get_synodic_period($ipl);
         $tjdcon = $tjd0 + floor(($tjd_start - $tjd0) / $dsynperiod + 1) * $dsynperiod;
 
+        // Ensure conjunction is after start date
+        // (floor formula may give a conjunction before start date if tjd0 is in the future)
+        if ($tjdcon < $tjd_start) {
+            $tjdcon += $dsynperiod;
+        }
+
         // Refine using Newton's method
         $ds = 100.0;
         $x = array_fill(0, 6, 0.0);
@@ -247,13 +263,28 @@ final class HeliacalAscensional
                 $tjd_start, $tjd0, $dsynperiod, $tjdcon));
         }
 
+        $iteration = 0;
         while ($ds > 0.5) {
+            $iteration++;
+            if ($iteration > 100) {
+                if (getenv('DEBUG_HELIACAL')) {
+                    error_log("[FIND_CONJUNCT] ERROR: Too many iterations (>100), stopping");
+                }
+                return Constants::ERR;
+            }
+
             // Calculate planet position with speed
             if (\swe_calc($tjdcon, $ipl, $epheflag | Constants::SEFLG_SPEED, $x, $serr) === Constants::ERR) {
+                if (getenv('DEBUG_HELIACAL')) {
+                    error_log("[FIND_CONJUNCT] ERROR in swe_calc planet: {$serr}");
+                }
                 return Constants::ERR;
             }
             // Calculate Sun position with speed
             if (\swe_calc($tjdcon, Constants::SE_SUN, $epheflag | Constants::SEFLG_SPEED, $xs, $serr) === Constants::ERR) {
+                if (getenv('DEBUG_HELIACAL')) {
+                    error_log("[FIND_CONJUNCT] ERROR in swe_calc Sun: {$serr}");
+                }
                 return Constants::ERR;
             }
 
@@ -264,7 +295,20 @@ final class HeliacalAscensional
             }
 
             // Newton iteration: tjd -= f(t) / f'(t)
-            $tjdcon -= $ds / ($x[3] - $xs[3]);
+            $speed_diff = $x[3] - $xs[3];
+            if (abs($speed_diff) < 0.0001) {
+                if (getenv('DEBUG_HELIACAL')) {
+                    error_log(sprintf("[FIND_CONJUNCT] ERROR: Speed diff too small (%.8f), cannot iterate", $speed_diff));
+                }
+                return Constants::ERR;
+            }
+
+            $tjdcon -= $ds / $speed_diff;
+
+            if (getenv('DEBUG_HELIACAL') && $iteration <= 3) {
+                error_log(sprintf("[FIND_CONJUNCT] Iter %d: tjdcon=%.5f, ds=%.3f, speed_diff=%.6f",
+                    $iteration, $tjdcon, $ds, $speed_diff));
+            }
         }
 
         // DEBUG
@@ -274,34 +318,40 @@ final class HeliacalAscensional
 
         // For inner planets (Mercury, Venus) heliacal events: check if this is inferior or superior conjunction
         // TypeEvent 1,2 (morning first, evening last) need inferior conjunction (planet between Earth and Sun)
+        // TypeEvent 3,4 (evening first, morning last) need superior conjunction (planet behind Sun)
         // Inferior conjunction: planet between Earth and Sun (distance < 1 AU)
         // Superior conjunction: planet behind Sun (distance > 1 AU)
-        if ($ipl <= Constants::SE_VENUS && $TypeEvent <= 2 && $daspect == 0.0) {
+        if ($ipl <= Constants::SE_VENUS && $daspect == 0.0) {
             // Get planet distance at conjunction
             if (\swe_calc($tjdcon, $ipl, $epheflag, $x, $serr) === Constants::ERR) {
                 return Constants::ERR;
             }
             $planet_dist = $x[2]; // AU
 
-            // Get Earth-Sun distance (approximately 1 AU, but let's be precise)
-            if (\swe_calc($tjdcon, Constants::SE_SUN, $epheflag, $xs, $serr) === Constants::ERR) {
-                return Constants::ERR;
-            }
-            $sun_dist = $xs[2]; // This is actually 0 for geocentric, so use 1.0
+            $is_superior = ($planet_dist > 0.8); // Threshold: > 0.8 AU = superior
+            $need_superior = ($TypeEvent >= 3); // TypeEvent 3,4 need superior
 
-            // If planet is farther than ~1 AU, it's superior conjunction
-            // For inferior conjunction, Venus should be ~0.28 AU, Mercury ~0.6 AU
-            if ($planet_dist > 0.8) { // Threshold: if > 0.8 AU, it's superior
-                // This is superior conjunction, we need inferior → go back half synodic period
+            if ($is_superior && !$need_superior) {
+                // Found superior but need inferior → go back half synodic period
                 $tjdcon -= $dsynperiod / 2.0;
 
                 if (getenv('DEBUG_HELIACAL')) {
-                    error_log(sprintf("[FIND_CONJUNCT] Superior conjunction detected (dist=%.3f AU), adjusting to inferior: tjdcon=%.5f",
-                        $planet_dist, $tjdcon));
+                    error_log(sprintf("[FIND_CONJUNCT] Superior conjunction detected (dist=%.3f AU), but need inferior for TypeEvent=%d, adjusting: tjdcon=%.5f",
+                        $planet_dist, $TypeEvent, $tjdcon));
+                }
+            } elseif (!$is_superior && $need_superior) {
+                // Found inferior but need superior → go forward half synodic period
+                $tjdcon += $dsynperiod / 2.0;
+
+                if (getenv('DEBUG_HELIACAL')) {
+                    error_log(sprintf("[FIND_CONJUNCT] Inferior conjunction detected (dist=%.3f AU), but need superior for TypeEvent=%d, adjusting: tjdcon=%.5f",
+                        $planet_dist, $TypeEvent, $tjdcon));
                 }
             } else {
                 if (getenv('DEBUG_HELIACAL')) {
-                    error_log(sprintf("[FIND_CONJUNCT] Inferior conjunction confirmed (dist=%.3f AU)", $planet_dist));
+                    $conj_type = $is_superior ? "Superior" : "Inferior";
+                    error_log(sprintf("[FIND_CONJUNCT] %s conjunction confirmed (dist=%.3f AU), matches TypeEvent=%d requirement",
+                        $conj_type, $planet_dist, $TypeEvent));
                 }
             }
         }

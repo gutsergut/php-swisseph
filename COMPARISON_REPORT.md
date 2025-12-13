@@ -41,7 +41,7 @@ Reference epoch (tcon_table[6]): 2451163.00000  ← НЕПРАВИЛЬНО!
 Reference epoch (TCON[8]): 2451980.0  ← ПРАВИЛЬНО!
 ```
 
-❌ **ПРОБЛЕМА В C ТЕСТЕ!** 
+❌ **ПРОБЛЕМА В C ТЕСТЕ!**
 - C test использует НЕПРАВИЛЬНУЮ таблицу tcon_table[] из другого источника
 - Оригинальный swehel.c использует: tcon[8]=2451980.0 для Venus
 - C test ошибочно использует tcon[6]=2451163.0 (данные Jupiter!)
@@ -168,7 +168,7 @@ Difference: -0.42 seconds
 **PHP (реальный результат из ранее):**
 ```
 Running full swe_heliacal_ut:
-Result: SUCCESS  
+Result: SUCCESS
 Event JD: 2452004.66238229
 Difference: 4.94 seconds от C эталона
 ```
