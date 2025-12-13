@@ -173,7 +173,21 @@ final class PlanetApparentPipeline
             }
         }
 
-        // 5) Прецессия к дате (если требуется)
+        // Clear speed if not requested
+        if (!($iflag & Constants::SEFLG_SPEED)) {
+            for ($i = 3; $i <= 5; $i++) {
+                $xx[$i] = 0.0;
+            }
+        }
+
+        // 5) ICRS to J2000 frame bias
+        // In C: if (!(iflag & SEFLG_ICRS) && swi_get_denum(ipli, epheflag) >= 403)
+        // For SWIEPH, DE number is always >= 403, so we apply bias unless ICRS flag
+        if (!($iflag & Constants::SEFLG_ICRS)) {
+            $xx = \Swisseph\Bias::apply($xx, $jd_tt, $iflag, \Swisseph\Bias::MODEL_DEFAULT, false);
+        }
+
+        // 6) Прецессия к дате (если требуется)
         if (!($iflag & Constants::SEFLG_J2000)) {
             \Swisseph\Precession::precess($xx, $jd_tt, $iflag, Constants::J2000_TO_J);
             if ($iflag & Constants::SEFLG_SPEED) {
@@ -181,7 +195,7 @@ final class PlanetApparentPipeline
             }
         }
 
-        // 6) app_pos_rest + выбор среза
+        // 7) app_pos_rest + выбор среза
         $result_slot = SwephConstants::PNOEXT2INT[$ipl] ?? 0;
         if ($ipl === Constants::SE_SUN) {
             $result_slot = SwephConstants::SEI_SUNBARY;

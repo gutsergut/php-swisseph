@@ -36,8 +36,35 @@ final class Obliquity
     private const SEMOD_PREC_VONDRAK_2011 = 10;
     private const SEMOD_PREC_OWEN_1990 = 11;
 
+    // Vondrak 2011 constants
+    private const NPOL_PEPS = 4;
+    private const NPER_PEPS = 10;
+    private const J2000 = 2451545.0;
+    private const AS2R = Math::DEG_TO_RAD / 3600.0;
+    private const D2PI = 2.0 * M_PI;
+    private const EPS0 = 84381.406 * self::AS2R;
+
+    // Vondrak 2011 polynomial coefficients for obliquity (pepol[NPOL_PEPS][2])
+    // [0] = precession, [1] = obliquity
+    private const PEPOL = [
+        [+8134.017132, +84028.206305],
+        [+5043.0520035, +0.3624445],
+        [-0.00710733, -0.00004039],
+        [+0.000000271, -0.000000110]
+    ];
+
+    // Vondrak 2011 periodic coefficients for obliquity (peper[5][NPER_PEPS])
+    // [0] = periods, [1-4] = amplitudes
+    private const PEPER = [
+        [+409.90, +396.15, +537.22, +402.90, +417.15, +288.92, +4043.00, +306.00, +277.00, +203.00],
+        [-6908.287473, -3198.706291, +1453.674527, -857.748557, +1173.231614, -156.981465, +371.836550, -216.619040, +193.691479, +11.891524],
+        [+753.872780, -247.805823, +379.471484, -53.880558, -90.109153, -353.600190, -63.115353, -28.248187, +17.703387, +38.911307],
+        [-2845.175469, +449.844989, -1255.915323, +886.736783, +418.887514, +997.912441, -240.979710, +76.541307, -36.788069, -170.964086],
+        [-1704.720302, -862.308358, +447.832178, -889.571909, +190.402846, -56.564991, -296.222622, -75.859952, +67.473503, +3.014055]
+    ];
+
     private const SEMOD_PREC_DEFAULT = self::SEMOD_PREC_VONDRAK_2011;
-    private const SEMOD_PREC_DEFAULT_SHORT = self::SEMOD_PREC_IAU_1976;
+    private const SEMOD_PREC_DEFAULT_SHORT = self::SEMOD_PREC_VONDRAK_2011;
 
     // Time limits for short-term models (in Julian centuries from J2000)
     private const PREC_IAU_1976_CTIES = 2.0;
@@ -94,9 +121,7 @@ final class Obliquity
             // For now, fall back to IAU 2006
             return self::iau2006($T);
         } else { // SEMOD_PREC_VONDRAK_2011
-            // TODO: Implement Vondrak 2011 (requires swi_ldp_peps with peper/pepol tables)
-            // For now, fall back to IAU 2006
-            return self::iau2006($T);
+            return self::vondrak2011($jd);
         }
     }
 
@@ -210,5 +235,57 @@ final class Obliquity
         $eps = ($eps * $T - 468.093) * $T + 84381.448;
         $eps *= Math::DEG_TO_RAD / 3600.0;
         return $eps;
+    }
+
+    /**
+     * Vondrak 2011 model (Vondrak/Capitaine/Wallace, A&A 534, A22 (2011))
+     * Long-term high precision precession and obliquity
+     * Port of swi_ldp_peps from swephlib.c
+     *
+     * @param float $jd Julian day (TT)
+     * @return float Obliquity in radians
+     */
+    private static function vondrak2011(float $jd): float
+    {
+        [$dpre, $deps] = self::ldpPeps($jd);
+        return $deps;
+    }
+
+    /**
+     * Long-term precession and obliquity (Vondrak 2011)
+     * Port of swi_ldp_peps from swephlib.c
+     *
+     * @param float $jd Julian day (TT)
+     * @return array{0: float, 1: float} [precession, obliquity] in radians
+     */
+    public static function ldpPeps(float $jd): array
+    {
+        $t = ($jd - self::J2000) / 36525.0;
+        $p = 0.0;
+        $q = 0.0;
+
+        // Periodic terms
+        for ($i = 0; $i < self::NPER_PEPS; $i++) {
+            $w = self::D2PI * $t;
+            $a = $w / self::PEPER[0][$i];
+            $s = sin($a);
+            $c = cos($a);
+            $p += $c * self::PEPER[1][$i] + $s * self::PEPER[3][$i];
+            $q += $c * self::PEPER[2][$i] + $s * self::PEPER[4][$i];
+        }
+
+        // Polynomial terms
+        $w = 1.0;
+        for ($i = 0; $i < self::NPOL_PEPS; $i++) {
+            $p += self::PEPOL[$i][0] * $w;
+            $q += self::PEPOL[$i][1] * $w;
+            $w *= $t;
+        }
+
+        // Both to radians
+        $p *= self::AS2R;
+        $q *= self::AS2R;
+
+        return [$p, $q];
     }
 }
