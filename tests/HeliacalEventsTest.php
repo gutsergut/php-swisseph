@@ -118,7 +118,8 @@ class HeliacalEventsTest extends TestCase
     /**
      * Test Venus evening first
      * Reference: swetest64.exe -hev3 -p3 -b1.6.2000 -geopos13.4,52.5,100 -topo
-     * Expected: 2002/03/01 17:11:15.8 UT (JD 2452335.21615)
+     * Expected: 2000/10/06 16:53:55.0 UT (JD 2451824.20411) [FIRST occurrence after start date]
+     * Note: Previous test expected 2002/03/01 (JD 2452335.21615) which is the SECOND occurrence
      */
     public function testVenusEveningFirst(): void
     {
@@ -144,7 +145,7 @@ class HeliacalEventsTest extends TestCase
 
         $this->assertGreaterThanOrEqual(0, $retval, "swe_heliacal_ut failed: $serr");
 
-        $expectedJD = 2452335.21615;
+        $expectedJD = 2451824.20411; // First occurrence: 2000/10/06 16:53:55.0 UT
         $actualJD = $dret[0];
         $diffDays = abs($actualJD - $expectedJD);
 
@@ -157,7 +158,8 @@ class HeliacalEventsTest extends TestCase
     /**
      * Test Venus heliacal setting
      * Reference: swetest64.exe -hev2 -p3 -b1.6.2000 -geopos13.4,52.5,100 -topo
-     * Expected: 2002/09/07 17:55:34.9 UT (JD 2452525.24693)
+     * Expected: 2001/03/25 17:45:17.0 UT (JD 2451994.23978) [FIRST occurrence after start date]
+     * Note: Previous test expected 2002/09/07 (JD 2452525.24693) which is the SECOND occurrence
      */
     public function testVenusHeliacalSetting(): void
     {
@@ -183,7 +185,7 @@ class HeliacalEventsTest extends TestCase
 
         $this->assertGreaterThanOrEqual(0, $retval, "swe_heliacal_ut failed: $serr");
 
-        $expectedJD = 2452525.24693;
+        $expectedJD = 2451994.23978; // First occurrence: 2001/03/25 17:45:17.0 UT
         $actualJD = $dret[0];
         $diffDays = abs($actualJD - $expectedJD);
 

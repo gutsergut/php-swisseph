@@ -213,6 +213,21 @@ final class HeliacalVisLimitMethod
                 if ($retval === Constants::ERR) {
                     goto swe_heliacal_err;
                 }
+
+                // CRITICAL FIX: For evening events (TypeEvent 3,4), if conjunction found
+                // before original start date, advance to next conjunction
+                // This happens because find_conjunct_sun uses (tjd_start - 50) which can
+                // find a conjunction in the PREVIOUS synodic period
+                // Also applies to TypeEvent=2 (evening last) for inner planets
+                if ((($TypeEvent >= 2 && $ipl <= Constants::SE_VENUS) || $TypeEvent >= 3) && $tjd < $tjd_start) {
+                    $dsynperiod = HeliacalPhenomena::get_synodic_period($ipl);
+                    $tjd += $dsynperiod;
+
+                    if (getenv('DEBUG_HELIACAL')) {
+                        error_log(sprintf("[HELIACAL_VIS_LIM] Conjunction too early for TypeEvent=%d (%.5f < %.5f), advancing by synodic period (%.2f days) to %.5f",
+                            $TypeEvent, $tjd - $dsynperiod, $tjd_start, $dsynperiod, $tjd));
+                    }
+                }
             }
             // find the day and minute on which the object becomes visible
             $tday_temp = $tday;
