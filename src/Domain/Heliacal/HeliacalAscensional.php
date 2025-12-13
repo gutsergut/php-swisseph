@@ -272,6 +272,40 @@ final class HeliacalAscensional
             error_log(sprintf("[FIND_CONJUNCT] Final tjdcon=%.5f (ds=%.6f)", $tjdcon, $ds));
         }
 
+        // For inner planets (Mercury, Venus) heliacal events: check if this is inferior or superior conjunction
+        // TypeEvent 1,2 (morning first, evening last) need inferior conjunction (planet between Earth and Sun)
+        // Inferior conjunction: planet between Earth and Sun (distance < 1 AU)
+        // Superior conjunction: planet behind Sun (distance > 1 AU)
+        if ($ipl <= Constants::SE_VENUS && $TypeEvent <= 2 && $daspect == 0.0) {
+            // Get planet distance at conjunction
+            if (\swe_calc($tjdcon, $ipl, $epheflag, $x, $serr) === Constants::ERR) {
+                return Constants::ERR;
+            }
+            $planet_dist = $x[2]; // AU
+
+            // Get Earth-Sun distance (approximately 1 AU, but let's be precise)
+            if (\swe_calc($tjdcon, Constants::SE_SUN, $epheflag, $xs, $serr) === Constants::ERR) {
+                return Constants::ERR;
+            }
+            $sun_dist = $xs[2]; // This is actually 0 for geocentric, so use 1.0
+
+            // If planet is farther than ~1 AU, it's superior conjunction
+            // For inferior conjunction, Venus should be ~0.28 AU, Mercury ~0.6 AU
+            if ($planet_dist > 0.8) { // Threshold: if > 0.8 AU, it's superior
+                // This is superior conjunction, we need inferior → go back half synodic period
+                $tjdcon -= $dsynperiod / 2.0;
+
+                if (getenv('DEBUG_HELIACAL')) {
+                    error_log(sprintf("[FIND_CONJUNCT] Superior conjunction detected (dist=%.3f AU), adjusting to inferior: tjdcon=%.5f",
+                        $planet_dist, $tjdcon));
+                }
+            } else {
+                if (getenv('DEBUG_HELIACAL')) {
+                    error_log(sprintf("[FIND_CONJUNCT] Inferior conjunction confirmed (dist=%.3f AU)", $planet_dist));
+                }
+            }
+        }
+
         $tjd = $tjdcon;
         return Constants::OK;
     }
