@@ -55,16 +55,18 @@ class LunarMeanCalculator
         $dcorNode = self::corrMeanNode($tjdEt); // degrees
         $node = Math::normAngleDeg($node - $dcorNode);
 
-        // Perigee longitude (mean), apply apsis correction, project onto ecliptic
-        $peri = Math::normAngleDeg(($SWELP - $MP) / 3600.0 + 180.0); // +PI as in C
-        $dcorPeri = self::corrMeanApog($tjdEt);
-        $peri = Math::normAngleDeg($peri - $dcorPeri);
+        // APOGEE longitude (mean), not perigee!
+        // In C: pol[0] = swi_mod2PI((SWELP - MP) * STR + PI)
+        // SWELP - MP gives the mean perigee argument, +180° converts to apogee
+        $apog = Math::normAngleDeg(($SWELP - $MP) / 3600.0 + 180.0); // +180° as in C - this is APOGEE
+        $dcorApog = self::corrMeanApog($tjdEt);
+        $apog = Math::normAngleDeg($apog - $dcorApog);
 
         // Project apogee onto ecliptic: rotate by -incl around node line
         $nodeRad = Math::degToRad($node);
-        $periRad = Math::degToRad($peri);
+        $apogRad = Math::degToRad($apog);
 
-        $pol = [$periRad - $nodeRad, 0.0, 1.0];
+        $pol = [$apogRad - $nodeRad, 0.0, 1.0];
         $cart = [];
         Coordinates::polCart($pol, $cart);
 
@@ -76,7 +78,9 @@ class LunarMeanCalculator
 
         $pol2 = [];
         Coordinates::cartPol($cart2, $pol2);
-        $periProj = Math::normAngleDeg(Math::radToDeg($pol2[0]) + $node);
+        // pol2[0] = longitude, pol2[1] = latitude (in radians)
+        $apogProj = Math::normAngleDeg(Math::radToDeg($pol2[0]) + $node);
+        $apogLat = Math::radToDeg($pol2[1]);
 
         // Fill outputs (lat=0, distances from mean ellipse)
         $xnasc[0] = $node;
@@ -87,13 +91,15 @@ class LunarMeanCalculator
         $xndsc[1] = 0.0;
         $xndsc[2] = LunarMeanConstants::MOON_MEAN_DIST / LunarMeanConstants::AUNIT;
 
-        $xperi[0] = $periProj;
-        $xperi[1] = 0.0;
+        // Perigee = Apogee + 180°, latitude is opposite sign
+        $xperi[0] = Math::normAngleDeg($apogProj + 180.0);
+        $xperi[1] = -$apogLat;
         $xperi[2] = LunarMeanConstants::MOON_MEAN_DIST *
             (1.0 - LunarMeanConstants::MOON_MEAN_ECC) / LunarMeanConstants::AUNIT;
 
-        $xaphe[0] = Math::normAngleDeg($periProj + 180.0);
-        $xaphe[1] = 0.0;
+        // Apogee (Lilith / Black Moon)
+        $xaphe[0] = $apogProj;
+        $xaphe[1] = $apogLat;
         if ($doFocalPoint) {
             $xaphe[2] = LunarMeanConstants::MOON_MEAN_DIST *
                 LunarMeanConstants::MOON_MEAN_ECC * 2.0 / LunarMeanConstants::AUNIT;

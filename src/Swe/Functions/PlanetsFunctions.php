@@ -33,11 +33,15 @@ final class PlanetsFunctions
     {
         $xx = Output::emptyForFlags($iflag);
 
-        // Диапазон поддерживаемых планет (расширен для Node, Chiron и фиктивных планет)
-        // SE_SUN..SE_PLUTO (0-9), SE_MEAN_NODE (10), SE_EARTH (14), SE_CHIRON (15)
+        // Диапазон поддерживаемых планет (расширен для Node, Apogee, Chiron и фиктивных планет)
+        // SE_SUN..SE_PLUTO (0-9), SE_MEAN_NODE (10), SE_TRUE_NODE (11),
+        // SE_MEAN_APOG (12), SE_OSCU_APOG (13), SE_EARTH (14), SE_CHIRON (15)
         // SE_FICT_OFFSET..SE_FICT_MAX (40-999) - Uranian/fictitious bodies
         $validRange = ($ipl >= Constants::SE_SUN && $ipl <= Constants::SE_PLUTO)
             || $ipl === Constants::SE_MEAN_NODE
+            || $ipl === Constants::SE_TRUE_NODE
+            || $ipl === Constants::SE_MEAN_APOG
+            || $ipl === Constants::SE_OSCU_APOG
             || $ipl === Constants::SE_EARTH
             || $ipl === Constants::SE_CHIRON
             || FictitiousPlanets::isFictitious($ipl);
@@ -50,6 +54,21 @@ final class PlanetsFunctions
         // Специальная обработка для Mean Node - делегируем к swe_nod_aps
         if ($ipl === Constants::SE_MEAN_NODE) {
             return self::calcMeanNode($jd_tt, $iflag, $xx, $serr);
+        }
+
+        // Специальная обработка для True Node (osculating lunar node)
+        if ($ipl === Constants::SE_TRUE_NODE) {
+            return self::calcTrueNode($jd_tt, $iflag, $xx, $serr);
+        }
+
+        // Специальная обработка для Mean Apogee (Mean Black Moon Lilith)
+        if ($ipl === Constants::SE_MEAN_APOG) {
+            return self::calcMeanApogee($jd_tt, $iflag, $xx, $serr);
+        }
+
+        // Специальная обработка для Oscu Apogee (True Black Moon Lilith)
+        if ($ipl === Constants::SE_OSCU_APOG) {
+            return self::calcOscuApogee($jd_tt, $iflag, $xx, $serr);
         }
 
         // Специальная обработка для Chiron - используем asteroid ephemeris
@@ -147,6 +166,119 @@ final class PlanetsFunctions
 
         // Copy ascending node coordinates to output
         $xx = $xnasc;
+
+        return $iflag;
+    }
+
+    /**
+     * Calculate True Node (osculating lunar ascending node)
+     *
+     * Uses LunarOsculatingCalculator which ports lunar_osc_elem() from sweph.c
+     *
+     * @param float $jd_tt Julian day in TT
+     * @param int $iflag Calculation flags
+     * @param array &$xx Output coordinates
+     * @param string|null &$serr Error message
+     * @return int iflag on success, SE_ERR on error
+     */
+    private static function calcTrueNode(float $jd_tt, int $iflag, array &$xx, ?string &$serr): int
+    {
+        $xreturn = [];
+        $ret = \Swisseph\Domain\NodesApsides\LunarOsculatingCalculator::calculate(
+            $jd_tt,
+            Constants::SE_TRUE_NODE,
+            $iflag,
+            $xreturn,
+            $serr
+        );
+
+        if ($ret < 0) {
+            return Constants::SE_ERR;
+        }
+
+        // LunarOsculatingCalculator returns 24-element array
+        // xx[0-5] = ecliptic polar (lon, lat, dist, speed_lon, speed_lat, speed_dist)
+        // Copy first 6 elements to output
+        for ($i = 0; $i < 6 && $i < count($xreturn); $i++) {
+            $xx[$i] = $xreturn[$i];
+        }
+
+        return $iflag;
+    }
+
+    /**
+     * Calculate Mean Apogee (Mean Black Moon Lilith)
+     *
+     * Uses NodesApsidesFunctions::nodAps with SE_NODBIT_MEAN
+     *
+     * @param float $jd_tt Julian day in TT
+     * @param int $iflag Calculation flags
+     * @param array &$xx Output coordinates
+     * @param string|null &$serr Error message
+     * @return int iflag on success, SE_ERR on error
+     */
+    private static function calcMeanApogee(float $jd_tt, int $iflag, array &$xx, ?string &$serr): int
+    {
+        // Use NodesApsidesFunctions to get mean apogee for Moon
+        $xnasc = null;
+        $xndsc = null;
+        $xperi = null;  // Perigee
+        $xaphe = null;  // Apogee (what we want)
+
+        $ret = NodesApsidesFunctions::nodAps(
+            $jd_tt,
+            Constants::SE_MOON,
+            $iflag,
+            Constants::SE_NODBIT_MEAN,
+            $xnasc,
+            $xndsc,
+            $xperi,
+            $xaphe,
+            $serr
+        );
+
+        if ($ret < 0) {
+            return Constants::SE_ERR;
+        }
+
+        // Copy apogee coordinates to output
+        $xx = $xaphe;
+
+        return $iflag;
+    }
+
+    /**
+     * Calculate Osculating Apogee (True Black Moon Lilith)
+     *
+     * Uses LunarOsculatingCalculator which ports lunar_osc_elem() from sweph.c
+     *
+     * @param float $jd_tt Julian day in TT
+     * @param int $iflag Calculation flags
+     * @param array &$xx Output coordinates
+     * @param string|null &$serr Error message
+     * @return int iflag on success, SE_ERR on error
+     */
+    private static function calcOscuApogee(float $jd_tt, int $iflag, array &$xx, ?string &$serr): int
+    {
+        $xreturn = [];
+        $ret = \Swisseph\Domain\NodesApsides\LunarOsculatingCalculator::calculate(
+            $jd_tt,
+            Constants::SE_OSCU_APOG,
+            $iflag,
+            $xreturn,
+            $serr
+        );
+
+        if ($ret < 0) {
+            return Constants::SE_ERR;
+        }
+
+        // LunarOsculatingCalculator returns 24-element array
+        // xx[0-5] = ecliptic polar (lon, lat, dist, speed_lon, speed_lat, speed_dist)
+        // Copy first 6 elements to output
+        for ($i = 0; $i < 6 && $i < count($xreturn); $i++) {
+            $xx[$i] = $xreturn[$i];
+        }
 
         return $iflag;
     }
