@@ -174,9 +174,9 @@ final class SwedState
         // Build nutation matrix using mean obliquity (seps/ceps)
         $epsMean = atan2($seps, $ceps);
         $this->nutMatrix = \Swisseph\NutationMatrix::build($dpsi, $deps, $epsMean, $seps, $ceps);
-        // Fallback small-angle rotation params
-        $this->snut = sin($dpsi);
-        $this->cnut = cos($dpsi);
+        // Fallback small-angle rotation params (C uses nutlo[1] = deps, not dpsi!)
+        $this->snut = sin($deps);
+        $this->cnut = cos($deps);
 
         // Compute nutation velocity matrix (matrix at t - NUT_SPEED_INTV)
         // Port of logic from sweph.c around computation of xv for nutation speed correction.
