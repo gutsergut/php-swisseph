@@ -1,5 +1,6 @@
 <?php
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Swisseph\Constants;
 use Swisseph\Swe\Planets\Vsop87Strategy;
@@ -7,9 +8,7 @@ use Swisseph\Swe\Functions\PlanetsFunctions;
 
 final class MercuryVsopStrategyParityTest extends TestCase
 {
-    /**
-     * @dataProvider flagsProvider
-     */
+    #[DataProvider('flagsProvider')]
     public function testParity(float $jd_tt, int $iflag): void
     {
         if (defined('SWISSEPH_EPHE_SET') && SWISSEPH_EPHE_SET === false) {

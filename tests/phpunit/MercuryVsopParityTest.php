@@ -1,5 +1,6 @@
 <?php
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Swisseph\Constants;
 use Swisseph\Swe\Planets\Vsop87Strategy;
@@ -32,9 +33,7 @@ final class MercuryVsopParityTest extends TestCase
         return $cases;
     }
 
-    /**
-     * @dataProvider jdFlagProvider
-     */
+    #[DataProvider('jdFlagProvider')]
     public function testParity(float $jd_tt, int $flags): void
     {
         self::ensureEphe();
