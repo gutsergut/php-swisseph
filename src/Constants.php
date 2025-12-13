@@ -401,5 +401,7 @@ final class Constants
     public const SE_MORNING_FIRST = self::SE_HELIACAL_RISING;   // Alias for heliacal rising
     public const SE_EVENING_LAST = self::SE_HELIACAL_SETTING;   // Alias for heliacal setting
 
-    // Heliacal vision flags (from swephexp.h:470)
+    // Heliacal vision flags (from swephexp.h:470-471)
     public const SE_SCOTOPIC_FLAG = 1;                  // Scotopic (dark-adapted) vision flag
+    public const SE_MIXEDOPIC_FLAG = 2;                 // Mixed scotopic/photopic vision flag
+}

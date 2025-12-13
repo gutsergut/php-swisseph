@@ -479,28 +479,33 @@ final class HeliacalPhenomena
         // swe_set_topo(dgeo[0], dgeo[1], dgeo[2]);
 
         // Get Sun position
-        [$retval, $AziS] = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, "sun", 1, $helflag, $serr);
+        $AziS = 0.0;
+        $retval = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, "sun", 1, $helflag, $AziS, $serr);
         if ($retval !== Constants::OK) {
             return [Constants::ERR, $darr];
         }
 
-        [$retval, $AltS] = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, "sun", 0, $helflag, $serr);
+        $AltS = 0.0;
+        $retval = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, "sun", 0, $helflag, $AltS, $serr);
         if ($retval !== Constants::OK) {
             return [Constants::ERR, $darr];
         }
 
         // Get object position
-        [$retval, $AziO] = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, $ObjectName, 1, $helflag, $serr);
+        $AziO = 0.0;
+        $retval = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, $ObjectName, 1, $helflag, $AziO, $serr);
         if ($retval !== Constants::OK) {
             return [Constants::ERR, $darr];
         }
 
-        [$retval, $AltO] = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, $ObjectName, 0, $helflag, $serr);
+        $AltO = 0.0;
+        $retval = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, $ObjectName, 0, $helflag, $AltO, $serr);
         if ($retval !== Constants::OK) {
             return [Constants::ERR, $darr];
         }
 
-        [$retval, $GeoAltO] = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, $ObjectName, 7, $helflag, $serr);
+        $GeoAltO = 0.0;
+        $retval = HeliacalGeometry::ObjectLoc($JDNDaysUT, $dgeo, $datm, $ObjectName, 7, $helflag, $GeoAltO, $serr);
         if ($retval !== Constants::OK) {
             return [Constants::ERR, $darr];
         }
@@ -511,7 +516,8 @@ final class HeliacalPhenomena
         $ParO = $GeoAltO - $AltO; // Parallax
 
         // Get object magnitude
-        [$retval, $MagnO] = HeliacalMagnitude::Magnitude($JDNDaysUT, $dgeo, $ObjectName, $helflag, $serr);
+        $MagnO = 0.0;
+        $retval = HeliacalMagnitude::Magnitude($JDNDaysUT, $dgeo, $ObjectName, $helflag, $MagnO, $serr);
         if ($retval === Constants::ERR) {
             return [Constants::ERR, $darr];
         }

@@ -2797,7 +2797,7 @@ if (!function_exists('swe_heliacal_pheno_ut')) {
         array &$darr,
         ?string &$serr = null
     ): int {
-        return HeliacalPhenomena::swe_heliacal_pheno_ut(
+        [$retval, $darr] = HeliacalPhenomena::swe_heliacal_pheno_ut(
             $JDNDaysUT,
             $dgeo,
             $datm,
@@ -2805,9 +2805,9 @@ if (!function_exists('swe_heliacal_pheno_ut')) {
             $ObjectName,
             $TypeEvent,
             $helflag,
-            $darr,
             $serr
         );
+        return $retval;
     }
 }
 

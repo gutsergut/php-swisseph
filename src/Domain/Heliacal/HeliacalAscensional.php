@@ -80,28 +80,30 @@ final class HeliacalAscensional
         ?string &$serr
     ): array {
         $epheflag = $iflag & (Constants::SEFLG_JPLEPH | Constants::SEFLG_SWIEPH | Constants::SEFLG_MOSEPH);
+        $x = array_fill(0, 6, 0.0);
 
         // Get equatorial coordinates
         if ($ipl === -1) {
-            // Note: would need swe_fixstar() implementation
-            // For now, return error
-            $serr = "swe_fixstar() not yet implemented";
-            return [Constants::ERR, 0.0];
+            // Fixed star
+            $retval = \swe_fixstar2($star, $tjd, $epheflag | Constants::SEFLG_EQUATORIAL, $x, $serr);
+            if ($retval < 0) {
+                return [Constants::ERR, 0.0];
+            }
         } else {
-            // Note: would need swe_calc() implementation
-            // For now, return error
-            $serr = "swe_calc() not yet implemented";
-            return [Constants::ERR, 0.0];
+            // Planet
+            $retval = \swe_calc($tjd, $ipl, $epheflag | Constants::SEFLG_EQUATORIAL, $x, $serr);
+            if ($retval < 0) {
+                return [Constants::ERR, 0.0];
+            }
         }
 
         // Check for circumpolar object
         $adp = tan($dgeo[1] * HeliacalConstants::DEGTORAD) * tan($x[1] * HeliacalConstants::DEGTORAD);
-        if (fabs($adp) > 1.0) {
+        if (abs($adp) > 1.0) {
             if ($star !== '' && $star !== null) {
                 $s = $star;
             } else {
-                // Note: would need swe_get_planet_name()
-                $s = "object";
+                $s = \swe_get_planet_name($ipl);
             }
             $serr = sprintf("%s is circumpolar, cannot calculate heliacal event", $s);
             return [-2, 0.0];
@@ -116,7 +118,7 @@ final class HeliacalAscensional
         }
 
         // Normalize to 0-360°
-        $daop = HeliacalUtils::swe_degnorm($daop);
+        $daop = \swe_degnorm($daop);
 
         return [Constants::OK, $daop];
     }
