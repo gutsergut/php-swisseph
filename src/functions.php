@@ -506,7 +506,7 @@ if (!function_exists('swe_get_orbital_elements')) {
         float $jd_et,
         int $ipl,
         int $iflag,
-        array &$dret = null,
+        ?array &$dret = null,
         ?string &$serr = null
     ): int {
         return OrbitalElementsFunctions::getOrbitalElements($jd_et, $ipl, $iflag, $dret, $serr);

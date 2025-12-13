@@ -15,6 +15,6 @@ final class HousesPlacidusPolarGuardTest extends TestCase
     $cuspSpeed = null; $ascmcSpeed = null;
     $rc = \swe_houses_ex2($jd_ut, 0, 69.65, 18.96, 'P', $cusp, $ascmc, $cuspSpeed, $ascmcSpeed, $serr);
         $this->assertSame(\Swisseph\Constants::SE_ERR, $rc);
-        $this->assertNotNull($serr);
+        $this->assertNotEmpty($serr, 'Error message should be set');
     }
 }

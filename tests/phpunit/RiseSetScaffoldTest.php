@@ -74,7 +74,7 @@ final class RiseSetScaffoldTest extends TestCase
         $this->assertSame(0, $rc, $err ?? '');
 
         // Времена должны отличаться (хотя бы на секунды/минуты)
-        $this->assertNotEquals($tApp, $tTrue);
+        $this->assertNotSame($tApp, $tTrue);
     }
 
     public function testMoonLowerTransitInDay()
@@ -92,6 +92,6 @@ final class RiseSetScaffoldTest extends TestCase
         $this->assertSame(0, $rc, $err ?? '');
         $this->assertGreaterThanOrEqual($jd_ut, $tLower);
         $this->assertLessThan($jd_ut + 1.0, $tLower);
-        $this->assertNotEquals($tUpper, $tLower);
+        $this->assertNotSame($tUpper, $tLower);
     }
 }

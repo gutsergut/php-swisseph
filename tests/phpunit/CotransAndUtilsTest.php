@@ -13,8 +13,8 @@ final class CotransAndUtilsTest extends TestCase
         $rc = \swe_cotrans($xpo, $xpn, 23.4);
         $this->assertSame(0, $rc);
         // Verify transformation occurred
-        $this->assertNotEquals($xpo[0], $xpn[0]); // longitude changed
-        $this->assertNotEquals($xpo[1], $xpn[1]); // latitude changed
+        $this->assertNotSame($xpo[0], $xpn[0]); // longitude changed
+        $this->assertNotSame($xpo[1], $xpn[1]); // latitude changed
         $this->assertEqualsWithDelta($xpo[2], $xpn[2], 1e-12); // radius preserved
 
         // Test with velocities

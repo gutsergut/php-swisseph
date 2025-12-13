@@ -14,7 +14,7 @@ final class RiseSetPolarTrueHorTest extends TestCase
         $t = null; $err = null;
         $rc = \swe_rise_trans($jd_ut, \Swisseph\Constants::SE_SUN, null, 0, \Swisseph\Constants::SE_CALC_SET, $geo, $press, $temp, $h0, $t, $err);
         $this->assertSame(-2, $rc);
-        $this->assertNotNull($err);
+        $this->assertNotEmpty($err, 'Error message should be set');
         $this->assertStringContainsString('NOT_FOUND', $err);
     }
 
