@@ -6,7 +6,7 @@ use Swisseph\Constants;
 
 /**
  * Фабрика выбора источника по флагам ephemeris.
- * Приоритет: JPLEPH (TODO) > VSOP87 > SWIEPH > MOSEPH (TODO).
+ * Приоритет: JPLEPH (TODO) > VSOP87 > SWIEPH > MOSEPH.
  */
 final class EphemerisStrategyFactory
 {
@@ -33,7 +33,12 @@ final class EphemerisStrategyFactory
             return $s->supports($ipl, $iflag) ? $s : null;
         }
 
-        // JPLEPH/MOSEPH пока не поддержаны
+        if ($iflag & Constants::SEFLG_MOSEPH) {
+            $s = new MoshierStrategy();
+            return $s->supports($ipl, $iflag) ? $s : null;
+        }
+
+        // JPLEPH пока не поддержан
         return null;
     }
 }
