@@ -134,6 +134,7 @@ final class SwephPlanCalculator
                 $retc = SwephCalculator::calculate(
                     $tjd,
                     SwephConstants::SEI_SUNBARY,
+                    SwephConstants::SEI_SUNBARY,  // iplAst = ipli for non-asteroid bodies
                     SwephConstants::SEI_FILE_PLANET,
                     $iflag,
                     null,
@@ -191,6 +192,7 @@ final class SwephPlanCalculator
                 $retc = SwephCalculator::calculate(
                     $tjd,
                     SwephConstants::SEI_MOON,
+                    SwephConstants::SEI_MOON,  // iplAst = ipli for Moon
                     SwephConstants::SEI_FILE_MOON,
                     $iflag,
                     null,
@@ -238,6 +240,7 @@ final class SwephPlanCalculator
                 $retc = SwephCalculator::calculate(
                     $tjd,
                     SwephConstants::SEI_EMB,
+                    SwephConstants::SEI_EMB,  // iplAst = ipli for EMB
                     SwephConstants::SEI_FILE_PLANET,
                     $iflag,
                     null,
@@ -349,9 +352,15 @@ final class SwephPlanCalculator
                 // for bodies with ipl >= SEI_ANYBODY (i.e., all asteroids)
                 $xsunb = ($ipli >= SwephConstants::SEI_ANYBODY) ? $xps : null;
 
+                // For numbered asteroids, $iplAst = $iplExternal (external ipl like 10433)
+                // For main belt asteroids, $iplAst = $ipli (internal index like SEI_CHIRON)
+                // This matches C code's ipli_ast variable
+                $iplAst = ($ipli == SwephConstants::SEI_ANYBODY) ? $iplExternal : $ipli;
+
                 $retc = SwephCalculator::calculate(
                     $tjd,
                     $ipli,
+                    $iplAst,
                     $ifno,
                     $iflag,
                     $xsunb,

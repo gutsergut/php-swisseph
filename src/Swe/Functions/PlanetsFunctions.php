@@ -33,11 +33,13 @@ final class PlanetsFunctions
     {
         $xx = Output::emptyForFlags($iflag);
 
-        // Диапазон поддерживаемых планет (расширен для Node, Apogee, Chiron, main belt asteroids и фиктивных планет)
+        // Диапазон поддерживаемых планет (расширен для Node, Apogee, Chiron, main belt asteroids,
+        // numbered asteroids и фиктивных планет)
         // SE_SUN..SE_PLUTO (0-9), SE_MEAN_NODE (10), SE_TRUE_NODE (11),
         // SE_MEAN_APOG (12), SE_OSCU_APOG (13), SE_EARTH (14),
         // SE_CHIRON..SE_VESTA (15-20) - Main belt asteroids
         // SE_FICT_OFFSET..SE_FICT_MAX (40-999) - Uranian/fictitious bodies
+        // SE_AST_OFFSET + n (10001+) - Numbered asteroids (Eros=10433, Ceres=10001, etc.)
         $validRange = ($ipl >= Constants::SE_SUN && $ipl <= Constants::SE_PLUTO)
             || $ipl === Constants::SE_MEAN_NODE
             || $ipl === Constants::SE_TRUE_NODE
@@ -47,6 +49,7 @@ final class PlanetsFunctions
             || ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA)
             || $ipl === Constants::SE_INTP_APOG
             || $ipl === Constants::SE_INTP_PERG
+            || $ipl > Constants::SE_AST_OFFSET  // Numbered asteroids: SE_AST_OFFSET + asteroid_number
             || FictitiousPlanets::isFictitious($ipl);
 
         if (!$validRange) {
@@ -87,6 +90,14 @@ final class PlanetsFunctions
         // Специальная обработка для main belt asteroids (Chiron through Vesta)
         if ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA) {
             return self::calcAsteroid($jd_tt, $ipl, $iflag, $xx, $serr);
+        }
+
+        // Специальная обработка для numbered asteroids (SE_AST_OFFSET + asteroid_number)
+        // For example: SE_AST_OFFSET + 433 = Eros (10433)
+        //              SE_AST_OFFSET + 1 = Ceres by MPC number (10001)
+        // Note: asteroids 1-4 can also be accessed via SE_CERES..SE_VESTA (16-19)
+        if ($ipl > Constants::SE_AST_OFFSET) {
+            return self::calcNumberedAsteroid($jd_tt, $ipl, $iflag, $xx, $serr);
         }
 
         // Специальная обработка для Uranian/fictitious planets
@@ -396,6 +407,63 @@ final class PlanetsFunctions
 
         if ($res->retc < 0) {
             $serr = $res->serr;
+            return Constants::SE_ERR;
+        }
+
+        $xx = $res->x;
+        return $iflag;
+    }
+
+    /**
+     * Calculate numbered asteroid positions (SE_AST_OFFSET + asteroid_number)
+     *
+     * Port of sweph.c minor planets section (lines 1018-1099)
+     * Uses SEI_ANYBODY internal planet index and SEI_FILE_ANY_AST for individual asteroid files.
+     *
+     * Asteroid number examples:
+     * - SE_AST_OFFSET + 1 = 10001 = Ceres (by MPC number)
+     * - SE_AST_OFFSET + 433 = 10433 = Eros
+     * - SE_AST_OFFSET + 134340 = 144340 = Pluto (dwarf planet by MPC)
+     *
+     * Note: For asteroids 1-4 (Ceres, Pallas, Juno, Vesta), prefer using SE_CERES..SE_VESTA
+     * as they have extended ephemeris ranges. SE_AST_OFFSET + 1..4 will be remapped
+     * internally to SEI_CERES..SEI_VESTA for consistency with C implementation.
+     *
+     * @param float $jd_tt Julian day in TT
+     * @param int $ipl Planet number (must be > SE_AST_OFFSET)
+     * @param int $iflag Calculation flags
+     * @param array &$xx Output coordinates
+     * @param string|null &$serr Error message
+     * @return int iflag on success, SE_ERR on error
+     */
+    private static function calcNumberedAsteroid(float $jd_tt, int $ipl, int $iflag, array &$xx, ?string &$serr): int
+    {
+        // Validate that this is indeed a numbered asteroid
+        if ($ipl <= Constants::SE_AST_OFFSET) {
+            $serr = "calcNumberedAsteroid: ipl=$ipl must be > SE_AST_OFFSET";
+            return Constants::SE_ERR;
+        }
+
+        $asteroidNum = $ipl - Constants::SE_AST_OFFSET;
+
+        // Per C implementation (sweph.c ~1030):
+        // Asteroids 1-4 (Ceres, Pallas, Juno, Vesta) can be remapped to SE_CERES..SE_VESTA
+        // which have better ephemeris coverage. But we still support them via SE_AST_OFFSET + n.
+        // The SwephStrategy handles this internally.
+
+        // Use SwephStrategy which supports reading individual asteroid ephemeris files
+        // Files are stored in ast0/se00001.se1, ast0/se00433.se1, etc.
+        $strategy = EphemerisStrategyFactory::forFlags($iflag | Constants::SEFLG_SWIEPH, $ipl);
+
+        if ($strategy === null) {
+            $serr = "Asteroid #$asteroidNum: Swiss Ephemeris strategy not available";
+            return Constants::SE_ERR;
+        }
+
+        $res = $strategy->compute($jd_tt, $ipl, $iflag | Constants::SEFLG_SWIEPH);
+
+        if ($res->retc < 0) {
+            $serr = $res->serr ?? "Asteroid #$asteroidNum computation failed";
             return Constants::SE_ERR;
         }
 

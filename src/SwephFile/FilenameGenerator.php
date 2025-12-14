@@ -168,4 +168,43 @@ final class FilenameGenerator
 
         return [$year, $month, $day, $hour];
     }
+
+    /**
+     * Generate list of alternative filenames for numbered asteroids.
+     *
+     * Swiss Ephemeris asteroid files come in two versions:
+     * - Long version: se00433.se1 (covers 6000 years: 3000 BCE - 3000 CE)
+     * - Short version: se00433s.se1 (covers 600 years: 1500 - 2100 CE)
+     *
+     * This method returns both variants so the reader can try fallback.
+     *
+     * @param int $ipli Internal planet index (must be > SE_AST_OFFSET)
+     * @return array<string> List of possible filenames, in order of preference
+     */
+    public static function generateAsteroidFilenames(int $ipli): array
+    {
+        if ($ipli <= Constants::SE_AST_OFFSET) {
+            return [];
+        }
+
+        $astNum = $ipli - Constants::SE_AST_OFFSET;
+        $astDir = (int)($astNum / 1000);
+        $filenames = [];
+
+        if ($astNum > 99999) {
+            // 6-digit format for asteroids > 99999
+            // Long version: s123456.se1
+            $filenames[] = sprintf('ast%d%ss%06d.%s', $astDir, self::DIR_GLUE, $astNum, self::FILE_SUFFIX);
+            // Short version: s123456s.se1 (with 's' suffix before extension)
+            $filenames[] = sprintf('ast%d%ss%06ds.%s', $astDir, self::DIR_GLUE, $astNum, self::FILE_SUFFIX);
+        } else {
+            // 5-digit format
+            // Long version: se00433.se1
+            $filenames[] = sprintf('ast%d%sse%05d.%s', $astDir, self::DIR_GLUE, $astNum, self::FILE_SUFFIX);
+            // Short version: se00433s.se1 (with 's' suffix before extension)
+            $filenames[] = sprintf('ast%d%sse%05ds.%s', $astDir, self::DIR_GLUE, $astNum, self::FILE_SUFFIX);
+        }
+
+        return $filenames;
+    }
 }

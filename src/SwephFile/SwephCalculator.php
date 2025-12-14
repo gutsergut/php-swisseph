@@ -32,8 +32,10 @@ final class SwephCalculator
      * Port of sweph() from sweph.c:2124
      *
      * @param float $tjd Julian Day (TT)
-     * @param int $ipli Planet index (SEI_SUNBARY, SEI_EMB, etc.)
-     * @param int $ifno File index (SEI_FILE_PLANET, etc.)
+     * @param int $ipli Planet index (SEI_SUNBARY, SEI_EMB, SEI_ANYBODY for numbered asteroids)
+     * @param int $iplAst Asteroid number (external ipl for numbered asteroids, or ipli for main belt)
+     *                    Used for file lookup and ibdy tracking
+     * @param int $ifno File index (SEI_FILE_PLANET, SEI_FILE_ANY_AST, etc.)
      * @param int $iflag Calculation flags
      * @param array|null $xsunb Barycentric sun position (for asteroids)
      * @param bool $doSave Whether to save result to cache
@@ -44,6 +46,7 @@ final class SwephCalculator
     public static function calculate(
         float $tjd,
         int $ipli,
+        int $iplAst,
         int $ifno,
         int $iflag,
         ?array $xsunb,
@@ -56,6 +59,9 @@ final class SwephCalculator
         // Sync ephemeris path from State
         $swed->ephepath = \Swisseph\State::getEphePath();
 
+        // $iplAst is the asteroid number (external ipl for numbered asteroids)
+        // Used for file lookup. For main belt asteroids (Chiron-Vesta), $iplAst = $ipli.
+        // For numbered asteroids (SE_AST_OFFSET + n), $iplAst = external ipl (10001+).
         $ipl = $ipli;
         if ($ipli > Constants::SE_AST_OFFSET) {
             $ipl = SwephConstants::SEI_ANYBODY;
@@ -147,8 +153,9 @@ final class SwephCalculator
         // Check if file is open and valid
         if ($fdp->fptr !== null) {
             // Close if date out of range or different asteroid
+            // For numbered asteroids (ipli == SEI_ANYBODY), check if cached body matches $iplAst
             if ($tjd < $fdp->tfstart || $tjd > $fdp->tfend ||
-                ($ipl == SwephConstants::SEI_ANYBODY && $ipli != $pdp->ibdy)) {
+                ($ipl == SwephConstants::SEI_ANYBODY && $iplAst != $pdp->ibdy)) {
 
                 fclose($fdp->fptr);
                 $fdp->fptr = null;
@@ -159,10 +166,28 @@ final class SwephCalculator
 
         // Open file if not open
         if ($fdp->fptr === null) {
-            $fname = self::generateFilename($tjd, $ipli);
+            // Use $iplAst for filename generation (external ipl for numbered asteroids)
+            $fname = self::generateFilename($tjd, $iplAst);
+            $opened = false;
 
-            if (!SwephReader::openAndReadHeader($ifno, $fname, $swed->ephepath, $serr)) {
-                return self::NOT_AVAILABLE;
+            // For numbered asteroids, try alternative filenames (long vs short version)
+            if ($iplAst > Constants::SE_AST_OFFSET) {
+                $alternatives = FilenameGenerator::generateAsteroidFilenames($iplAst);
+                foreach ($alternatives as $altFname) {
+                    if (SwephReader::openAndReadHeader($ifno, $altFname, $swed->ephepath, $altSerr)) {
+                        $opened = true;
+                        $fname = $altFname;
+                        break;
+                    }
+                }
+                if (!$opened) {
+                    $serr = "Asteroid ephemeris file not found. Tried: " . implode(', ', $alternatives);
+                    return self::NOT_AVAILABLE;
+                }
+            } else {
+                if (!SwephReader::openAndReadHeader($ifno, $fname, $swed->ephepath, $serr)) {
+                    return self::NOT_AVAILABLE;
+                }
             }
         }
 
@@ -303,7 +328,7 @@ final class SwephCalculator
             $pedp->teval = 0; // Force new computation
 
             $xemb = array_fill(0, 6, 0.0);
-            $retc = self::calculate($tjd, SwephConstants::SEI_EMB, $ifno, $iflag | Constants::SEFLG_SPEED, null, self::NO_SAVE, $xemb, $serr);
+            $retc = self::calculate($tjd, SwephConstants::SEI_EMB, SwephConstants::SEI_EMB, $ifno, $iflag | Constants::SEFLG_SPEED, null, self::NO_SAVE, $xemb, $serr);
 
             if ($retc != self::OK) {
                 return $retc;
