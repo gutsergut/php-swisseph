@@ -569,4 +569,210 @@ final class MoshierApparentPipeline
         // ========================================
         return self::appPosRest($pedp, $iflag, $xx, $xxsv, $oe, $serr);
     }
+
+    /**
+     * Compute apparent position for Moon using Moshier ephemeris.
+     *
+     * Full port of app_pos_etc_moon() for SEFLG_MOSEPH case from sweph.c:4086-4227
+     *
+     * Moon pipeline differs from planets:
+     * - Geocentric coordinates from MoshierMoon (not heliocentric)
+     * - Different light-time handling (linear extrapolation for MOSEPH)
+     * - Aberration but no light deflection (Moon is too close)
+     *
+     * @param int $iflag Calculation flags
+     * @param string|null &$serr Error message
+     * @return int 0=OK, -1=ERR
+     */
+    public static function appPosEtcMoon(int $iflag, ?string &$serr): int
+    {
+        $swed = SwedState::getInstance();
+        $pedp = &$swed->pldat[MoshierConstants::SEI_EARTH];
+        $psdp = &$swed->pldat[MoshierConstants::SEI_SUNBARY];
+        $pdp = &$swed->pldat[MoshierConstants::SEI_MOON];
+
+        // ========================================
+        // Check if already computed with same flags
+        // ========================================
+        $flg1 = $iflag & ~Constants::SEFLG_EQUATORIAL & ~Constants::SEFLG_XYZ;
+        $flg2 = $pdp->xflgs & ~Constants::SEFLG_EQUATORIAL & ~Constants::SEFLG_XYZ;
+        if ($flg1 === $flg2 && $flg2 !== -1) {
+            $pdp->xflgs = $iflag;
+            $pdp->iephe = $iflag & Constants::SEFLG_EPHMASK;
+            return 0;
+        }
+
+        // ========================================
+        // Copy geocentric equatorial J2000 from pdp->x
+        // Moon is already geocentric from MoshierMoon
+        // ========================================
+        $xx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xxm = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        for ($i = 0; $i <= 5; $i++) {
+            $xx[$i] = $pdp->x[$i];
+            $xxm[$i] = $xx[$i];
+        }
+
+        // ========================================
+        // To solar system barycentric
+        // ========================================
+        for ($i = 0; $i <= 5; $i++) {
+            $xx[$i] += $pedp->x[$i];
+        }
+
+        // ========================================
+        // Observer position
+        // ========================================
+        $xobs = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xobs2 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+
+        if ($iflag & Constants::SEFLG_TOPOCTR) {
+            // Topocentric observer
+            if ($swed->topd === null || $swed->topd->teval !== $pdp->teval || $swed->topd->teval == 0) {
+                if (LightTime::getObserver($pdp->teval, $iflag | Constants::SEFLG_NONUT, true, $xobs, $serr) !== 0) {
+                    return -1;
+                }
+            } else {
+                for ($i = 0; $i <= 5; $i++) {
+                    $xobs[$i] = $swed->topd->xobs[$i];
+                }
+            }
+            for ($i = 0; $i <= 5; $i++) {
+                $xxm[$i] -= $xobs[$i];
+            }
+            for ($i = 0; $i <= 5; $i++) {
+                $xobs[$i] += $pedp->x[$i];
+            }
+        } elseif ($iflag & Constants::SEFLG_BARYCTR) {
+            // Barycentric
+            for ($i = 0; $i <= 5; $i++) {
+                $xobs[$i] = 0.0;
+            }
+            for ($i = 0; $i <= 5; $i++) {
+                $xxm[$i] += $pedp->x[$i];
+            }
+        } elseif ($iflag & Constants::SEFLG_HELCTR) {
+            // Heliocentric
+            for ($i = 0; $i <= 5; $i++) {
+                $xobs[$i] = $psdp->x[$i];
+            }
+            for ($i = 0; $i <= 5; $i++) {
+                $xxm[$i] += $pedp->x[$i] - $psdp->x[$i];
+            }
+        } else {
+            // Geocentric (default)
+            for ($i = 0; $i <= 5; $i++) {
+                $xobs[$i] = $pedp->x[$i];
+            }
+        }
+
+        // ========================================
+        // Light-time correction
+        // ========================================
+        $t = $pdp->teval;
+
+        if (!($iflag & Constants::SEFLG_TRUEPOS)) {
+            $dt = sqrt(self::squareSum($xxm)) * self::AUNIT / self::CLIGHT / 86400.0;
+            $t = $pdp->teval - $dt;
+
+            // MOSEPH case: linear extrapolation (sweph.c:4170-4183)
+            // "this method results in an error of a milliarcsec in speed"
+            $xe = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+            $xs = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+            for ($i = 0; $i <= 2; $i++) {
+                $xx[$i] -= $dt * $xx[$i + 3];
+                $xe[$i] = $pedp->x[$i] - $dt * $pedp->x[$i + 3];
+                $xe[$i + 3] = $pedp->x[$i + 3];
+                $xs[$i] = 0.0;
+                $xs[$i + 3] = 0.0;
+            }
+
+            // Observer position at light-time corrected moment
+            if ($iflag & Constants::SEFLG_TOPOCTR) {
+                if (LightTime::getObserver($t, $iflag | Constants::SEFLG_NONUT, false, $xobs2, $serr) !== 0) {
+                    return -1;
+                }
+                for ($i = 0; $i <= 5; $i++) {
+                    $xobs2[$i] += $xe[$i];
+                }
+            } elseif ($iflag & Constants::SEFLG_BARYCTR) {
+                for ($i = 0; $i <= 5; $i++) {
+                    $xobs2[$i] = 0.0;
+                }
+            } elseif ($iflag & Constants::SEFLG_HELCTR) {
+                for ($i = 0; $i <= 5; $i++) {
+                    $xobs2[$i] = $xs[$i];
+                }
+            } else {
+                for ($i = 0; $i <= 5; $i++) {
+                    $xobs2[$i] = $xe[$i];
+                }
+            }
+        }
+
+        // ========================================
+        // To correct center (geocentric from barycentric)
+        // ========================================
+        for ($i = 0; $i <= 5; $i++) {
+            $xx[$i] -= $xobs[$i];
+        }
+
+        // ========================================
+        // Annual aberration of light
+        // (No light deflection for Moon - too close)
+        // ========================================
+        if (!($iflag & Constants::SEFLG_TRUEPOS) && !($iflag & Constants::SEFLG_NOABERR)) {
+            LightTime::aberrLight($xx, $xobs, $iflag);
+
+            // Speed correction for aberration
+            if ($iflag & Constants::SEFLG_SPEED) {
+                for ($i = 3; $i <= 5; $i++) {
+                    $xx[$i] += $xobs[$i] - $xobs2[$i];
+                }
+            }
+        }
+
+        // If speed not requested, zero it
+        if (!($iflag & Constants::SEFLG_SPEED)) {
+            for ($i = 3; $i <= 5; $i++) {
+                $xx[$i] = 0.0;
+            }
+        }
+
+        // ========================================
+        // ICRS to J2000 frame bias
+        // ========================================
+        if (!($iflag & Constants::SEFLG_ICRS)) {
+            LightTime::bias($xx, $t, $iflag, false);
+        }
+
+        // Save J2000 equatorial coordinates for sidereal
+        $xxsv = $xx;
+
+        // ========================================
+        // Precession: equator J2000 → equator of date
+        // ========================================
+        if (!($iflag & Constants::SEFLG_J2000)) {
+            Precession::precess($xx, $pdp->teval, $iflag, 0);
+            if ($iflag & Constants::SEFLG_SPEED) {
+                Precession::precessSpeed($xx, $pdp->teval, $iflag, 0);
+            }
+            $oe = $swed->oec;
+        } else {
+            $oe = $swed->oec2000;
+        }
+
+        // Ensure obliquity is calculated
+        if ($oe === null || abs($oe->teps - $pdp->teval) > 1e-8) {
+            if (!($iflag & Constants::SEFLG_J2000)) {
+                $swed->oec->calculate($pdp->teval);
+                $oe = $swed->oec;
+            }
+        }
+
+        // ========================================
+        // Call app_pos_rest for remaining transformations
+        // ========================================
+        return self::appPosRest($pdp, $iflag, $xx, $xxsv, $oe, $serr);
+    }
 }

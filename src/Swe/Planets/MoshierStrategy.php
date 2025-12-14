@@ -8,6 +8,7 @@ use Swisseph\Constants;
 use Swisseph\Moshier\MoshierPlanetCalculator;
 use Swisseph\Moshier\MoshierConstants;
 use Swisseph\SwephFile\SwedState;
+use Swisseph\Domain\Moshier\MoshierMoon;
 
 /**
  * Moshier semi-analytical ephemeris strategy.
@@ -15,11 +16,13 @@ use Swisseph\SwephFile\SwedState;
  * Provides planet positions using Moshier's analytical theories.
  * Does not require external ephemeris files.
  *
- * Accuracy: ~50" for inner planets, ~3-10" for outer planets.
+ * Accuracy:
+ * - Planets: ~50" for inner planets, ~3-10" for outer planets
+ * - Moon: ±7" longitude, ±5" latitude (-3000..+3000 AD)
  *
  * Full port of main_planet() SEFLG_MOSEPH case from sweph.c
  *
- * @see sweph.c main_planet(), swemplan.c swi_moshplan()
+ * @see sweph.c main_planet(), swemplan.c swi_moshplan(), swemmoon.c swi_moshmoon()
  */
 final class MoshierStrategy implements EphemerisStrategy
 {
@@ -28,6 +31,7 @@ final class MoshierStrategy implements EphemerisStrategy
      */
     private const PNOEXT2SEI = [
         Constants::SE_SUN => MoshierConstants::SEI_EARTH,  // Sun needs special handling
+        Constants::SE_MOON => MoshierConstants::SEI_MOON,  // Moon uses MoshierMoon
         Constants::SE_MERCURY => MoshierConstants::SEI_MERCURY,
         Constants::SE_VENUS => MoshierConstants::SEI_VENUS,
         Constants::SE_EARTH => MoshierConstants::SEI_EARTH,
@@ -44,7 +48,7 @@ final class MoshierStrategy implements EphemerisStrategy
         if (!($iflag & Constants::SEFLG_MOSEPH)) {
             return false;
         }
-        // Moshier supports Sun-Pluto and Earth
+        // Moshier supports Sun-Pluto, Moon and Earth
         return isset(self::PNOEXT2SEI[$ipl]);
     }
 
@@ -56,6 +60,11 @@ final class MoshierStrategy implements EphemerisStrategy
 
         $ipli = self::PNOEXT2SEI[$ipl];
         $serr = null;
+
+        // Moon has its own computation path
+        if ($ipl === Constants::SE_MOON) {
+            return $this->computeMoon($jd_tt, $iflag);
+        }
 
         // Step 1: Call moshplan() with DO_SAVE=true
         // This stores heliocentric equatorial J2000 in SwedState->pldat[ipli]->x
@@ -90,6 +99,52 @@ final class MoshierStrategy implements EphemerisStrategy
             }
             $swed = SwedState::getInstance();
             $pdp = &$swed->pldat[$ipli];
+        }
+
+        return StrategyResult::okFinal($pdp->xreturn);
+    }
+
+    /**
+     * Compute Moon position using MoshierMoon (ELP2000-85)
+     *
+     * @param float $jd_tt Julian day TT
+     * @param int $iflag Calculation flags
+     * @return StrategyResult
+     */
+    private function computeMoon(float $jd_tt, int $iflag): StrategyResult
+    {
+        $serr = null;
+        $swed = SwedState::getInstance();
+        $pdp = &$swed->pldat[MoshierConstants::SEI_MOON];
+
+        // Ensure Earth is computed first (needed for geocentric conversion)
+        $xpret = null;
+        $xeret = null;
+        $ret = MoshierPlanetCalculator::moshplan($jd_tt, MoshierConstants::SEI_EARTH, true, $xpret, $xeret, $serr);
+        if ($ret < 0) {
+            return StrategyResult::err($serr ?? 'Earth computation error for Moon', Constants::SE_ERR);
+        }
+
+        // Compute Moon using MoshierMoon
+        $moon = new MoshierMoon();
+        $xx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+
+        $ret = $moon->moshmoon($jd_tt, $xx, $serr);
+        if ($ret < 0) {
+            return StrategyResult::err($serr ?? 'Moon computation error', Constants::SE_ERR);
+        }
+
+        // Store in pdp->x for apparent position pipeline
+        for ($i = 0; $i <= 5; $i++) {
+            $pdp->x[$i] = $xx[$i];
+        }
+        $pdp->teval = $jd_tt;
+        $pdp->xflgs = -1;  // Force recomputation
+
+        // Call apparent position function for Moon
+        $ret = MoshierApparentPipeline::appPosEtcMoon($iflag, $serr);
+        if ($ret < 0) {
+            return StrategyResult::err($serr ?? 'Moon apparent position error', Constants::SE_ERR);
         }
 
         return StrategyResult::okFinal($pdp->xreturn);
