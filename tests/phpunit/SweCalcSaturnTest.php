@@ -50,6 +50,11 @@ final class SweCalcSaturnTest extends TestCase
 
     public function testSaturnSpeed(): void
     {
+        // Debug: check Venus speed BEFORE/AFTER
+        $xxV1 = [];
+        swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_SPEED, $xxV1, $serrV);
+        echo "\n[testSaturnSpeed] BEFORE - Venus speed: {$xxV1[3]} deg/day\n";
+
         $xx = [];
         $serr = null;
         $ret = swe_calc(2451545.0, Constants::SE_SATURN, Constants::SEFLG_SPEED, $xx, $serr);
@@ -58,6 +63,10 @@ final class SweCalcSaturnTest extends TestCase
         $this->assertNull($serr);
         $this->assertCount(6, $xx);
         $this->assertGreaterThan(0.002, abs($xx[3]));
+
+        $xxV2 = [];
+        swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_SPEED, $xxV2, $serrV2);
+        echo "[testSaturnSpeed] AFTER - Venus speed: {$xxV2[3]} deg/day\n";
         $this->assertLessThan(0.2, abs($xx[3]));
         $this->assertGreaterThan(0.0, abs($xx[5]));
     }

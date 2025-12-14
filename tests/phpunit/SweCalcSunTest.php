@@ -7,6 +7,11 @@ final class SweCalcSunTest extends TestCase
 {
     public function testSunAtJ2000(): void
     {
+        // Debug: check Venus speed BEFORE/AFTER
+        $xxV1 = [];
+        swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_SPEED, $xxV1, $serrV);
+        echo "\n[testSunAtJ2000] BEFORE - Venus speed: {$xxV1[3]} deg/day\n";
+
         $xx = [];
         $serr = null;
         $ret = swe_calc(2451545.0, Constants::SE_SUN, 0, $xx, $serr);
@@ -22,10 +27,19 @@ final class SweCalcSunTest extends TestCase
         $this->assertLessThan(0.01, abs($lat));
         $this->assertGreaterThan(0.95, $dist);
         $this->assertLessThan(1.1, $dist);
+
+        $xxV2 = [];
+        swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_SPEED, $xxV2, $serrV2);
+        echo "[testSunAtJ2000] AFTER - Venus speed: {$xxV2[3]} deg/day\n";
     }
 
     public function testSunRadiansEquatorial(): void
     {
+        // Debug: check Venus speed BEFORE/AFTER
+        $xxV1 = [];
+        swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_SPEED, $xxV1, $serrV);
+        echo "\n[testSunRadiansEquatorial] BEFORE - Venus speed: {$xxV1[3]} deg/day\n";
+
         $xx = [];
         $serr = null;
         $flags = Constants::SEFLG_RADIANS | Constants::SEFLG_EQUATORIAL;
@@ -40,5 +54,9 @@ final class SweCalcSunTest extends TestCase
         $this->assertLessThan(2 * pi(), $ra);
         $this->assertGreaterThanOrEqual(-pi()/2, $dec);
         $this->assertLessThanOrEqual(pi()/2, $dec);
+
+        $xxV2 = [];
+        swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_SPEED, $xxV2, $serrV2);
+        echo "[testSunRadiansEquatorial] AFTER - Venus speed: {$xxV2[3]} deg/day\n";
     }
 }

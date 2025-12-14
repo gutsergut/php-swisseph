@@ -22,6 +22,12 @@ final class BarycentricCoordinatesTest extends TestCase
     protected function setUp(): void
     {
         swe_set_ephe_path(__DIR__ . '/../../../eph/ephe');
+
+        // Debug: check Venus speed
+        $xx = [];
+        $serr = '';
+        swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_SPEED, $xx, $serr);
+        echo "\n[BarycentricTest setUp] Venus speed: {$xx[3]} deg/day\n";
     }
 
     /**

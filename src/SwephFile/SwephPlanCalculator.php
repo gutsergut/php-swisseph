@@ -108,7 +108,7 @@ final class SwephPlanCalculator
         if ($doSunbary) {
             $speedf1 = $psbdp->xflgs & Constants::SEFLG_SPEED;
 
-            if (getenv('DEBUG_OSCU')) {
+            if (getenv('DEBUG_OSCU') || (getenv('DEBUG_VENUS') && $ipli === 3)) {
                 error_log(sprintf("DEBUG SwephPlanCalculator SUNBARY: tjd=%.10f, cached_teval=%.10f, doSave=%d, psbdp->x=[%.15f,%.15f,%.15f]",
                     $tjd, $psbdp->teval, $doSave ? 1 : 0, $psbdp->x[0] ?? 0, $psbdp->x[1] ?? 0, $psbdp->x[2] ?? 0));
             }
@@ -119,7 +119,7 @@ final class SwephPlanCalculator
                 && (!$speedf2 || $speedf1)
             ) {
                 // Use cached value
-                if (getenv('DEBUG_OSCU')) {
+                if (getenv('DEBUG_OSCU') || (getenv('DEBUG_VENUS') && $ipli === 3)) {
                     error_log("DEBUG SwephPlanCalculator: using CACHED Sun barycenter");
                 }
                 for ($i = 0; $i <= 5; $i++) {
@@ -127,8 +127,8 @@ final class SwephPlanCalculator
                 }
             } else {
                 // Compute new value
-                if (getenv('DEBUG_OSCU')) {
-                    error_log("DEBUG SwephPlanCalculator: computing NEW Sun barycenter");
+                if (getenv('DEBUG_OSCU') || (getenv('DEBUG_VENUS') && $ipli === 3)) {
+                    error_log(sprintf("DEBUG SwephPlanCalculator: COMPUTING new Sun barycenter, speedf1=%d, speedf2=%d", $speedf1, $speedf2));
                 }
 
                 $retc = SwephCalculator::calculate(
@@ -372,9 +372,10 @@ final class SwephPlanCalculator
                 }
 
                 if ($pdp->iflg & SwephConstants::SEI_FLG_HELIO) {
-                    if (getenv('DEBUG_OSCU')) {
-                        error_log(sprintf("DEBUG SwephPlanCalculator: converting heliocentric to barycentric, adding Sun=[%.15f, %.15f, %.15f]",
-                            $xps[0], $xps[1], $xps[2]));
+                    if (getenv('DEBUG_OSCU') || getenv('DEBUG_VENUS')) {
+                        error_log(sprintf("DEBUG SwephPlanCalculator: planet ipli=%d is HELIO, adding Sun xps=[%.15f,%.15f,%.15f,%.15f,%.15f,%.15f]",
+                            $ipli, $xps[0], $xps[1], $xps[2], $xps[3] ?? 0, $xps[4] ?? 0, $xps[5] ?? 0));
+                        error_log(sprintf("DEBUG SwephPlanCalculator: BEFORE: xp=[%.15f,%.15f,%.15f]", $xp[0], $xp[1], $xp[2]));
                     }
 
                     // Add barycentric sun position

@@ -30,6 +30,12 @@ class FictitiousPlanetsTest extends TestCase
                 self::$pathSet = true;
             }
         }
+
+        // Debug: check Venus speed
+        $xx = [];
+        $serr = '';
+        swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_SPEED, $xx, $serr);
+        echo "\n[FictitiousTest setUp] Venus speed: {$xx[3]} deg/day\n";
     }
 
     /**

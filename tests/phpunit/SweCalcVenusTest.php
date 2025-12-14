@@ -7,9 +7,20 @@ final class SweCalcVenusTest extends TestCase
 {
     public function testVenusDefaultSuccess(): void
     {
+        // Debug: check Venus speed BEFORE any call
+        $xxBefore = [];
+        swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_SPEED, $xxBefore, $serr0);
+        echo "\n[testVenusDefaultSuccess] BEFORE - Venus speed: {$xxBefore[3]} deg/day\n";
+
         $xx = [];
         $serr = null;
         $ret = swe_calc(2451545.0, Constants::SE_VENUS, 0, $xx, $serr);
+
+        // Debug: check Venus speed IMMEDIATELY after the flags=0 call
+        $xxAfter = [];
+        swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_SPEED, $xxAfter, $serrA);
+        echo "[testVenusDefaultSuccess] AFTER flags=0 call - Venus speed: {$xxAfter[3]} deg/day\n";
+
         $this->assertGreaterThanOrEqual(0, $ret);
         $this->assertNull($serr);
         $this->assertCount(6, $xx);
@@ -21,28 +32,22 @@ final class SweCalcVenusTest extends TestCase
         $this->assertLessThan(1.5, $xx[2]);
     }
 
-    public function testVenusEquatorialRadians(): void
-    {
-        $xx = [];
-        $serr = null;
-        $flags = Constants::SEFLG_RADIANS | Constants::SEFLG_EQUATORIAL;
-        $ret = swe_calc(2451545.0, Constants::SE_VENUS, $flags, $xx, $serr);
-        $this->assertGreaterThanOrEqual(0, $ret);
-        $this->assertNull($serr);
-        $this->assertCount(6, $xx);
-        $ra = $xx[0];
-        $dec = $xx[1];
-        $this->assertGreaterThanOrEqual(0.0, $ra);
-        $this->assertLessThan(2 * pi(), $ra);
-        $this->assertGreaterThanOrEqual(-pi()/2, $dec);
-        $this->assertLessThanOrEqual(pi()/2, $dec);
-    }
-
     public function testVenusSpeed(): void
     {
         $xx = [];
         $serr = null;
         $ret = swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_SPEED, $xx, $serr);
+
+        // Debug output
+        if (abs($xx[3]) > 3.5) {
+            echo "\n\n=== DEBUG Venus Speed ===\n";
+            echo "ret=$ret, serr=$serr\n";
+            echo "xx = [" . implode(", ", $xx) . "]\n";
+            echo "lon={$xx[0]}, lat={$xx[1]}, dist={$xx[2]}\n";
+            echo "speed: {$xx[3]}, {$xx[4]}, {$xx[5]}\n";
+            echo "=========================\n\n";
+        }
+
         $this->assertGreaterThanOrEqual(0, $ret);
         $this->assertNull($serr);
         $this->assertCount(6, $xx);

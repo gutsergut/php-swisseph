@@ -47,33 +47,110 @@ final class PlanetApparentPipeline
         }
 
         // 1) Light-time (две итерации) — пропускаем только для TRUEPOS или SE_EARTH
+        // xxsp = коррекция скорости из-за изменения dt во времени
+        $xxsp = [0.0, 0.0, 0.0];
+        $dt_light_for_defl = 0.0; // save for deflection later
         if (!($iflag & Constants::SEFLG_TRUEPOS) && $ipl !== Constants::SE_EARTH) {
             $c_au_per_day = 173.144632674240; // скорость света в AU/day
+            $xx0 = $xx; // сохраняем оригинальные координаты (для xxsp)
 
-            // dx = planet - observer
-            $dx0 = $xx[0] - $xobs[0];
-            $dx1 = $xx[1] - $xobs[1];
-            $dx2 = $xx[2] - $xobs[2];
-            $r = sqrt($dx0*$dx0 + $dx1*$dx1 + $dx2*$dx2);
-            $dt_light = ($r > 0.0) ? ($r / $c_au_per_day) : 0.0;
+            /*
+             * Speed correction for light-time (как в C sweph.c:2554-2588)
+             * Apparent speed is influenced by the fact that dt changes with time.
+             * This makes a difference of several hundredths of an arc second / day.
+             * We compute:
+             * 1. true position - apparent position at time t - 1
+             * 2. true position - apparent position at time t
+             * 3. the difference is the part of daily motion from change of dt
+             */
+            if ($iflag & Constants::SEFLG_SPEED) {
+                // xxsv = position at t-1 (грубо: pos - speed)
+                $xxsv = [$xx[0] - $xx[3], $xx[1] - $xx[4], $xx[2] - $xx[5]];
+                $xxsp = $xxsv;
 
-            // корректировка позиции
-            for ($i = 0; $i < 3; $i++) {
-                $xx[$i] -= $xx[$i + 3] * $dt_light;
+                // итерация для позиции t-1
+                for ($j = 0; $j <= 1; $j++) { // niter = 1 для SWIEPH
+                    $dx = [$xxsp[0], $xxsp[1], $xxsp[2]];
+                    if (!($iflag & Constants::SEFLG_HELCTR) && !($iflag & Constants::SEFLG_BARYCTR)) {
+                        $dx[0] -= ($xobs[0] - $xobs[3]);
+                        $dx[1] -= ($xobs[1] - $xobs[4]);
+                        $dx[2] -= ($xobs[2] - $xobs[5]);
+                    }
+                    // new dt for t-1
+                    $dt_sp = sqrt($dx[0]*$dx[0] + $dx[1]*$dx[1] + $dx[2]*$dx[2]) / $c_au_per_day;
+                    // rough apparent position at t-1
+                    $xxsp[0] = $xxsv[0] - $dt_sp * $xx0[3];
+                    $xxsp[1] = $xxsv[1] - $dt_sp * $xx0[4];
+                    $xxsp[2] = $xxsv[2] - $dt_sp * $xx0[5];
+                }
+                // true position - apparent position at time t-1
+                $xxsp[0] = $xxsv[0] - $xxsp[0];
+                $xxsp[1] = $xxsv[1] - $xxsp[1];
+                $xxsp[2] = $xxsv[2] - $xxsp[2];
             }
 
-            // вторая итерация для точности
-            $dx0 = $xx[0] - $xobs[0];
-            $dx1 = $xx[1] - $xobs[1];
-            $dx2 = $xx[2] - $xobs[2];
-            $r2 = sqrt($dx0*$dx0 + $dx1*$dx1 + $dx2*$dx2);
+            // Light-time iterations: compute dt_light
+            // dx = planet - observer
+            $dx0p = $xx[0] - $xobs[0];
+            $dx1p = $xx[1] - $xobs[1];
+            $dx2p = $xx[2] - $xobs[2];
+            $r = sqrt($dx0p*$dx0p + $dx1p*$dx1p + $dx2p*$dx2p);
+            $dt_light = ($r > 0.0) ? ($r / $c_au_per_day) : 0.0;
+
+            // Rough apparent position for iteration 1
+            for ($i = 0; $i < 3; $i++) {
+                $xx[$i] = $xx0[$i] - $xx0[$i + 3] * $dt_light;
+            }
+
+            // Iteration 2 for better dt_light
+            $dx0p = $xx[0] - $xobs[0];
+            $dx1p = $xx[1] - $xobs[1];
+            $dx2p = $xx[2] - $xobs[2];
+            $r2 = sqrt($dx0p*$dx0p + $dx1p*$dx1p + $dx2p*$dx2p);
             if ($r2 > 0.0) {
-                $dt2 = $r2 / $c_au_per_day;
-                $corr = $dt2 - $dt_light;
-                for ($i = 0; $i < 3; $i++) {
-                    $xx[$i] -= $xx[$i + 3] * $corr;
+                $dt_light = $r2 / $c_au_per_day;
+            }
+            $dt_light_for_defl = $dt_light;
+
+            // For SWIEPH: recalculate ephemeris at t - dt_light (C sweph.c:2648-2655)
+            // This gives accurate position AND velocity at light-time corrected epoch
+            $t_apparent = $jd_tt - $dt_light;
+            $ipli = SwephConstants::PNOEXT2INT[$ipl] ?? 0;
+            $ifno = ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA)
+                ? SwephConstants::SEI_FILE_MAIN_AST
+                : SwephConstants::SEI_FILE_PLANET;
+
+            $xx_lt = [];
+            $xearth_lt = [];
+            $xsun_lt = [];
+            $xmoon_lt = null;
+            $serr_lt = null;
+            $retc = \Swisseph\SwephFile\SwephPlanCalculator::calculate(
+                $t_apparent,
+                $ipli,
+                $ipl,
+                $ifno,
+                $iflag,
+                false, // NO_SAVE - don't overwrite cached data
+                $xx_lt,
+                $xearth_lt,
+                $xsun_lt,
+                $xmoon_lt,
+                $serr_lt
+            );
+
+            if ($retc >= 0 && !empty($xx_lt)) {
+                // Use recalculated position and velocity
+                for ($i = 0; $i < 6; $i++) {
+                    $xx[$i] = $xx_lt[$i];
                 }
-                $dt_light = $dt2;
+            }
+
+            // part of daily motion resulting from change of dt
+            if ($iflag & Constants::SEFLG_SPEED) {
+                $xxsp[0] = $xx0[0] - $xx[0] - $xxsp[0];
+                $xxsp[1] = $xx0[1] - $xx[1] - $xxsp[1];
+                $xxsp[2] = $xx0[2] - $xx[2] - $xxsp[2];
             }
         }
 
@@ -93,6 +170,13 @@ final class PlanetApparentPipeline
                 for ($i = 0; $i < 6; $i++) {
                     $xx[$i] -= $earth_pd->x[$i];
                 }
+            }
+            // Apply light-time speed correction (C sweph.c:2720-2724)
+            // "Apparent speed is also influenced by the change of dt during motion"
+            if (!($iflag & Constants::SEFLG_TRUEPOS) && ($iflag & Constants::SEFLG_SPEED)) {
+                $xx[3] -= $xxsp[0];
+                $xx[4] -= $xxsp[1];
+                $xx[5] -= $xxsp[2];
             }
         }
 

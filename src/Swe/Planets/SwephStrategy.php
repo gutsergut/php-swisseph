@@ -53,6 +53,13 @@ final class SwephStrategy implements EphemerisStrategy
             $xpmret,
             $serr
         );
+
+        if (getenv('DEBUG_VENUS') && $ipl === Constants::SE_VENUS) {
+            error_log(sprintf("[SwephStrategy] Venus: iflag=%d, xpret=[%.15f,%.15f,%.15f,%.15f,%.15f,%.15f]",
+                $iflag, $xpret[0] ?? 0, $xpret[1] ?? 0, $xpret[2] ?? 0,
+                $xpret[3] ?? 0, $xpret[4] ?? 0, $xpret[5] ?? 0));
+        }
+
         if ($retc < 0) {
             return StrategyResult::err($serr ?? 'sweplan error', $retc);
         }

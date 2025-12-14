@@ -73,12 +73,18 @@ final class SwephCalculator
             $sunPdp = &$swed->pldat[SwephConstants::SEI_SUNBARY];
 
             // Check if SUNBARY is already cached and valid
+            // CRITICAL: Must also check speed flag! If cache has no speed but we need speed,
+            // we must recompute. BUT we must NOT use the raw Chebyshev result because file
+            // contains helio_earth, not barycentric Sun!
+            $speedf1Sunbary = $sunPdp->xflgs & Constants::SEFLG_SPEED;
+            $speedf2 = $iflag & Constants::SEFLG_SPEED;
             $sunbaryCached = ($sunPdp->teval == $tjd &&
-                            $sunPdp->iephe == Constants::SEFLG_SWIEPH);
+                            $sunPdp->iephe == Constants::SEFLG_SWIEPH &&
+                            (!$speedf2 || $speedf1Sunbary));
 
             if (getenv('DEBUG_OSCU')) {
-                error_log(sprintf("DEBUG SwephCalculator: SEI_SUNBARY requested, tjd=%.10f, sunPdp->teval=%.10f, cached=%d",
-                    $tjd, $sunPdp->teval, $sunbaryCached ? 1 : 0));
+                error_log(sprintf("DEBUG SwephCalculator: SEI_SUNBARY requested, tjd=%.10f, sunPdp->teval=%.10f, cached=%d, speedf1=%d, speedf2=%d",
+                    $tjd, $sunPdp->teval, $sunbaryCached ? 1 : 0, $speedf1Sunbary, $speedf2));
             }
 
             if ($sunbaryCached && getenv('DEBUG_OSCU')) {
@@ -105,17 +111,37 @@ final class SwephCalculator
         $speedf1 = $pdp->xflgs & Constants::SEFLG_SPEED;
         $speedf2 = $iflag & Constants::SEFLG_SPEED;
 
+        if (getenv('DEBUG_VENUS') && $ipli === 3) { // SE_VENUS internal = 3
+            error_log(sprintf("[SwephCalculator] Venus: tjd=%.10f, pdp->teval=%.10f, pdp->xflgs=%d, iflag=%d, speedf1=%d, speedf2=%d, ipl=%d",
+                $tjd, $pdp->teval, $pdp->xflgs, $iflag, $speedf1, $speedf2, $ipl));
+            error_log(sprintf("[SwephCalculator] Venus: pdp->x=[%.15f,%.15f,%.15f,%.15f,%.15f,%.15f]",
+                $pdp->x[0] ?? 0, $pdp->x[1] ?? 0, $pdp->x[2] ?? 0, $pdp->x[3] ?? 0, $pdp->x[4] ?? 0, $pdp->x[5] ?? 0));
+        }
+
         if ($tjd == $pdp->teval &&
             $pdp->iephe == Constants::SEFLG_SWIEPH &&
             (!$speedf2 || $speedf1) &&
             $ipl < SwephConstants::SEI_ANYBODY) {
 
+            if (getenv('DEBUG_VENUS') && $ipli === 3) {
+                error_log("[SwephCalculator] Venus: USING CACHE");
+            }
             if ($xpret !== null) {
                 for ($i = 0; $i <= 5; $i++) {
                     $xpret[$i] = $pdp->x[$i];
                 }
             }
             return self::OK;
+        }
+
+        if (getenv('DEBUG_VENUS') && $ipli === 3) {
+            error_log("[SwephCalculator] Venus: RECOMPUTING (cache miss)");
+            error_log(sprintf("[SwephCalculator] Venus segment: tseg0=%.10f, tseg1=%.10f, dseg=%.10f",
+                $pdp->tseg0 ?? 0, $pdp->tseg1 ?? 0, $pdp->dseg ?? 0));
+            // First 5 coefficients of X coordinate
+            $segp = $pdp->segp ?? [];
+            error_log(sprintf("[SwephCalculator] Venus segp[0..4]=[%.15f,%.15f,%.15f,%.15f,%.15f]",
+                $segp[0] ?? 0, $segp[1] ?? 0, $segp[2] ?? 0, $segp[3] ?? 0, $segp[4] ?? 0));
         }
 
         // Check if file is open and valid
@@ -308,7 +334,8 @@ final class SwephCalculator
 
             // CRITICAL: Save Sun to SEI_SUNBARY slot when computing from Earth
             // In C code, sweplan() does this automatically because xps points to psbdp->x
-            if ($doSave || $ipli == SwephConstants::SEI_EARTH) {
+            // CRITICAL: Only save when doSave=true
+            if ($doSave) {
                 $psdp = &$swed->pldat[SwephConstants::SEI_SUNBARY];
                 for ($i = 0; $i <= 5; $i++) {
                     $psdp->x[$i] = $xp[$i];
