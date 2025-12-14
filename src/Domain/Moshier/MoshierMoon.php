@@ -1205,15 +1205,15 @@ class MoshierMoon
      * Port of swi_intp_apsides() from swemmoon.c
      *
      * @param float $J Julian day
-     * @param array &$pol Return array for position
-     * @param int $ipli Planet index (SEI_INTP_PERG for perigee, SEI_INTP_APOG for apogee)
+     * @param array &$pol Return array for position (longitude, latitude, distance in radians/AU)
+     * @param int $ipli Planet index (SEI_INTP_PERG=5 for perigee, SEI_INTP_APOG=4 for apogee)
      * @return int OK
      */
     public function intpApsides(float $J, array &$pol, int $ipli): int
     {
-        // Constants for apsides
-        $SEI_INTP_PERG = 36; // From swephexp.h
-        $SEI_INTP_APOG = 37;
+        // Internal indices for apsides (from sweph.h)
+        $SEI_INTP_APOG = 4;
+        $SEI_INTP_PERG = 5;
 
         $zMP = 27.55454988; // Mean synodic month in days
         $fNF = 27.212220817 / $zMP;
@@ -1234,11 +1234,7 @@ class MoshierMoon
         $this->meanElements();
         $this->meanElementsPl();
 
-        // Save original mean elements
-        $sNF = $this->NF;
-        $sD = $this->D;
-        $sLP = $this->SWELP;
-        $sMP = $this->MP;
+        // Save original mean elements (without normalization for planets)
         $sM = $this->M;
         $sVe = $this->Ve;
         $sEa = $this->Ea;
@@ -1246,7 +1242,7 @@ class MoshierMoon
         $sJu = $this->Ju;
         $sSa = $this->Sa;
 
-        // Normalize
+        // Save and normalize lunar mean elements
         $sNF = $this->mods3600($this->NF);
         $sD = $this->mods3600($this->D);
         $sLP = $this->mods3600($this->SWELP);

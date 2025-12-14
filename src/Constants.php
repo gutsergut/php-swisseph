@@ -38,6 +38,15 @@ final class Constants
     public const SE_INTP_PERG = 22;  // Interpolated lunar perigee
     public const SE_NPLANETS = 23;   // Number of planets
 
+    // Internal indices for node/apside data storage (sweph.h:156-161)
+    public const SEI_MEAN_NODE = 0;
+    public const SEI_TRUE_NODE = 1;
+    public const SEI_MEAN_APOG = 2;
+    public const SEI_OSCU_APOG = 3;
+    public const SEI_INTP_APOG = 4;
+    public const SEI_INTP_PERG = 5;
+    public const SEI_NNODE_ETC = 6;
+
     // Special calculation object for ecliptic and nutation (swephexp.h:99)
     public const SE_ECL_NUT = -1;
 

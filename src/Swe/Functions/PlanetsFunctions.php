@@ -45,6 +45,8 @@ final class PlanetsFunctions
             || $ipl === Constants::SE_OSCU_APOG
             || $ipl === Constants::SE_EARTH
             || ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA)
+            || $ipl === Constants::SE_INTP_APOG
+            || $ipl === Constants::SE_INTP_PERG
             || FictitiousPlanets::isFictitious($ipl);
 
         if (!$validRange) {
@@ -70,6 +72,16 @@ final class PlanetsFunctions
         // Специальная обработка для Oscu Apogee (True Black Moon Lilith)
         if ($ipl === Constants::SE_OSCU_APOG) {
             return self::calcOscuApogee($jd_tt, $iflag, $xx, $serr);
+        }
+
+        // Специальная обработка для Interpolated Lunar Apogee
+        if ($ipl === Constants::SE_INTP_APOG) {
+            return self::calcIntpApogee($jd_tt, $iflag, $xx, $serr);
+        }
+
+        // Специальная обработка для Interpolated Lunar Perigee
+        if ($ipl === Constants::SE_INTP_PERG) {
+            return self::calcIntpPerigee($jd_tt, $iflag, $xx, $serr);
         }
 
         // Специальная обработка для main belt asteroids (Chiron through Vesta)
@@ -277,6 +289,78 @@ final class PlanetsFunctions
         // LunarOsculatingCalculator returns 24-element array
         // xx[0-5] = ecliptic polar (lon, lat, dist, speed_lon, speed_lat, speed_dist)
         // Copy first 6 elements to output
+        for ($i = 0; $i < 6 && $i < count($xreturn); $i++) {
+            $xx[$i] = $xreturn[$i];
+        }
+
+        return $iflag;
+    }
+
+    /**
+     * Calculate Interpolated Lunar Apogee
+     *
+     * Uses IntpApsidesCalculator which ports intp_apsides() from sweph.c
+     * Only works with Moshier ephemeris.
+     *
+     * @param float $jd_tt Julian day in TT
+     * @param int $iflag Calculation flags
+     * @param array &$xx Output coordinates
+     * @param string|null &$serr Error message
+     * @return int iflag on success, SE_ERR on error
+     */
+    private static function calcIntpApogee(float $jd_tt, int $iflag, array &$xx, ?string &$serr): int
+    {
+        $xreturn = [];
+        $ret = \Swisseph\Domain\NodesApsides\IntpApsidesCalculator::calculate(
+            $jd_tt,
+            Constants::SE_INTP_APOG,
+            $iflag,
+            $xreturn,
+            $serr
+        );
+
+        if ($ret < 0) {
+            return Constants::SE_ERR;
+        }
+
+        // IntpApsidesCalculator returns 24-element array
+        // xx[0-5] = ecliptic polar (lon, lat, dist, speed_lon, speed_lat, speed_dist)
+        for ($i = 0; $i < 6 && $i < count($xreturn); $i++) {
+            $xx[$i] = $xreturn[$i];
+        }
+
+        return $iflag;
+    }
+
+    /**
+     * Calculate Interpolated Lunar Perigee
+     *
+     * Uses IntpApsidesCalculator which ports intp_apsides() from sweph.c
+     * Only works with Moshier ephemeris.
+     *
+     * @param float $jd_tt Julian day in TT
+     * @param int $iflag Calculation flags
+     * @param array &$xx Output coordinates
+     * @param string|null &$serr Error message
+     * @return int iflag on success, SE_ERR on error
+     */
+    private static function calcIntpPerigee(float $jd_tt, int $iflag, array &$xx, ?string &$serr): int
+    {
+        $xreturn = [];
+        $ret = \Swisseph\Domain\NodesApsides\IntpApsidesCalculator::calculate(
+            $jd_tt,
+            Constants::SE_INTP_PERG,
+            $iflag,
+            $xreturn,
+            $serr
+        );
+
+        if ($ret < 0) {
+            return Constants::SE_ERR;
+        }
+
+        // IntpApsidesCalculator returns 24-element array
+        // xx[0-5] = ecliptic polar (lon, lat, dist, speed_lon, speed_lat, speed_dist)
         for ($i = 0; $i < 6 && $i < count($xreturn); $i++) {
             $xx[$i] = $xreturn[$i];
         }
