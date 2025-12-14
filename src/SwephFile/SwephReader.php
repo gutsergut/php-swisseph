@@ -202,7 +202,11 @@ final class SwephReader
             $ipli = $fdp->ipl[$kpl];
 
             // Get planet data pointer
+            // Per C sweph.c:4801-4803: asteroids and planetary moons use SEI_ANYBODY
             if ($ipli >= \Swisseph\Constants::SE_AST_OFFSET) {
+                $pdp = &$swed->pldat[SwephConstants::SEI_ANYBODY];
+            } elseif ($ipli >= \Swisseph\Constants::SE_PLMOON_OFFSET) {
+                // Planetary moons also use SEI_ANYBODY
                 $pdp = &$swed->pldat[SwephConstants::SEI_ANYBODY];
             } else {
                 $pdp = &$swed->pldat[$ipli];

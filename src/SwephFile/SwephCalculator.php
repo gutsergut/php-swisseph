@@ -62,8 +62,12 @@ final class SwephCalculator
         // $iplAst is the asteroid number (external ipl for numbered asteroids)
         // Used for file lookup. For main belt asteroids (Chiron-Vesta), $iplAst = $ipli.
         // For numbered asteroids (SE_AST_OFFSET + n), $iplAst = external ipl (10001+).
+        // For planetary moons (SE_PLMOON_OFFSET < n < SE_AST_OFFSET), $iplAst = external ipl (9001-9999).
         $ipl = $ipli;
         if ($ipli > Constants::SE_AST_OFFSET) {
+            $ipl = SwephConstants::SEI_ANYBODY;
+        } elseif ($ipli > Constants::SE_PLMOON_OFFSET) {
+            // Planetary moons also use SEI_ANYBODY
             $ipl = SwephConstants::SEI_ANYBODY;
         }
 
@@ -166,7 +170,7 @@ final class SwephCalculator
 
         // Open file if not open
         if ($fdp->fptr === null) {
-            // Use $iplAst for filename generation (external ipl for numbered asteroids)
+            // Use $iplAst for filename generation (external ipl for numbered asteroids/planetary moons)
             $fname = self::generateFilename($tjd, $iplAst);
             $opened = false;
 
@@ -182,6 +186,21 @@ final class SwephCalculator
                 }
                 if (!$opened) {
                     $serr = "Asteroid ephemeris file not found. Tried: " . implode(', ', $alternatives);
+                    return self::NOT_AVAILABLE;
+                }
+            } elseif ($iplAst > Constants::SE_PLMOON_OFFSET && $iplAst < Constants::SE_AST_OFFSET) {
+                // Planetary moons: try sat/sepmNNNN.se1 first, then sepmNNNN.se1
+                // Per C sweph.c:2193-2196: if file not found in sat/, try without the directory
+                $alternatives = FilenameGenerator::generatePlanetaryMoonFilenames($iplAst);
+                foreach ($alternatives as $altFname) {
+                    if (SwephReader::openAndReadHeader($ifno, $altFname, $swed->ephepath, $altSerr)) {
+                        $opened = true;
+                        $fname = $altFname;
+                        break;
+                    }
+                }
+                if (!$opened) {
+                    $serr = "Planetary moon ephemeris file not found. Tried: " . implode(', ', $alternatives);
                     return self::NOT_AVAILABLE;
                 }
             } else {

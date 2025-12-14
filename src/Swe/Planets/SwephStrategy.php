@@ -20,10 +20,11 @@ final class SwephStrategy implements EphemerisStrategy
             return false;
         }
         // Support main planets, Earth, main belt asteroids (Chiron through Vesta),
-        // and numbered asteroids (SE_AST_OFFSET + asteroid_number)
+        // planetary moons (SE_PLMOON_OFFSET + moon_id), and numbered asteroids (SE_AST_OFFSET + asteroid_number)
         return ($ipl >= Constants::SE_SUN && $ipl <= Constants::SE_PLUTO)
             || $ipl === Constants::SE_EARTH
             || ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA)
+            || ($ipl > Constants::SE_PLMOON_OFFSET && $ipl < Constants::SE_AST_OFFSET) // Planetary moons
             || $ipl > Constants::SE_AST_OFFSET;  // Numbered asteroids
     }
 
@@ -49,6 +50,12 @@ final class SwephStrategy implements EphemerisStrategy
                 $ipli = SwephConstants::SEI_ANYBODY;
                 $ifno = SwephConstants::SEI_FILE_ANY_AST;
             }
+        } elseif ($ipl > Constants::SE_PLMOON_OFFSET && $ipl < Constants::SE_AST_OFFSET) {
+            // Planetary moons (SE_PLMOON_OFFSET + moon_id)
+            // Per C sweph.c:426-427, 1046, 2194: planetary moons use SEI_ANYBODY and SEI_FILE_ANY_AST
+            // Files are stored in sat/ subdirectory: sat/sepm9501.se1
+            $ipli = SwephConstants::SEI_ANYBODY;
+            $ifno = SwephConstants::SEI_FILE_ANY_AST;
         } elseif ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA) {
             // Main belt asteroids (Chiron, Pholus, Ceres, Pallas, Juno, Vesta)
             if (!isset(SwephConstants::PNOEXT2INT[$ipl])) {

@@ -118,40 +118,150 @@ final class PlanetApparentPipeline
 
             // Determine ipli and ifno based on planet type
             // For numbered asteroids (> SE_AST_OFFSET), use SEI_ANYBODY and SEI_FILE_ANY_AST
-            if ($ipl > Constants::SE_AST_OFFSET) {
+            // For planetary moons (SE_PLMOON_OFFSET < ipl < SE_AST_OFFSET), special handling needed
+            if ($ipl > Constants::SE_PLMOON_OFFSET && $ipl < Constants::SE_AST_OFFSET) {
+                // PLANETARY MOONS: special light-time correction
+                // Per C sweph.c:2604-2611, 2689: calc_center_body adds moon relative coords to planet
+                // We must:
+                // 1. Recalculate parent planet at t_apparent
+                // 2. Recalculate moon relative coords at t_apparent
+                // 3. Add them together
+
+                // Extract parent planet from moon code
+                $moonSubCode = $ipl - Constants::SE_PLMOON_OFFSET;
+                $parentPlanet = (int)($moonSubCode / 100); // e.g., 5 for Jupiter
+                $parentIpli = SwephConstants::PNOEXT2INT[$parentPlanet] ?? null;
+
+                if ($parentIpli !== null) {
+                    // 1. Get parent planet at t_apparent
+                    $xpParent_lt = [];
+                    $xpEarth_lt = [];
+                    $xpSun_lt = [];
+                    $xpMoon_lt = null;
+                    $serrParent_lt = null;
+
+                    $retc = \Swisseph\SwephFile\SwephPlanCalculator::calculate(
+                        $t_apparent,
+                        $parentIpli,
+                        $parentPlanet,
+                        SwephConstants::SEI_FILE_PLANET,
+                        $iflag,
+                        false, // NO_SAVE
+                        $xpParent_lt,
+                        $xpEarth_lt,
+                        $xpSun_lt,
+                        $xpMoon_lt,
+                        $serrParent_lt
+                    );
+
+                    if ($retc >= 0 && !empty($xpParent_lt)) {
+                        // 2. Get moon relative coords at t_apparent
+                        $xMoonRel_lt = [];
+                        $serrMoon_lt = null;
+
+                        $retc2 = \Swisseph\SwephFile\SwephCalculator::calculate(
+                            $t_apparent,
+                            SwephConstants::SEI_ANYBODY,
+                            $ipl,
+                            SwephConstants::SEI_FILE_ANY_AST,
+                            $iflag,
+                            null, // No xsunb
+                            false, // NO_SAVE
+                            $xMoonRel_lt,
+                            $serrMoon_lt
+                        );
+
+                        if ($retc2 >= 0 && !empty($xMoonRel_lt)) {
+                            // 3. Add parent planet + moon relative coords
+                            for ($i = 0; $i < 6; $i++) {
+                                $xx[$i] = ($xpParent_lt[$i] ?? 0.0) + ($xMoonRel_lt[$i] ?? 0.0);
+                            }
+                        }
+                    }
+                }
+            } elseif ($ipl > Constants::SE_AST_OFFSET) {
                 $ipli = SwephConstants::SEI_ANYBODY;
                 $ifno = SwephConstants::SEI_FILE_ANY_AST;
+
+                $xx_lt = [];
+                $xearth_lt = [];
+                $xsun_lt = [];
+                $xmoon_lt = null;
+                $serr_lt = null;
+                $retc = \Swisseph\SwephFile\SwephPlanCalculator::calculate(
+                    $t_apparent,
+                    $ipli,
+                    $ipl,
+                    $ifno,
+                    $iflag,
+                    false, // NO_SAVE
+                    $xx_lt,
+                    $xearth_lt,
+                    $xsun_lt,
+                    $xmoon_lt,
+                    $serr_lt
+                );
+
+                if ($retc >= 0 && !empty($xx_lt)) {
+                    for ($i = 0; $i < 6; $i++) {
+                        $xx[$i] = $xx_lt[$i];
+                    }
+                }
             } elseif ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA) {
                 $ipli = SwephConstants::PNOEXT2INT[$ipl] ?? SwephConstants::SEI_CHIRON;
                 $ifno = SwephConstants::SEI_FILE_MAIN_AST;
+
+                $xx_lt = [];
+                $xearth_lt = [];
+                $xsun_lt = [];
+                $xmoon_lt = null;
+                $serr_lt = null;
+                $retc = \Swisseph\SwephFile\SwephPlanCalculator::calculate(
+                    $t_apparent,
+                    $ipli,
+                    $ipl,
+                    $ifno,
+                    $iflag,
+                    false, // NO_SAVE
+                    $xx_lt,
+                    $xearth_lt,
+                    $xsun_lt,
+                    $xmoon_lt,
+                    $serr_lt
+                );
+
+                if ($retc >= 0 && !empty($xx_lt)) {
+                    for ($i = 0; $i < 6; $i++) {
+                        $xx[$i] = $xx_lt[$i];
+                    }
+                }
             } else {
                 $ipli = SwephConstants::PNOEXT2INT[$ipl] ?? 0;
                 $ifno = SwephConstants::SEI_FILE_PLANET;
-            }
 
-            $xx_lt = [];
-            $xearth_lt = [];
-            $xsun_lt = [];
-            $xmoon_lt = null;
-            $serr_lt = null;
-            $retc = \Swisseph\SwephFile\SwephPlanCalculator::calculate(
-                $t_apparent,
-                $ipli,
-                $ipl,
-                $ifno,
-                $iflag,
-                false, // NO_SAVE - don't overwrite cached data
-                $xx_lt,
-                $xearth_lt,
-                $xsun_lt,
-                $xmoon_lt,
-                $serr_lt
-            );
+                $xx_lt = [];
+                $xearth_lt = [];
+                $xsun_lt = [];
+                $xmoon_lt = null;
+                $serr_lt = null;
+                $retc = \Swisseph\SwephFile\SwephPlanCalculator::calculate(
+                    $t_apparent,
+                    $ipli,
+                    $ipl,
+                    $ifno,
+                    $iflag,
+                    false, // NO_SAVE
+                    $xx_lt,
+                    $xearth_lt,
+                    $xsun_lt,
+                    $xmoon_lt,
+                    $serr_lt
+                );
 
-            if ($retc >= 0 && !empty($xx_lt)) {
-                // Use recalculated position and velocity
-                for ($i = 0; $i < 6; $i++) {
-                    $xx[$i] = $xx_lt[$i];
+                if ($retc >= 0 && !empty($xx_lt)) {
+                    for ($i = 0; $i < 6; $i++) {
+                        $xx[$i] = $xx_lt[$i];
+                    }
                 }
             }
 
@@ -289,9 +399,15 @@ final class PlanetApparentPipeline
         }
 
         // 7) app_pos_rest + выбор среза
-        $result_slot = SwephConstants::PNOEXT2INT[$ipl] ?? 0;
-        if ($ipl === Constants::SE_SUN) {
-            $result_slot = SwephConstants::SEI_SUNBARY;
+        // For planetary moons and asteroids, use SEI_ANYBODY slot
+        // Per C sweph.c:2478-2479: if (ipli > SE_PLMOON_OFFSET || ipli > SE_AST_OFFSET)
+        if ($ipl > Constants::SE_PLMOON_OFFSET || $ipl > Constants::SE_AST_OFFSET) {
+            $result_slot = SwephConstants::SEI_ANYBODY;
+        } else {
+            $result_slot = SwephConstants::PNOEXT2INT[$ipl] ?? 0;
+            if ($ipl === Constants::SE_SUN) {
+                $result_slot = SwephConstants::SEI_SUNBARY;
+            }
         }
         $pdp = &$swed->pldat[$result_slot];
         if ($iflag & Constants::SEFLG_J2000) {

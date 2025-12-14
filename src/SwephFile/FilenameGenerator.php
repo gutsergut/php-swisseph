@@ -207,4 +207,33 @@ final class FilenameGenerator
 
         return $filenames;
     }
+
+    /**
+     * Generate list of alternative filenames for planetary moons.
+     *
+     * Planetary moon files are typically stored in sat/ subdirectory:
+     * - Primary: sat/sepm9501.se1 (in sat/ subdirectory)
+     * - Fallback: sepm9501.se1 (in main ephemeris directory)
+     *
+     * Per C sweph.c:2193-2196, if file not found in sat/, try without the directory.
+     *
+     * @param int $ipli Internal planet index (must be > SE_PLMOON_OFFSET && < SE_AST_OFFSET)
+     * @return array<string> List of possible filenames, in order of preference
+     */
+    public static function generatePlanetaryMoonFilenames(int $ipli): array
+    {
+        if ($ipli <= Constants::SE_PLMOON_OFFSET || $ipli >= Constants::SE_AST_OFFSET) {
+            return [];
+        }
+
+        $filenames = [];
+
+        // Primary: in sat/ subdirectory (as per swi_gen_filename)
+        $filenames[] = sprintf('sat%ssepm%d.%s', self::DIR_GLUE, $ipli, self::FILE_SUFFIX);
+
+        // Fallback: in main ephemeris directory (without sat/)
+        $filenames[] = sprintf('sepm%d.%s', $ipli, self::FILE_SUFFIX);
+
+        return $filenames;
+    }
 }

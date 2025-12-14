@@ -830,35 +830,114 @@ if (!function_exists('swe_get_planet_name')) {
             return $name;
         }
 
-        // Planetary moons or unknown
-        if ($ipl > Constants::SE_PLMOON_OFFSET) {
-            $name = sprintf("%d: planetary moon", $ipl);
-        } else {
-            $name = (string)$ipl;
+        // Planetary moons (9001-9999)
+        if ($ipl > Constants::SE_PLMOON_OFFSET && $ipl < Constants::SE_AST_OFFSET) {
+            $swed = \Swisseph\SwephFile\SwedState::getInstance();
+            $swed->ephepath = \Swisseph\State::getEphePath();
+
+            // Check if name already in fidat cache
+            $fdp = $swed->fidat[\Swisseph\SwephFile\SwephConstants::SEI_FILE_ANY_AST] ?? null;
+            if ($fdp !== null && isset($fdp->ipl[0]) && $fdp->ipl[0] === $ipl) {
+                $name = $fdp->astnam ?? '';
+                if ($name !== '') {
+                    $savedPlanetIpl = $ipl;
+                    $savedPlanetName = $name;
+                    return $name;
+                }
+            }
+
+            // Try to open ephemeris file to get name
+            $name = _swe_read_planetary_moon_name($ipl, $swed->ephepath);
+            if ($name !== null) {
+                $savedPlanetIpl = $ipl;
+                $savedPlanetName = $name;
+                return $name;
+            }
+
+            // Fallback
+            $name = sprintf("%d: not found (planetary moon)", $ipl);
+            return $name;
         }
 
+        // Unknown body
+        $name = (string)$ipl;
         $savedPlanetIpl = $ipl;
         $savedPlanetName = $name;
         return $name;
     }
 
     /**
-     * Get fictitious planet name
+     * Read planetary moon name from ephemeris file header
      * @internal
      */
-    function _swe_get_fict_name(int $iplFict): string
+    function _swe_read_planetary_moon_name(int $ipl, string $ephePath): ?string
     {
-        static $fictNames = [
-            'Cupido', 'Hades', 'Zeus', 'Kronos', 'Apollon', 'Admetos',
-            'Vulkanus', 'Poseidon', 'Isis-Transpluto', 'Nibiru',
-            'Harrington', 'Leverrier', 'Adams', 'Lowell', 'Pickering',
-            'Vulcan', 'White Moon', 'Proserpina', 'Waldemath',
+        // Generate possible filenames (moon files are in sat/ subdirectory)
+        $filenameLong = sprintf('sepm%d.se1', $ipl);
+
+        $filePaths = [
+            $ephePath . DIRECTORY_SEPARATOR . 'sat' . DIRECTORY_SEPARATOR . $filenameLong,
+            $ephePath . DIRECTORY_SEPARATOR . $filenameLong,
         ];
 
-        if ($iplFict >= 0 && $iplFict < count($fictNames)) {
-            return $fictNames[$iplFict];
+        $fp = null;
+        foreach ($filePaths as $path) {
+            if (file_exists($path)) {
+                $fp = fopen($path, 'rb');
+                if ($fp !== false) {
+                    break;
+                }
+            }
         }
-        return sprintf('Fict. %d', $iplFict);
+
+        if ($fp === null || $fp === false) {
+            return null;
+        }
+
+        // Read header - skip first 3 lines, get name from 4th line
+        // File header format (4 text lines):
+        // 1. Version (e.g., "SWISSEPH  1")
+        // 2. Filename (e.g., "sepm9501.se1")
+        // 3. Copyright notice
+        // 4. "NNNNNN Name  Ephemeris / ..." - catalog number and name
+        for ($i = 0; $i < 3; $i++) {
+            fgets($fp, 256);
+        }
+
+        $line = fgets($fp, 256);
+        fclose($fp);
+
+        if ($line === false) {
+            return null;
+        }
+
+        // Parse: "009501 Io/Jupiter  Ephemeris / WWW_USER..."
+        // Format: catalog_number space name double_space remaining
+        $line = trim($line);
+
+        // Skip leading number
+        $parts = preg_split('/\s+/', $line, 2);
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        $rest = $parts[1];
+
+        // Find position of "  " (double space) or "Ephemeris" marker
+        $doubleSpacePos = strpos($rest, '  ');
+        if ($doubleSpacePos !== false && $doubleSpacePos > 0) {
+            return substr($rest, 0, $doubleSpacePos);
+        }
+
+        // Fallback: take first word(s) until we hit multiple spaces
+        $ephPos = strpos($rest, 'Ephemeris');
+        if ($ephPos !== false && $ephPos > 0) {
+            return trim(substr($rest, 0, $ephPos));
+        }
+
+        // Last resort: return first chunk
+        $parts2 = preg_split('/\s{2,}/', $rest, 2);
+        return trim($parts2[0] ?? '');
     }
 
     /**

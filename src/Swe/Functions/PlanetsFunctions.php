@@ -34,11 +34,12 @@ final class PlanetsFunctions
         $xx = Output::emptyForFlags($iflag);
 
         // Диапазон поддерживаемых планет (расширен для Node, Apogee, Chiron, main belt asteroids,
-        // numbered asteroids и фиктивных планет)
+        // numbered asteroids, planetary moons и фиктивных планет)
         // SE_SUN..SE_PLUTO (0-9), SE_MEAN_NODE (10), SE_TRUE_NODE (11),
         // SE_MEAN_APOG (12), SE_OSCU_APOG (13), SE_EARTH (14),
         // SE_CHIRON..SE_VESTA (15-20) - Main belt asteroids
         // SE_FICT_OFFSET..SE_FICT_MAX (40-999) - Uranian/fictitious bodies
+        // SE_PLMOON_OFFSET + n (9001-9999) - Planetary moons (Io=9501, Titan=9606, etc.)
         // SE_AST_OFFSET + n (10001+) - Numbered asteroids (Eros=10433, Ceres=10001, etc.)
         $validRange = ($ipl >= Constants::SE_SUN && $ipl <= Constants::SE_PLUTO)
             || $ipl === Constants::SE_MEAN_NODE
@@ -49,6 +50,7 @@ final class PlanetsFunctions
             || ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA)
             || $ipl === Constants::SE_INTP_APOG
             || $ipl === Constants::SE_INTP_PERG
+            || ($ipl > Constants::SE_PLMOON_OFFSET && $ipl < Constants::SE_AST_OFFSET) // Planetary moons
             || $ipl > Constants::SE_AST_OFFSET  // Numbered asteroids: SE_AST_OFFSET + asteroid_number
             || FictitiousPlanets::isFictitious($ipl);
 
@@ -90,6 +92,14 @@ final class PlanetsFunctions
         // Специальная обработка для main belt asteroids (Chiron through Vesta)
         if ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA) {
             return self::calcAsteroid($jd_tt, $ipl, $iflag, $xx, $serr);
+        }
+
+        // Специальная обработка для planetary moons (SE_PLMOON_OFFSET + moon_id)
+        // For example: SE_PLMOON_OFFSET + 501 = Io (9501)
+        //              SE_PLMOON_OFFSET + 606 = Titan (9606)
+        // Format: PPNN where PP = planet (4=Mars, 5=Jupiter, 6=Saturn, etc.), NN = moon number
+        if ($ipl > Constants::SE_PLMOON_OFFSET && $ipl < Constants::SE_AST_OFFSET) {
+            return self::calcPlanetaryMoon($jd_tt, $ipl, $iflag, $xx, $serr);
         }
 
         // Специальная обработка для numbered asteroids (SE_AST_OFFSET + asteroid_number)
@@ -469,6 +479,186 @@ final class PlanetsFunctions
 
         $xx = $res->x;
         return $iflag;
+    }
+
+    /**
+     * Calculate planetary moon positions (SE_PLMOON_OFFSET + moon_id)
+     *
+     * Port of sweph.c planetary moons section (lines 426-433, 1046-1048, 1569, etc.)
+     * Uses SEI_ANYBODY internal planet index and SEI_FILE_ANY_AST for individual moon files.
+     *
+     * Moon ID format: PPNN where:
+     * - PP = parent planet number (4=Mars, 5=Jupiter, 6=Saturn, 7=Uranus, 8=Neptune, 9=Pluto)
+     * - NN = moon number within planet system (01, 02, 03, etc.)
+     * - 99 = Center of Body (COB) - planetary barycenter
+     *
+     * Examples:
+     * - 9401 = Phobos/Mars
+     * - 9501 = Io/Jupiter
+     * - 9502 = Europa/Jupiter
+     * - 9606 = Titan/Saturn
+     * - 9599 = Jupiter Center of Body
+     *
+     * Files are stored in sat/ subdirectory: sat/sepm9501.se1, etc.
+     *
+     * @param float $jd_tt Julian day in TT
+     * @param int $ipl Planet number (must be > SE_PLMOON_OFFSET && < SE_AST_OFFSET)
+     * @param int $iflag Calculation flags
+     * @param array &$xx Output coordinates
+     * @param string|null &$serr Error message
+     * @return int iflag on success, SE_ERR on error
+     */
+    private static function calcPlanetaryMoon(float $jd_tt, int $ipl, int $iflag, array &$xx, ?string &$serr): int
+    {
+        // Validate that this is indeed a planetary moon
+        if ($ipl <= Constants::SE_PLMOON_OFFSET || $ipl >= Constants::SE_AST_OFFSET) {
+            $serr = "calcPlanetaryMoon: ipl=$ipl must be in range (SE_PLMOON_OFFSET, SE_AST_OFFSET)";
+            return Constants::SE_ERR;
+        }
+
+        // Extract moon info from ipl
+        // Format: 9PPP where PPP = planet*100 + moon_number
+        // C sweph.c:428: ipl = (int) ((ipl - 9000) / 100);
+        $moonCode = $ipl; // e.g., 9501 for Io
+        $moonSubCode = $ipl - Constants::SE_PLMOON_OFFSET; // e.g., 501
+        $parentPlanet = (int)($moonSubCode / 100); // e.g., 5 for Jupiter
+        $moonNumber = $moonSubCode % 100; // e.g., 01 for Io
+
+        // Get moon name for error messages
+        $moonName = self::getPlanetaryMoonName($ipl) ?? "Moon #$moonCode";
+
+        // CRITICAL: Planetary moon files contain coordinates RELATIVE to planet barycenter
+        // Algorithm per C sweph.c:
+        // 1. Compute parent planet RAW barycentric J2000 equatorial coords via SwephPlanCalculator
+        // 2. Read moon relative coords (also J2000 equatorial) via SwephCalculator
+        // 3. Add them together to get moon barycentric J2000 equatorial coords
+        // 4. Apply full pipeline (light-time, precession, nutation, ecliptic) to the sum
+
+        // Step 1: Get RAW parent planet coordinates (J2000 equatorial barycentric)
+        // Use SwephPlanCalculator directly to avoid full pipeline
+        $parentIpl = $parentPlanet; // SE_JUPITER = 5, SE_SATURN = 6, etc.
+        $parentIpli = \Swisseph\SwephFile\SwephConstants::PNOEXT2INT[$parentIpl] ?? null;
+
+        if ($parentIpli === null) {
+            $serr = "$moonName: unknown parent planet $parentIpl";
+            return Constants::SE_ERR;
+        }
+
+        $xpParent = [];
+        $xpEarth = [];
+        $xpSun = [];
+        $xpMoon = null;
+        $serrParent = null;
+
+        $retc = \Swisseph\SwephFile\SwephPlanCalculator::calculate(
+            $jd_tt,
+            $parentIpli,
+            $parentIpl,
+            \Swisseph\SwephFile\SwephConstants::SEI_FILE_PLANET,
+            $iflag | Constants::SEFLG_SPEED,
+            true, // doSave
+            $xpParent,
+            $xpEarth,
+            $xpSun,
+            $xpMoon,
+            $serrParent
+        );
+
+        if ($retc < 0) {
+            $serr = "$moonName: parent planet ($parentIpl) raw coords failed: " . ($serrParent ?? '');
+            return Constants::SE_ERR;
+        }
+
+        // Step 2: Read moon relative coordinates from ephemeris file
+        // Files are in sat/sepm9501.se1 format
+        // These are coordinates relative to planet barycenter (J2000 equatorial)
+        $xMoonRel = [];
+        $serrMoon = null;
+
+        $retc = \Swisseph\SwephFile\SwephCalculator::calculate(
+            $jd_tt,
+            \Swisseph\SwephFile\SwephConstants::SEI_ANYBODY,
+            $ipl, // e.g., 9501
+            \Swisseph\SwephFile\SwephConstants::SEI_FILE_ANY_AST,
+            $iflag | Constants::SEFLG_SPEED,
+            null, // No xsunb - moon is relative to planet, not Sun
+            true, // doSave
+            $xMoonRel,
+            $serrMoon
+        );
+
+        if ($retc < 0) {
+            $serr = "$moonName ephemeris file error: " . ($serrMoon ?? 'unknown');
+            return Constants::SE_ERR;
+        }
+
+        // Step 3: Add relative moon coords to parent planet coords
+        // C sweph.c:2451-2453: calc_center_body() does xx[i] += xcom[i]
+        // Both are in J2000 equatorial barycentric frame
+        $xxRaw = array_fill(0, 6, 0.0);
+        for ($i = 0; $i < 6; $i++) {
+            $xxRaw[$i] = ($xpParent[$i] ?? 0.0) + ($xMoonRel[$i] ?? 0.0);
+        }
+
+        // Step 4: Apply full apparent position pipeline
+        // This handles: light-time, deflection, aberration, precession, nutation, ecliptic conversion
+        $xx = \Swisseph\Swe\Planets\PlanetApparentPipeline::computeFinal($jd_tt, $ipl, $iflag, $xxRaw);
+
+        return $iflag;
+    }
+
+    /**
+     * Get name for planetary moon
+     *
+     * @param int $ipl Planetary moon ID (SE_PLMOON_OFFSET + moon_code)
+     * @return string|null Moon name or null if unknown
+     */
+    private static function getPlanetaryMoonName(int $ipl): ?string
+    {
+        // Lookup table for known planetary moons
+        // From plmolist.txt in sat/ directory
+        $names = [
+            // Mars moons
+            9401 => 'Phobos/Mars',
+            9402 => 'Deimos/Mars',
+            // Jupiter moons
+            9501 => 'Io/Jupiter',
+            9502 => 'Europa/Jupiter',
+            9503 => 'Ganymede/Jupiter',
+            9504 => 'Callisto/Jupiter',
+            9599 => 'Jupiter/COB',
+            // Saturn moons
+            9601 => 'Mimas/Saturn',
+            9602 => 'Enceladus/Saturn',
+            9603 => 'Tethys/Saturn',
+            9604 => 'Dione/Saturn',
+            9605 => 'Rhea/Saturn',
+            9606 => 'Titan/Saturn',
+            9607 => 'Hyperion/Saturn',
+            9608 => 'Iapetus/Saturn',
+            9699 => 'Saturn/COB',
+            // Uranus moons
+            9701 => 'Ariel/Uranus',
+            9702 => 'Umbriel/Uranus',
+            9703 => 'Titania/Uranus',
+            9704 => 'Oberon/Uranus',
+            9705 => 'Miranda/Uranus',
+            9799 => 'Uranus/COB',
+            // Neptune moons
+            9801 => 'Triton/Neptune',
+            9802 => 'Nereid/Neptune',
+            9808 => 'Proteus/Neptune',
+            9899 => 'Neptune/COB',
+            // Pluto moons
+            9901 => 'Charon/Pluto',
+            9902 => 'Nix/Pluto',
+            9903 => 'Hydra/Pluto',
+            9904 => 'Kerberos/Pluto',
+            9905 => 'Styx/Pluto',
+            9999 => 'Pluto/COB',
+        ];
+
+        return $names[$ipl] ?? null;
     }
 
     /**
