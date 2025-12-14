@@ -273,6 +273,61 @@ final class PlanetApparentPipeline
             }
         }
 
+        // SEFLG_CENTER_BODY: add center-of-body offset for outer planets (C sweph.c:2604-2611, 2693)
+        // For Jupiter-Pluto, the 9n99 files contain the relative offset of the physical center
+        // from the planet+moons barycenter. We add this offset to get center coordinates.
+        // CRITICAL: C code calls sweph() with xsunb=NULL to get raw relative coordinates!
+        $ipli_for_cob = SwephConstants::PNOEXT2INT[$ipl] ?? -1;
+        if (($iflag & Constants::SEFLG_CENTER_BODY)
+            && $ipli_for_cob >= SwephConstants::SEI_MARS
+            && $ipli_for_cob <= SwephConstants::SEI_PLUTO
+        ) {
+            // Calculate iplmoon: Jupiter(5) -> 9599, Saturn(6) -> 9699, etc.
+            $iplmoon_cob = $ipl * 100 + 9099;
+
+            // Get center-of-body offset at light-time corrected epoch
+            // The offset is computed at t_apparent (same as planet position)
+            $t_cob = $jd_tt;
+            if (!($iflag & Constants::SEFLG_TRUEPOS) && isset($dt_light_for_defl) && $dt_light_for_defl > 0) {
+                $t_cob = $jd_tt - $dt_light_for_defl;
+            }
+
+            // Read center-of-body relative coordinates from 9n99 file
+            // CRITICAL: Pass xsunb=null to get RAW coordinates without helio->bary conversion!
+            // This matches C sweph.c:2608: sweph(t, iplmoon, ..., NULL, NO_SAVE, xcom, serr)
+            $xcom = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+            $serr_cob = null;
+            $retc_cob = \Swisseph\SwephFile\SwephCalculator::calculate(
+                $t_cob,
+                SwephConstants::SEI_ANYBODY,
+                $iplmoon_cob,
+                SwephConstants::SEI_FILE_ANY_AST,
+                $iflag,
+                null,  // xsunb = NULL - NO helio->bary conversion, gives relative offset!
+                false, // NO_SAVE
+                $xcom,
+                $serr_cob
+            );
+
+            if (getenv('DEBUG_CENTER_BODY')) {
+                error_log(sprintf("DEBUG CENTER_BODY: ipl=%d, iplmoon=%d, t_cob=%.10f", $ipl, $iplmoon_cob, $t_cob));
+                error_log(sprintf("DEBUG CENTER_BODY: xcom=[%.15f,%.15f,%.15f,%.15f,%.15f,%.15f]",
+                    $xcom[0], $xcom[1], $xcom[2], $xcom[3] ?? 0, $xcom[4] ?? 0, $xcom[5] ?? 0));
+                error_log(sprintf("DEBUG CENTER_BODY: xx BEFORE=[%.15f,%.15f,%.15f]", $xx[0], $xx[1], $xx[2]));
+            }
+
+            if ($retc_cob >= 0 && !empty($xcom)) {
+                // Add center-of-body offset to barycentric position (C sweph.c:2449-2453)
+                for ($i = 0; $i <= 5; $i++) {
+                    $xx[$i] += $xcom[$i];
+                }
+            }
+
+            if (getenv('DEBUG_CENTER_BODY')) {
+                error_log(sprintf("DEBUG CENTER_BODY: xx AFTER=[%.15f,%.15f,%.15f]", $xx[0], $xx[1], $xx[2]));
+            }
+        }
+
         // 2) Преобразование к системе отсчёта наблюдателя
         if ($iflag & Constants::SEFLG_HELCTR) {
             if ($sunb_pd) {

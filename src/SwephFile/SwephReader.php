@@ -226,6 +226,15 @@ final class SwephReader
             $lng = self::doFread($fp, 4, self::SEI_CURR_FPOS, $freord, $fendian);
             $pdp->rmax = $lng / 1000.0;
 
+            // Per C sweph.c:4831-4834: planet's center of body (e.g. 9599 for Jupiter)
+            // uses rmax / 1000000 instead of / 1000 for higher precision
+            if ($ipli >= \Swisseph\Constants::SE_PLMOON_OFFSET && $ipli < \Swisseph\Constants::SE_AST_OFFSET) {
+                // Check if center of body (ipli % 100 == 99) or Mars moons ((ipli - 9000) / 100 == SE_MARS)
+                if (($ipli % 100) === 99 || intdiv($ipli - 9000, 100) === \Swisseph\Constants::SE_MARS) {
+                    $pdp->rmax = $lng / 1000000.0;
+                }
+            }
+
             // Read 10 doubles: tfstart, tfend, dseg, telem, prot, dprot, qrot, dqrot, peri, dperi
             $doubles = [];
             for ($i = 0; $i < 10; $i++) {

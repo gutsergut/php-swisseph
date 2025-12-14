@@ -33,6 +33,16 @@ final class PlanetsFunctions
     {
         $xx = Output::emptyForFlags($iflag);
 
+        // SEFLG_CENTER_BODY handling for Mercury-Mars only (C sweph.c:2447-2450)
+        // For inner planets (Mercury-Mars), center = barycenter, so the flag is ignored.
+        // For outer planets (Jupiter-Pluto), CENTER_BODY is handled in PlanetApparentPipeline
+        // after computing barycentric coordinates, by adding the relative offset from 9n99 files.
+        if (($iflag & Constants::SEFLG_CENTER_BODY) && $ipl >= Constants::SE_SUN && $ipl <= Constants::SE_MARS) {
+            // For Mercury-Mars, no center-of-body files exist (barycenter = center)
+            // Remove the flag, proceed as normal barycenter calculation
+            $iflag &= ~Constants::SEFLG_CENTER_BODY;
+        }
+
         // Диапазон поддерживаемых планет (расширен для Node, Apogee, Chiron, main belt asteroids,
         // numbered asteroids, planetary moons и фиктивных планет)
         // SE_SUN..SE_PLUTO (0-9), SE_MEAN_NODE (10), SE_TRUE_NODE (11),
@@ -97,8 +107,19 @@ final class PlanetsFunctions
         // Специальная обработка для planetary moons (SE_PLMOON_OFFSET + moon_id)
         // For example: SE_PLMOON_OFFSET + 501 = Io (9501)
         //              SE_PLMOON_OFFSET + 606 = Titan (9606)
+        //              SE_PLMOON_OFFSET + 599 = Jupiter COB (9599) - center of body
         // Format: PPNN where PP = planet (4=Mars, 5=Jupiter, 6=Saturn, etc.), NN = moon number
+        // Special: NN = 99 means center of body (not a real moon) - convert to parent planet + CENTER_BODY
         if ($ipl > Constants::SE_PLMOON_OFFSET && $ipl < Constants::SE_AST_OFFSET) {
+            $moonSubCode = $ipl - Constants::SE_PLMOON_OFFSET; // e.g., 599
+            if (($moonSubCode % 100) === 99) {
+                // Center-of-body request: convert to parent planet + CENTER_BODY flag
+                // 9599 -> SE_JUPITER (5), 9699 -> SE_SATURN (6), etc.
+                $parentPlanet = (int)($moonSubCode / 100); // e.g., 5 for Jupiter
+                $iflag |= Constants::SEFLG_CENTER_BODY;
+                // Recurse with parent planet and CENTER_BODY flag
+                return self::calc($jd_tt, $parentPlanet, $iflag, $xx, $serr);
+            }
             return self::calcPlanetaryMoon($jd_tt, $ipl, $iflag, $xx, $serr);
         }
 
