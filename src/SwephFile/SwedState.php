@@ -179,21 +179,26 @@ final class SwedState
         $this->cnut = cos($deps);
 
         // Compute nutation velocity matrix (matrix at t - NUT_SPEED_INTV)
-        // Port of logic from sweph.c around computation of xv for nutation speed correction.
+        // Port of logic from sweph.c:6103-6111
+        // CRITICAL: C uses nut_matrix(&swed.nutv, &swed.oec) - same oec (mean obliquity
+        // at current date), NOT obliquity at t-dt! Only nutation angles change.
         $dt = \Swisseph\Constants::NUT_SPEED_INTV;
         $tPrev = $tjd - $dt;
         // Nutation at previous time
         [$dpsiPrev, $depsPrev] = \Swisseph\Nutation::calc($tPrev, $model, true);
-        // Mean obliquity at previous time (do not overwrite global oec)
-        $epsMeanPrev = \Swisseph\Obliquity::calc($tPrev, $iflag);
-        $sepsPrev = sin($epsMeanPrev);
-        $cepsPrev = cos($epsMeanPrev);
+        // Use SAME mean obliquity as main matrix (swed.oec), not obliquity at tPrev
         $this->nutMatrixVelocity = \Swisseph\NutationMatrix::build(
             $dpsiPrev,
             $depsPrev,
-            $epsMeanPrev,
-            $sepsPrev,
-            $cepsPrev
+            $epsMean,  // Same as main matrix
+            $seps,     // Same as main matrix
+            $ceps      // Same as main matrix
         );
+
+        if (getenv('DEBUG_NUT')) {
+            error_log(sprintf("DEBUG [ensureNutation] tjd=%.6f, dpsi=%.12e, deps=%.12e", $tjd, $dpsi, $deps));
+            error_log(sprintf("DEBUG [ensureNutation] dpsiPrev=%.12e, depsPrev=%.12e (at tjd-%.4f)", $dpsiPrev, $depsPrev, $dt));
+            error_log(sprintf("DEBUG [ensureNutation] dpsi-dpsiPrev=%.12e, deps-depsPrev=%.12e", $dpsi-$dpsiPrev, $deps-$depsPrev));
+        }
     }
 }

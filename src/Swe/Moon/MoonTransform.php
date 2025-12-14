@@ -275,8 +275,22 @@ class MoonTransform
             // Speed correction for aberration
             // From sweph.c:4231-4234
             if ($iflag & Constants::SEFLG_SPEED) {
+                if (getenv('DEBUG_MOON')) {
+                    error_log(sprintf("DEBUG [MoonTransform] BEFORE speed correction: xx[3..5]=[%.15e, %.15e, %.15e]",
+                        $xx[3], $xx[4], $xx[5]));
+                    error_log(sprintf("DEBUG [MoonTransform] xobs[3..5]=[%.15e, %.15e, %.15e]",
+                        $xobs[3], $xobs[4], $xobs[5]));
+                    error_log(sprintf("DEBUG [MoonTransform] xobs2[3..5]=[%.15e, %.15e, %.15e]",
+                        $xobs2[3], $xobs2[4], $xobs2[5]));
+                    error_log(sprintf("DEBUG [MoonTransform] xobs - xobs2 = [%.15e, %.15e, %.15e]",
+                        $xobs[3] - $xobs2[3], $xobs[4] - $xobs2[4], $xobs[5] - $xobs2[5]));
+                }
                 for ($i = 3; $i <= 5; $i++) {
                     $xx[$i] += $xobs[$i] - $xobs2[$i];
+                }
+                if (getenv('DEBUG_MOON')) {
+                    error_log(sprintf("DEBUG [MoonTransform] AFTER speed correction: xx[3..5]=[%.15e, %.15e, %.15e]",
+                        $xx[3], $xx[4], $xx[5]));
                 }
             }
         }
@@ -379,6 +393,9 @@ class MoonTransform
         // xobs содержит положение/скорость наблюдателя (земли или топо) в AU и AU/day.
         // xx содержит положение Луны относительно корректного центра (в AU).
 
+        // Сохраняем исходные значения для коррекции скорости
+        $xxs = $xx;
+
         // Если радиус нулевой — ничего не делаем (защита от деления на ноль)
         $ru = sqrt($xx[0]*$xx[0] + $xx[1]*$xx[1] + $xx[2]*$xx[2]);
         if ($ru === 0.0) {
@@ -410,6 +427,43 @@ class MoonTransform
         }
         for ($i = 0; $i <= 2; $i++) {
             $xx[$i] = ($b1 * $xx[$i] + $f2 * $ru * $v[$i]) / $denom;
+        }
+
+        // Коррекция скорости
+        // Влияние аберрации на видимую скорость может достигать 0.4"/day
+        // From sweph.c:3718-3734
+        if ($iflag & Constants::SEFLG_SPEED) {
+            $intv = Constants::PLAN_SPEED_INTV;
+
+            // Позиция на t-dt
+            $u = [];
+            for ($i = 0; $i <= 2; $i++) {
+                $u[$i] = $xxs[$i] - $intv * $xxs[$i + 3];
+            }
+
+            // Радиус на t-dt
+            $ru2 = sqrt($u[0]*$u[0] + $u[1]*$u[1] + $u[2]*$u[2]);
+            if ($ru2 > 0.0) {
+                $f1_2 = ($u[0]*$v[0] + $u[1]*$v[1] + $u[2]*$v[2]) / $ru2;
+                $f2_2 = 1.0 + $f1_2 / (1.0 + $b1);
+                $denom2 = 1.0 + $f1_2;
+
+                if ($denom2 !== 0.0) {
+                    // Позиция с аберрацией на t-dt
+                    $xx2 = [];
+                    for ($i = 0; $i <= 2; $i++) {
+                        $xx2[$i] = ($b1 * $u[$i] + $f2_2 * $ru2 * $v[$i]) / $denom2;
+                    }
+
+                    // Коррекция скорости: разница эффекта аберрации между t и t-dt
+                    for ($i = 0; $i <= 2; $i++) {
+                        $dx1 = $xx[$i] - $xxs[$i];  // aberration effect at t
+                        $dx2 = $xx2[$i] - $u[$i];   // aberration effect at t-dt
+                        $dx1 -= $dx2;
+                        $xx[$i + 3] += $dx1 / $intv;
+                    }
+                }
+            }
         }
 
         if (getenv('DEBUG_MOON_ABERR')) {

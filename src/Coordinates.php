@@ -270,6 +270,15 @@ final class Coordinates
                     // New speed = rotated speed + change in position due to nutation velocity
                     $xx[3 + $i] = $x[3 + $i] + ($x[$i] - $xv[$i]) / $nutSpeedIntv;
                 }
+                if (getenv('DEBUG_NUT')) {
+                    $speedCorrection = [
+                        ($x[0] - $xv[0]) / $nutSpeedIntv,
+                        ($x[1] - $xv[1]) / $nutSpeedIntv,
+                        ($x[2] - $xv[2]) / $nutSpeedIntv
+                    ];
+                    error_log(sprintf("DEBUG [nutate] speedCorrection=[%.12e, %.12e, %.12e]",
+                        $speedCorrection[0], $speedCorrection[1], $speedCorrection[2]));
+                }
             } else {
                 for ($i = 0; $i <= 2; $i++) {
                     $xx[3 + $i] = $x[3 + $i];
