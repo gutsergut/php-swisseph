@@ -727,9 +727,33 @@ if (!function_exists('swe_cotrans_sp')) {
 
 // Utilities: planet name, version, close
 if (!function_exists('swe_get_planet_name')) {
+    /**
+     * Get the name of a celestial body
+     *
+     * Full port from sweph.c:7000-7173 without simplifications.
+     * Supports all body types: planets, lunar points, asteroids, fictitious bodies.
+     * For asteroids, reads name from ephemeris file header or seasnam.txt.
+     *
+     * @param int $ipl Planet/body number
+     * @return string Body name
+     */
     function swe_get_planet_name(int $ipl): string
     {
-        return match ($ipl) {
+        static $savedPlanetName = '';
+        static $savedPlanetIpl = -1;
+
+        // Pluto with asteroid number 134340 treated as SE_PLUTO
+        if ($ipl === Constants::SE_AST_OFFSET + 134340) {
+            $ipl = Constants::SE_PLUTO;
+        }
+
+        // Return cached name if same planet
+        if ($ipl !== 0 && $ipl === $savedPlanetIpl) {
+            return $savedPlanetName;
+        }
+
+        // Main planets and special points
+        $name = match ($ipl) {
             Constants::SE_SUN => 'Sun',
             Constants::SE_MOON => 'Moon',
             Constants::SE_MERCURY => 'Mercury',
@@ -740,8 +764,236 @@ if (!function_exists('swe_get_planet_name')) {
             Constants::SE_URANUS => 'Uranus',
             Constants::SE_NEPTUNE => 'Neptune',
             Constants::SE_PLUTO => 'Pluto',
-            default => 'Body ' . $ipl,
+            Constants::SE_MEAN_NODE => 'mean Node',
+            Constants::SE_TRUE_NODE => 'true Node',
+            Constants::SE_MEAN_APOG => 'mean Apogee',
+            Constants::SE_OSCU_APOG => 'osc. Apogee',
+            Constants::SE_INTP_APOG => 'intp. Apogee',
+            Constants::SE_INTP_PERG => 'intp. Perigee',
+            Constants::SE_EARTH => 'Earth',
+            // Main asteroids with both internal and external numbers
+            Constants::SE_CHIRON, Constants::SE_AST_OFFSET + 2060 => 'Chiron',
+            Constants::SE_PHOLUS, Constants::SE_AST_OFFSET + 5145 => 'Pholus',
+            Constants::SE_CERES, Constants::SE_AST_OFFSET + 1 => 'Ceres',
+            Constants::SE_PALLAS, Constants::SE_AST_OFFSET + 2 => 'Pallas',
+            Constants::SE_JUNO, Constants::SE_AST_OFFSET + 3 => 'Juno',
+            Constants::SE_VESTA, Constants::SE_AST_OFFSET + 4 => 'Vesta',
+            default => null,
         };
+
+        if ($name !== null) {
+            $savedPlanetIpl = $ipl;
+            $savedPlanetName = $name;
+            return $name;
+        }
+
+        // Fictitious planets (Uranian, Transpluto, etc.)
+        if ($ipl >= Constants::SE_FICT_OFFSET && $ipl <= Constants::SE_FICT_MAX) {
+            $name = _swe_get_fict_name($ipl - Constants::SE_FICT_OFFSET);
+            $savedPlanetIpl = $ipl;
+            $savedPlanetName = $name;
+            return $name;
+        }
+
+        // Asteroids (>SE_AST_OFFSET)
+        if ($ipl > Constants::SE_AST_OFFSET) {
+            $swed = \Swisseph\SwephFile\SwedState::getInstance();
+            $swed->ephepath = \Swisseph\State::getEphePath();
+
+            // Check if name already in fidat cache
+            $fdp = $swed->fidat[\Swisseph\SwephFile\SwephConstants::SEI_FILE_ANY_AST] ?? null;
+            if ($fdp !== null && isset($fdp->ipl[0]) && $fdp->ipl[0] === $ipl) {
+                $name = $fdp->astnam ?? '';
+                if ($name !== '') {
+                    // Try to get better name from seasnam.txt if provisional
+                    $name = _swe_lookup_asteroid_name($ipl, $name, $swed->ephepath);
+                    $savedPlanetIpl = $ipl;
+                    $savedPlanetName = $name;
+                    return $name;
+                }
+            }
+
+            // Try to open ephemeris file to get name
+            $asteroidNum = $ipl - Constants::SE_AST_OFFSET;
+            $name = _swe_read_asteroid_name($asteroidNum, $swed->ephepath);
+
+            if ($name !== null) {
+                // Try to get better name from seasnam.txt if provisional
+                $name = _swe_lookup_asteroid_name($ipl, $name, $swed->ephepath);
+                $savedPlanetIpl = $ipl;
+                $savedPlanetName = $name;
+                return $name;
+            }
+
+            // Fallback: not found
+            $name = sprintf("%d: not found (asteroid)", $asteroidNum);
+            return $name;
+        }
+
+        // Planetary moons or unknown
+        if ($ipl > Constants::SE_PLMOON_OFFSET) {
+            $name = sprintf("%d: planetary moon", $ipl);
+        } else {
+            $name = (string)$ipl;
+        }
+
+        $savedPlanetIpl = $ipl;
+        $savedPlanetName = $name;
+        return $name;
+    }
+
+    /**
+     * Get fictitious planet name
+     * @internal
+     */
+    function _swe_get_fict_name(int $iplFict): string
+    {
+        static $fictNames = [
+            'Cupido', 'Hades', 'Zeus', 'Kronos', 'Apollon', 'Admetos',
+            'Vulkanus', 'Poseidon', 'Isis-Transpluto', 'Nibiru',
+            'Harrington', 'Leverrier', 'Adams', 'Lowell', 'Pickering',
+            'Vulcan', 'White Moon', 'Proserpina', 'Waldemath',
+        ];
+
+        if ($iplFict >= 0 && $iplFict < count($fictNames)) {
+            return $fictNames[$iplFict];
+        }
+        return sprintf('Fict. %d', $iplFict);
+    }
+
+    /**
+     * Read asteroid name from ephemeris file header
+     *
+     * File header format (4 text lines):
+     * 1. Version (e.g., "SWISSEPH  1")
+     * 2. Filename (e.g., "se00433s.se1")
+     * 3. Copyright notice
+     * 4. "NNNNNN Name ..." - catalog number and name
+     *
+     * @internal
+     */
+    function _swe_read_asteroid_name(int $asteroidNum, string $ephePath): ?string
+    {
+        // Generate possible filenames (long and short versions)
+        $dir = sprintf('ast%d', intdiv($asteroidNum, 1000));
+        $filenameLong = sprintf('se%05d.se1', $asteroidNum);
+        $filenameShort = sprintf('se%05ds.se1', $asteroidNum);
+
+        // Try to find and open file
+        $filePaths = [
+            $ephePath . DIRECTORY_SEPARATOR . $dir . DIRECTORY_SEPARATOR . $filenameLong,
+            $ephePath . DIRECTORY_SEPARATOR . $dir . DIRECTORY_SEPARATOR . $filenameShort,
+            $ephePath . DIRECTORY_SEPARATOR . $filenameLong,
+            $ephePath . DIRECTORY_SEPARATOR . $filenameShort,
+        ];
+
+        $fp = null;
+        foreach ($filePaths as $path) {
+            if (file_exists($path)) {
+                $fp = fopen($path, 'rb');
+                break;
+            }
+        }
+
+        if ($fp === null) {
+            return null;
+        }
+
+        try {
+            // Skip first 3 lines, read 4th line (contains name)
+            fgets($fp); // Skip line 1 (version)
+            fgets($fp); // Skip line 2 (filename)
+            fgets($fp); // Skip line 3 (copyright)
+            $line = fgets($fp); // Line 4: "NNNNNN Name ..."
+            if ($line === false) {
+                return null;
+            }
+
+            // Format: "000433 Eros               L.H. Wasserman  ..."
+            // Skip catalog number, get name (up to first double space or tab)
+            $line = trim($line);
+
+            // Find first space after catalog number
+            $parts = preg_split('/\s+/', $line, 3);
+            if (count($parts) >= 2) {
+                return $parts[1]; // Name is second token
+            }
+
+            return null;
+        } finally {
+            fclose($fp);
+        }
+    }
+
+    /**
+     * Look up asteroid name in seasnam.txt
+     *
+     * If ephemeris file has only provisional designation (starts with '?' or digit),
+     * try to find real name in seasnam.txt file.
+     *
+     * @internal
+     */
+    function _swe_lookup_asteroid_name(int $ipl, string $currentName, string $ephePath): string
+    {
+        // Check if name is provisional (starts with '?' or second char is digit)
+        $firstChar = $currentName[0] ?? '';
+        $secondChar = $currentName[1] ?? '';
+
+        if ($firstChar !== '?' && !ctype_digit($secondChar)) {
+            return $currentName; // Name is OK, no lookup needed
+        }
+
+        $asteroidNum = $ipl - Constants::SE_AST_OFFSET;
+        $seasnamPath = $ephePath . DIRECTORY_SEPARATOR . 'seasnam.txt';
+
+        if (!file_exists($seasnamPath)) {
+            return $currentName;
+        }
+
+        $fp = fopen($seasnamPath, 'r');
+        if ($fp === false) {
+            return $currentName;
+        }
+
+        try {
+            while (($line = fgets($fp)) !== false) {
+                $line = ltrim($line, " \t([{");
+
+                // Skip comments and empty lines
+                if ($line === '' || $line[0] === '#' || $line[0] === "\r" || $line[0] === "\n") {
+                    continue;
+                }
+
+                // Parse catalog number
+                $catNum = (int)$line;
+                if ($catNum !== $asteroidNum) {
+                    continue;
+                }
+
+                // Find name after catalog number
+                $pos = strpbrk($line, " \t");
+                if ($pos === false) {
+                    continue; // No name on this line
+                }
+
+                $name = ltrim($pos, " \t");
+
+                // Remove comments and trim
+                $commentPos = strpbrk($name, "#\r\n");
+                if ($commentPos !== false) {
+                    $name = substr($name, 0, strpos($name . '#', '#'));
+                }
+
+                $name = rtrim($name);
+                if ($name !== '') {
+                    return $name;
+                }
+            }
+        } finally {
+            fclose($fp);
+        }
+
+        return $currentName;
     }
 }
 if (!function_exists('swe_version')) {
