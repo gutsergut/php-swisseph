@@ -458,8 +458,8 @@ final class Coordinates
             }
         }
 
-        // Call the full implementation
-        \Swisseph\Swe\FixedStars\StarTransforms::aberrLight($xx, $xearth);
+        // Call the full implementation with iflag for speed correction
+        \Swisseph\Swe\FixedStars\StarTransforms::aberrLight($xx, $xearth, $iflag);
     }
 }
 

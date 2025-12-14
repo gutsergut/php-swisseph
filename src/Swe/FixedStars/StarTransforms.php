@@ -81,10 +81,17 @@ final class StarTransforms
      * @param array &$xx Planet position [x, y, z, vx, vy, vz] (position modified in place)
      * @param array $xe Earth position and velocity [x, y, z, vx, vy, vz]
      */
-    public static function aberrLight(array &$xx, array $xe): void
+    public static function aberrLight(array &$xx, array $xe, int $iflag = 0): void
     {
+        // Save original values for speed correction
+        $xxs = $xx;
+
         $u = [$xx[0], $xx[1], $xx[2]];
         $ru = sqrt(VectorMath::squareSum($u));
+
+        if ($ru === 0.0) {
+            return;  // Avoid division by zero
+        }
 
         // Earth velocity in AU/day, convert to fraction of light speed
         // xe[i+3] is in AU/day, CLIGHT is in AU/day, so no time conversion needed
@@ -100,9 +107,50 @@ final class StarTransforms
         $f1 = VectorMath::dotProduct($u, $v) / $ru;
         $f2 = 1.0 + $f1 / (1.0 + $b_1);
 
+        $denom = 1.0 + $f1;
+        if ($denom === 0.0) {
+            return;  // Avoid division by zero
+        }
+
         // Apply relativistic velocity addition formula
         for ($i = 0; $i <= 2; $i++) {
-            $xx[$i] = ($b_1 * $xx[$i] + $f2 * $ru * $v[$i]) / (1.0 + $f1);
+            $xx[$i] = ($b_1 * $xx[$i] + $f2 * $ru * $v[$i]) / $denom;
+        }
+
+        // Speed correction - aberration effect on velocity can reach 0.4"/day
+        // Port of sweph.c:3718-3734
+        if ($iflag & Constants::SEFLG_SPEED) {
+            $intv = Constants::PLAN_SPEED_INTV;
+
+            // Position at t - dt
+            $u2 = [
+                $xxs[0] - $intv * $xxs[3],
+                $xxs[1] - $intv * $xxs[4],
+                $xxs[2] - $intv * $xxs[5]
+            ];
+
+            $ru2 = sqrt(VectorMath::squareSum($u2));
+            if ($ru2 > 0.0) {
+                $f1_2 = VectorMath::dotProduct($u2, $v) / $ru2;
+                $f2_2 = 1.0 + $f1_2 / (1.0 + $b_1);
+                $denom2 = 1.0 + $f1_2;
+
+                if ($denom2 !== 0.0) {
+                    // Position with aberration at t - dt
+                    $xx2 = [];
+                    for ($i = 0; $i <= 2; $i++) {
+                        $xx2[$i] = ($b_1 * $u2[$i] + $f2_2 * $ru2 * $v[$i]) / $denom2;
+                    }
+
+                    // Speed correction: difference of aberration effect between t and t-dt
+                    for ($i = 0; $i <= 2; $i++) {
+                        $dx1 = $xx[$i] - $xxs[$i];   // aberration effect at t
+                        $dx2 = $xx2[$i] - $u2[$i];   // aberration effect at t-dt
+                        $dx1 -= $dx2;
+                        $xx[$i + 3] += $dx1 / $intv;
+                    }
+                }
+            }
         }
     }
 
