@@ -56,8 +56,8 @@ echo "Testing Eros (asteroid #433)\n";
 echo "Planet number: $ipl (SE_AST_OFFSET + 433)\n";
 echo "Julian Day: $jd_tt (J2000.0)\n\n";
 
-// Calculate geocentric ecliptic coordinates
-$iflag = Constants::SEFLG_SWIEPH;
+// Calculate geocentric ecliptic coordinates with speed
+$iflag = Constants::SEFLG_SWIEPH | Constants::SEFLG_SPEED;
 $xx = [];
 $serr = null;
 
