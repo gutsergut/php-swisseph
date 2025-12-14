@@ -115,10 +115,19 @@ final class PlanetApparentPipeline
             // For SWIEPH: recalculate ephemeris at t - dt_light (C sweph.c:2648-2655)
             // This gives accurate position AND velocity at light-time corrected epoch
             $t_apparent = $jd_tt - $dt_light;
-            $ipli = SwephConstants::PNOEXT2INT[$ipl] ?? 0;
-            $ifno = ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA)
-                ? SwephConstants::SEI_FILE_MAIN_AST
-                : SwephConstants::SEI_FILE_PLANET;
+
+            // Determine ipli and ifno based on planet type
+            // For numbered asteroids (> SE_AST_OFFSET), use SEI_ANYBODY and SEI_FILE_ANY_AST
+            if ($ipl > Constants::SE_AST_OFFSET) {
+                $ipli = SwephConstants::SEI_ANYBODY;
+                $ifno = SwephConstants::SEI_FILE_ANY_AST;
+            } elseif ($ipl >= Constants::SE_CHIRON && $ipl <= Constants::SE_VESTA) {
+                $ipli = SwephConstants::PNOEXT2INT[$ipl] ?? SwephConstants::SEI_CHIRON;
+                $ifno = SwephConstants::SEI_FILE_MAIN_AST;
+            } else {
+                $ipli = SwephConstants::PNOEXT2INT[$ipl] ?? 0;
+                $ifno = SwephConstants::SEI_FILE_PLANET;
+            }
 
             $xx_lt = [];
             $xearth_lt = [];
