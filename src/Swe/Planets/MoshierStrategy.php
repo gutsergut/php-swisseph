@@ -117,6 +117,9 @@ final class MoshierStrategy implements EphemerisStrategy
         $swed = SwedState::getInstance();
         $pdp = &$swed->pldat[MoshierConstants::SEI_MOON];
 
+        // Initialize obliquity for the date (required by moshmoon's ecldatEqu2000)
+        $swed->oec->calculate($jd_tt, $iflag);
+
         // Ensure Earth is computed first (needed for geocentric conversion)
         $xpret = null;
         $xeret = null;
@@ -127,9 +130,9 @@ final class MoshierStrategy implements EphemerisStrategy
 
         // Compute Moon using MoshierMoon
         $moon = new MoshierMoon();
-        $xx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        $xx = array_fill(0, 6, 0.0);
 
-        $ret = $moon->moshmoon($jd_tt, $xx, $serr);
+        $ret = $moon->moshmoon($jd_tt, true, $xx, $serr, $swed);
         if ($ret < 0) {
             return StrategyResult::err($serr ?? 'Moon computation error', Constants::SE_ERR);
         }

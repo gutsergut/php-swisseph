@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SwissEph\Domain\Moshier;
+namespace Swisseph\Domain\Moshier;
 
 /**
  * Moshier Moon data tables from swemmoon.c

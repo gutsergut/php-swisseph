@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
-namespace SwissEph\Domain\Moshier;
+namespace Swisseph\Domain\Moshier;
 
-use SwissEph\Core\Constants;
-use SwissEph\Core\SwedState;
+use Swisseph\Constants;
+use Swisseph\Moshier\MoshierConstants;
+use Swisseph\Precession;
+use Swisseph\SwephFile\SwedState;
 
 /**
  * Moshier Moon theory implementation
@@ -182,7 +184,7 @@ class MoshierMoon
 
         // Check if already computed
         if ($swed !== null && $doSave) {
-            $pdp = $swed->pldat[Constants::SEI_MOON] ?? null;
+            $pdp = $swed->pldat[MoshierConstants::SEI_MOON] ?? null;
             if ($pdp !== null && $pdp->teval === $tjd && $pdp->iephe === Constants::SEFLG_MOSEPH) {
                 if ($xpmret !== null) {
                     for ($i = 0; $i <= 5; $i++) {
@@ -232,10 +234,10 @@ class MoshierMoon
 
         // Save to state if requested
         if ($swed !== null && $doSave) {
-            if (!isset($swed->pldat[Constants::SEI_MOON])) {
-                $swed->pldat[Constants::SEI_MOON] = new \stdClass();
+            if (!isset($swed->pldat[MoshierConstants::SEI_MOON])) {
+                $swed->pldat[MoshierConstants::SEI_MOON] = new \stdClass();
             }
-            $pdp = $swed->pldat[Constants::SEI_MOON];
+            $pdp = $swed->pldat[MoshierConstants::SEI_MOON];
             $pdp->x = $xx;
             $pdp->teval = $tjd;
             $pdp->xflgs = -1;
@@ -720,7 +722,11 @@ class MoshierMoon
      */
     private function moon4(): void
     {
-        $this->moonpol[2] /= self::AUNIT / 1000;  // km to AU
+        // Convert distance from km to AU
+        // Note: AUNIT is in km (149597870.7 km = 1 AU)
+        // C uses AUNIT in meters (1.4959787e11 m), so C has /= AUNIT/1000
+        // We have AUNIT in km, so we just divide by AUNIT
+        $this->moonpol[2] /= self::AUNIT;
         $this->moonpol[0] = self::STR * $this->mods3600($this->moonpol[0]);
         $this->moonpol[1] = self::STR * $this->moonpol[1];
         $this->B = $this->moonpol[1];
@@ -859,13 +865,15 @@ class MoshierMoon
         // Polar to cartesian
         $this->polcart($xpm);
 
-        // Get obliquity
-        if ($swed !== null) {
-            $swed->ensureNutation($tjd, $tjd);
+        // Get obliquity of date
+        // Use swed.oec if available (should be initialized by caller)
+        // Otherwise, compute mean obliquity as fallback
+        if ($swed !== null && $swed->oec !== null && abs($swed->oec->teps - $tjd) < 1.0) {
+            // Use cached obliquity from state
             $seps = $swed->oec->seps;
             $ceps = $swed->oec->ceps;
         } else {
-            // Fallback: compute obliquity
+            // Fallback: compute mean obliquity
             $eps = $this->meanObliquity($tjd);
             $seps = sin($eps);
             $ceps = cos($eps);
@@ -874,8 +882,9 @@ class MoshierMoon
         // Ecliptic to equatorial
         $this->coortrf2($xpm, -$seps, $ceps);
 
-        // Precess to J2000
-        $this->precess($xpm, $tjd, Constants::J_TO_J2000);
+        // Precess to J2000 using main Precession class
+        // Direction: +1 = from date to J2000 (J_TO_J2000)
+        Precession::precess($xpm, $tjd, 0, 1);
     }
 
     /**
@@ -906,69 +915,6 @@ class MoshierMoon
 
     /**
      * Simple precession from date to J2000 (or vice versa)
-     */
-    private function precess(array &$x, float $tjd, int $direction): void
-    {
-        $T = ($tjd - self::J2000) / 36525.0;
-
-        if ($direction == Constants::J_TO_J2000) {
-            $T = -$T;
-        }
-
-        // Precession angles (arcseconds)
-        $psia = ((((-    0.0000000951  * $T
-                     +    0.000132851  ) * $T
-                     -    0.00114045   ) * $T
-                     -    1.0790069    ) * $T
-                     + 5038.481507     ) * $T;
-
-        $omga = ((((+    0.0000003337  * $T
-                     -    0.000000467  ) * $T
-                     -    0.00772503   ) * $T
-                     +    0.0512623    ) * $T
-                     -    0.025754     ) * $T + 84381.406;
-
-        $chia = ((((-    0.0000000560  * $T
-                     +    0.000170663  ) * $T
-                     -    0.00121197   ) * $T
-                     -    2.3814292    ) * $T
-                     +   10.556403     ) * $T;
-
-        // Convert to radians
-        $psia *= self::STR;
-        $omga *= self::STR;
-        $chia *= self::STR;
-
-        $sa = sin($psia);
-        $ca = cos($psia);
-        $sb = sin($omga);
-        $cb = cos($omga);
-        $sc = sin($chia);
-        $cc = cos($chia);
-
-        // Precession rotation matrix
-        $r = [];
-        $r[0][0] = $cc * $ca - $sc * $sa * $cb;
-        $r[0][1] = $cc * $sa + $sc * $ca * $cb;
-        $r[0][2] = $sc * $sb;
-        $r[1][0] = -$sc * $ca - $cc * $sa * $cb;
-        $r[1][1] = -$sc * $sa + $cc * $ca * $cb;
-        $r[1][2] = $cc * $sb;
-        $r[2][0] = $sa * $sb;
-        $r[2][1] = -$ca * $sb;
-        $r[2][2] = $cb;
-
-        // Apply rotation
-        $y = [];
-        for ($i = 0; $i < 3; $i++) {
-            $y[$i] = $r[$i][0] * $x[0] + $r[$i][1] * $x[1] + $r[$i][2] * $x[2];
-        }
-
-        $x[0] = $y[0];
-        $x[1] = $y[1];
-        $x[2] = $y[2];
-    }
-
     /**
      * Mean obliquity of the ecliptic (simplified for fallback)
      */

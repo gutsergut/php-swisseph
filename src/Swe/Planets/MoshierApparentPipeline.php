@@ -751,11 +751,12 @@ final class MoshierApparentPipeline
 
         // ========================================
         // Precession: equator J2000 → equator of date
+        // Direction: -1 = J2000_TO_J (from J2000 to date)
         // ========================================
         if (!($iflag & Constants::SEFLG_J2000)) {
-            Precession::precess($xx, $pdp->teval, $iflag, 0);
+            Precession::precess($xx, $pdp->teval, $iflag, -1);
             if ($iflag & Constants::SEFLG_SPEED) {
-                Precession::precessSpeed($xx, $pdp->teval, $iflag, 0);
+                Precession::precessSpeed($xx, $pdp->teval, $iflag, -1);
             }
             $oe = $swed->oec;
         } else {
