@@ -22,7 +22,7 @@ $xperi = [];
 $xaphe = [];
 $serr = '';
 $iflag = Constants::SEFLG_SWIEPH | Constants::SEFLG_SPEED;
-$ret = swe_nod_aps($jd, $planet, $iflag, Constants::SE_NODBIT_OSCU, $xnasc, $xndsc, $xperi, $xaphe, $serr);
+$ret = swe_nod_aps_ut($jd, $planet, $iflag, Constants::SE_NODBIT_OSCU, $xnasc, $xndsc, $xperi, $xaphe, $serr);
 
 if ($ret < 0) {
     echo "ERROR: $serr\n";
@@ -49,7 +49,7 @@ $xndsc_nonut = [];
 $xperi_nonut = [];
 $xaphe_nonut = [];
 $iflag_nonut = $iflag | Constants::SEFLG_NONUT;
-$ret = swe_nod_aps($jd, $planet, $iflag_nonut, Constants::SE_NODBIT_OSCU, $xnasc_nonut, $xndsc_nonut, $xperi_nonut, $xaphe_nonut, $serr);
+$ret = swe_nod_aps_ut($jd, $planet, $iflag_nonut, Constants::SE_NODBIT_OSCU, $xnasc_nonut, $xndsc_nonut, $xperi_nonut, $xaphe_nonut, $serr);
 
 if ($ret < 0) {
     echo "ERROR (NONUT): $serr\n";
