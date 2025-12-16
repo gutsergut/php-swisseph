@@ -62,24 +62,17 @@ final class DeltaTFull
         550, 560, 570, 580, 590, 600, 610, 620, 630, 640,
     ];
 
-    // Post-2000 table (values in 0.01 seconds)
-    private const DT_TABLE_2000_2020 = [
-        /* 2000.0 - 2004.0 (0.01 sec) */
-        6404, 6408, 6409, 6412, 6416,
-        /* 2005.0 - 2009.0 (0.01 sec) */
-        6422, 6430, 6438, 6447, 6457,
-        /* 2010.0 - 2014.0 (0.01 sec) */
-        6469, 6485, 6515, 6546, 6578,
-        /* 2015.0 - 2019.0 (0.01 sec) */
-        6607, 6633, 6660, 6688, 6739,
-        /* 2020.0 - 2023.0 (0.01 sec) */
-        6936, 6936, 6929, 6918,
-    ];
-
-    // Extrapolated post-2024 (in 0.01 seconds)
-    private const DT_EXTRAPOLATED = [
-        /* 2024 - 2028 */
-        6910, 6900, 6890, 6880, 6880,
+    // Post-2000 table (values in SECONDS, from C swephlib.c)
+    // These are exact values from IERS, not in hundredths!
+    private const DT_TABLE_2000_2028 = [
+        /* 2000.0 - 2009.0 */
+        63.8285, 64.0908, 64.2998, 64.4734, 64.5736, 64.6876, 64.8452, 65.1464, 65.4574, 65.7768,
+        /* 2010.0 - 2018.0 */
+        66.0699, 66.3246, 66.6030, 66.9069, 67.2810, 67.6439, 68.1024, 68.5927, 68.9676, 69.2202,
+        /* 2020.0 - 2023.0 */
+        69.3612, 69.3593, 69.2945, 69.1833,
+        /* Extrapolated 2024 - 2028 */
+        69.10, 69.00, 68.90, 68.80, 68.80,
     ];
 
     // Constants from swedate.c
@@ -158,31 +151,34 @@ final class DeltaTFull
             $B = $Y - (float)$iy; // Fractional part
             $k = $iy - 2000;
 
-            if ($k < 0 || $k >= count(self::DT_TABLE_2000_2020) - 1) {
+            // Use unified table DT_TABLE_2000_2028 which covers 2000-2028
+            if ($k < 0 || $k >= count(self::DT_TABLE_2000_2028) - 1) {
                 // Fallback to polynomial
                 $ans = self::polynomial2005_2050($Y);
             } else {
-                $ans = self::DT_TABLE_2000_2020[$k];
-                $ans2 = self::DT_TABLE_2000_2020[$k + 1];
-                $ans = ($ans + ($ans2 - $ans) * $B) / 100.0;
+                $ans = self::DT_TABLE_2000_2028[$k];
+                $ans2 = self::DT_TABLE_2000_2028[$k + 1];
+                // No division by 100 - values are already in seconds
+                $ans = $ans + ($ans2 - $ans) * $B;
             }
 
             $ans = self::adjustForTidacc($ans, $Ygreg, $tid_acc);
             return $ans / 86400.0;
         }
 
-        // 2024-2028: extrapolated values (swedate.c:1405-1422)
+        // 2024-2028: now part of unified table DT_TABLE_2000_2028
         if ($Y >= 2024.0 && $Y < 2029.0) {
             $iy = (int)floor($Y);
             $B = $Y - (float)$iy;
-            $k = $iy - 2024;
+            $k = $iy - 2000; // Index from 2000
 
-            if ($k < 0 || $k >= count(self::DT_EXTRAPOLATED) - 1) {
+            if ($k < 0 || $k >= count(self::DT_TABLE_2000_2028) - 1) {
                 $ans = self::polynomial2005_2050($Y);
             } else {
-                $ans = self::DT_EXTRAPOLATED[$k];
-                $ans2 = self::DT_EXTRAPOLATED[$k + 1];
-                $ans = ($ans + ($ans2 - $ans) * $B) / 100.0;
+                $ans = self::DT_TABLE_2000_2028[$k];
+                $ans2 = self::DT_TABLE_2000_2028[$k + 1];
+                // No division by 100 - values are already in seconds
+                $ans = $ans + ($ans2 - $ans) * $B;
             }
 
             $ans = self::adjustForTidacc($ans, $Ygreg, $tid_acc);
