@@ -159,13 +159,14 @@ class OsculatingCalculator
             }
 
             // Apply full transformation chain for osculating elements
-            // CRITICAL: Use $iflJ2000, not $iflg0, because coordinates are in J2000
+            // CRITICAL: C code passes $iflg0 (WITHOUT SEFLG_J2000) to swi_plan_for_osc_elem
+            // so that precession from J2000 to date is performed inside planForOscElem
             if (getenv('DEBUG_OSCU')) {
                 error_log(sprintf("DEBUG BEFORE planForOscElem [i=%d]: xx=[%.15f, %.15f, %.15f]",
                     $i, $xpos[$i][0], $xpos[$i][1], $xpos[$i][2]));
             }
 
-            self::planForOscElem($iflJ2000, $t, $xpos[$i]);
+            self::planForOscElem($iflg0, $t, $xpos[$i]);
 
             if (getenv('DEBUG_OSCU')) {
                 error_log(sprintf("DEBUG AFTER planForOscElem [i=%d]: xx=[%.15f, %.15f, %.15f]",
@@ -380,7 +381,8 @@ class OsculatingCalculator
         if (getenv('DEBUG_OSCU')) {
             $lon_before = rad2deg(atan2($xx[1], $xx[0]));
             $r_before = sqrt($xx[0]**2 + $xx[1]**2 + $xx[2]**2);
-            error_log(sprintf("planForOscElem INPUT: equatorial J2000 xx=[%.10f, %.10f, %.10f]", $xx[0], $xx[1], $xx[2]));
+            error_log(sprintf("planForOscElem INPUT: equatorial J2000 xx=[%.10f, %.10f, %.10f, %.15f, %.15f, %.15f]",
+                $xx[0], $xx[1], $xx[2], $xx[3] ?? 0.0, $xx[4] ?? 0.0, $xx[5] ?? 0.0));
             error_log(sprintf("  lon=%.6f°, r=%.6f AU", $lon_before, $r_before));
         }
 
@@ -438,6 +440,13 @@ class OsculatingCalculator
                 $xx[3] = $velTemp[0];
                 $xx[4] = $velTemp[1];
                 $xx[5] = $velTemp[2];
+            }
+
+            if (getenv('DEBUG_OSCU')) {
+                error_log(sprintf("planForOscElem AFTER nutation (Step 3): xyz=[%.10f, %.10f, %.10f]", $xx[0], $xx[1], $xx[2]));
+                if (count($xx) >= 6) {
+                    error_log(sprintf("  velocity after Step 3: vel=[%.15f, %.15f, %.15f]", $xx[3], $xx[4], $xx[5]));
+                }
             }
         }
 
@@ -521,7 +530,7 @@ class OsculatingCalculator
         $xx = $xxReindexed;
 
         if (getenv('DEBUG_OSCU')) {
-            error_log(sprintf("planForOscElem OUTPUT: ecliptic xx=[%.10f, %.10f, %.10f, %.10f, %.10f, %.10f]",
+            error_log(sprintf("planForOscElem OUTPUT: ecliptic xx=[%.10f, %.10f, %.10f, %.15f, %.15f, %.15f]",
                 $xx[0], $xx[1], $xx[2], $xx[3], $xx[4], $xx[5]));
             $test_lon = rad2deg(atan2($xx[1], $xx[0]));
             if ($test_lon < 0) $test_lon += 360.0;
