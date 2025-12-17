@@ -57,10 +57,13 @@ class NodesApsidesFunctions
         $serr = null;
 
         // Validate planet number
+        // Per C swecl.c:5128-5131: reject nodes, apsides, negative, and gap between SE_NPLANETS and SE_AST_OFFSET
+        // Allowed: SE_SUN..SE_PLUTO (0-9), SE_EARTH (14), asteroids > SE_AST_OFFSET (10000+)
         if (
             $ipl === Constants::SE_MEAN_NODE || $ipl === Constants::SE_TRUE_NODE ||
             $ipl === Constants::SE_MEAN_APOG || $ipl === Constants::SE_OSCU_APOG ||
-            $ipl < 0 || ($ipl > Constants::SE_NEPTUNE && $ipl !== Constants::SE_EARTH)
+            $ipl < 0 ||
+            ($ipl >= Constants::SE_NPLANETS && $ipl <= Constants::SE_AST_OFFSET && $ipl !== Constants::SE_EARTH)
         ) {
             $serr = sprintf('nodes/apsides for planet %d are not implemented', $ipl);
 
@@ -344,9 +347,33 @@ class NodesApsidesFunctions
             PlanetsFunctions::calc($tjdEt, $ipl, $iflg0 | ($iflag & Constants::SEFLG_TOPOCTR), $x, $serr);
         }
 
-        // Get barycentric Sun and Earth (C code uses swed.pldat[SEI_SUNBARY].x and swed.pldat[SEI_EARTH].x)
-        $xsun = \Swisseph\BarycentricPositions::getBarycentricSun($tjdEt, $iflag);
-        $xear = \Swisseph\BarycentricPositions::getBarycentricEarth($tjdEt, $iflag);
+        // Get barycentric Sun and Earth from internal cache (C code uses swed.pldat[SEI_*].x)
+        // IMPORTANT: Do NOT call swe_calc for Earth here - it would overwrite the cache
+        // with different coordinates. C code uses the cache values that were set during
+        // the planet calculation above.
+        $swed = \Swisseph\SwephFile\SwedState::getInstance();
+
+        // Get xsun from swed.pldat[SEI_SUNBARY].x
+        $psbdp = $swed->pldat[\Swisseph\SwephFile\SwephConstants::SEI_SUNBARY] ?? null;
+        if ($psbdp !== null && $psbdp->teval === $tjdEt) {
+            $xsun = [$psbdp->x[0], $psbdp->x[1], $psbdp->x[2], $psbdp->x[3], $psbdp->x[4], $psbdp->x[5]];
+        } else {
+            // Fallback: use BarycentricPositions
+            $xsun = \Swisseph\BarycentricPositions::getBarycentricSun($tjdEt, $iflag);
+        }
+
+        // Get xear from swed.pldat[SEI_EARTH].x
+        $pedp = $swed->pldat[\Swisseph\SwephFile\SwephConstants::SEI_EARTH] ?? null;
+        if ($pedp !== null && $pedp->teval === $tjdEt) {
+            $xear = [$pedp->x[0], $pedp->x[1], $pedp->x[2], $pedp->x[3], $pedp->x[4], $pedp->x[5]];
+        } else {
+            // Fallback: compute Earth barycentric position
+            $earthFlags = Constants::SEFLG_SWIEPH | Constants::SEFLG_SPEED | Constants::SEFLG_J2000 |
+                          Constants::SEFLG_EQUATORIAL | Constants::SEFLG_XYZ | Constants::SEFLG_BARYCTR;
+            $xear = [];
+            $serrE = '';
+            PlanetsFunctions::calc($tjdEt, Constants::SE_EARTH, $earthFlags, $xear, $serrE);
+        }
 
         // Calculate observer position (C code lines 5429-5447)
         $xobs = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
@@ -384,6 +411,8 @@ class NodesApsidesFunctions
             $cnut = cos($deps);
         }
 
+        $doDebug = getenv('DEBUG_NODAPS');
+
         // Process each of the 4 points (ascending node, descending node, perihelion, aphelion)
         // C code lines 5464-5620
         for ($ij = 0; $ij < 4; $ij++) {
@@ -393,6 +422,15 @@ class NodesApsidesFunctions
             if ($ipl === Constants::SE_EARTH && $ij <= 1) {
                 $xp = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
                 continue;
+            }
+
+            if ($doDebug && $ij === 0) {
+                error_log(sprintf("DEBUG NODAPS ij=%d INPUT: xp=[%.15f, %.15f, %.15f]", $ij, $xp[0], $xp[1], $xp[2]));
+                error_log(sprintf("  xsun=[%.15f, %.15f, %.15f]", $xsun[0], $xsun[1], $xsun[2]));
+                error_log(sprintf("  xear=[%.15f, %.15f, %.15f]", $xear[0], $xear[1], $xear[2]));
+                error_log(sprintf("  xobs=[%.15f, %.15f, %.15f]", $xobs[0], $xobs[1], $xobs[2]));
+                error_log(sprintf("  oe=%.15f, seps=%.10f, ceps=%.10f", $oe, $seps, $ceps));
+                if ($donut) error_log(sprintf("  dpsi=%.15e, deps=%.15e, snut=%.10f, cnut=%.10f", $dpsi, $deps, $snut, $cnut));
             }
 
             // INPUT: xp is in ECLIPTIC J2000 XYZ (from osculating calculation)
@@ -413,6 +451,7 @@ class NodesApsidesFunctions
                     $xp[5] = $velOut[2];
                 }
             }
+            if ($doDebug && $ij === 0) error_log(sprintf("  STEP 1 (nut→ecl): xp=[%.15f, %.15f, %.15f]", $xp[0], $xp[1], $xp[2]));
 
             // Step 2: Transform ECLIPTIC → EQUATOR
             // C code lines 5478-5479
@@ -428,22 +467,24 @@ class NodesApsidesFunctions
                 $xp[4] = $velOut[1];
                 $xp[5] = $velOut[2];
             }
+            if ($doDebug && $ij === 0) error_log(sprintf("  STEP 2 (ecl→eq): xp=[%.15f, %.15f, %.15f]", $xp[0], $xp[1], $xp[2]));
 
             // Step 3: Apply nutation to mean ecliptic of date
-            // C code lines 5483-5485
+            // C code lines 5483-5485: swi_nutate(xp, iflag, TRUE) - backward=TRUE
             if ($donut) {
                 $nutMatrix = \Swisseph\NutationMatrix::build($dpsi, $deps, $oe, $seps, $ceps);
-                $xTemp = \Swisseph\NutationMatrix::apply($nutMatrix, [$xp[0], $xp[1], $xp[2]]);
+                $xTemp = \Swisseph\NutationMatrix::apply($nutMatrix, [$xp[0], $xp[1], $xp[2]], true);
                 $xp[0] = $xTemp[0];
                 $xp[1] = $xTemp[1];
                 $xp[2] = $xTemp[2];
                 if ($iflag & Constants::SEFLG_SPEED) {
-                    $velTemp = \Swisseph\NutationMatrix::apply($nutMatrix, [$xp[3], $xp[4], $xp[5]]);
+                    $velTemp = \Swisseph\NutationMatrix::apply($nutMatrix, [$xp[3], $xp[4], $xp[5]], true);
                     $xp[3] = $velTemp[0];
                     $xp[4] = $velTemp[1];
                     $xp[5] = $velTemp[2];
                 }
             }
+            if ($doDebug && $ij === 0) error_log(sprintf("  STEP 3 (nutate bk): xp=[%.15f, %.15f, %.15f]", $xp[0], $xp[1], $xp[2]));
 
             // Step 4: Precess from date to J2000
             // C code lines 5489-5491
@@ -455,6 +496,7 @@ class NodesApsidesFunctions
                 $xp[4] = $vel[1];
                 $xp[5] = $vel[2];
             }
+            if ($doDebug && $ij === 0) error_log(sprintf("  STEP 4 (prec→J2K): xp=[%.15f, %.15f, %.15f]", $xp[0], $xp[1], $xp[2]));
 
             // Step 5: Convert from heliocentric to barycentric
             // C code lines 5496-5507
@@ -469,12 +511,14 @@ class NodesApsidesFunctions
                     $xp[$i] += $xsun[$i];
                 }
             }
+            if ($doDebug && $ij === 0) error_log(sprintf("  STEP 5 (+xsun): xp=[%.15f, %.15f, %.15f]", $xp[0], $xp[1], $xp[2]));
 
             // Step 6: Convert from barycentric to observer-centric
             // C code lines 5511-5512
             for ($i = 0; $i <= 5; $i++) {
                 $xp[$i] -= $xobs[$i];
             }
+            if ($doDebug && $ij === 0) error_log(sprintf("  STEP 6 (-xobs): xp=[%.15f, %.15f, %.15f]", $xp[0], $xp[1], $xp[2]));
 
             // Step 7: Special case for Sun geocentric perigee/apogee
             // C code lines 5514-5516
@@ -513,22 +557,24 @@ class NodesApsidesFunctions
                     $xp[5] = $vel[2];
                 }
             }
+            if ($doDebug && $ij === 0) error_log(sprintf("  STEP 10 (prec←J2K): xp=[%.15f, %.15f, %.15f]", $xp[0], $xp[1], $xp[2]));
 
             // Step 11: Apply nutation (if not NONUT)
-            // C code lines 5576-5578
+            // C code lines 5576-5578: swi_nutate(xp, iflag, FALSE) - backward=FALSE
             if ($donut) {
                 $nutMatrix = \Swisseph\NutationMatrix::build($dpsi, $deps, $oe, $seps, $ceps);
-                $xTemp = \Swisseph\NutationMatrix::apply($nutMatrix, [$xp[0], $xp[1], $xp[2]]);
+                $xTemp = \Swisseph\NutationMatrix::apply($nutMatrix, [$xp[0], $xp[1], $xp[2]], false);
                 $xp[0] = $xTemp[0];
                 $xp[1] = $xTemp[1];
                 $xp[2] = $xTemp[2];
                 if ($iflag & Constants::SEFLG_SPEED) {
-                    $velTemp = \Swisseph\NutationMatrix::apply($nutMatrix, [$xp[3], $xp[4], $xp[5]]);
+                    $velTemp = \Swisseph\NutationMatrix::apply($nutMatrix, [$xp[3], $xp[4], $xp[5]], false);
                     $xp[3] = $velTemp[0];
                     $xp[4] = $velTemp[1];
                     $xp[5] = $velTemp[2];
                 }
             }
+            if ($doDebug && $ij === 0) error_log(sprintf("  STEP 11 (nutate fw): xp=[%.15f, %.15f, %.15f]", $xp[0], $xp[1], $xp[2]));
 
             // Step 12: Transform EQUATOR → ECLIPTIC
             // C code lines 5584-5587
@@ -544,6 +590,7 @@ class NodesApsidesFunctions
                 $xp[4] = $velOut[1];
                 $xp[5] = $velOut[2];
             }
+            if ($doDebug && $ij === 0) error_log(sprintf("  STEP 12 (eq→ecl): xp=[%.15f, %.15f, %.15f]", $xp[0], $xp[1], $xp[2]));
 
             // Step 13: Apply nutation to ecliptic (if not NONUT)
             // C code lines 5591-5599
@@ -561,6 +608,7 @@ class NodesApsidesFunctions
                     $xp[5] = $velOut[2];
                 }
             }
+            if ($doDebug && $ij === 0) error_log(sprintf("  STEP 13 (nut ecl): xp=[%.15f, %.15f, %.15f]", $xp[0], $xp[1], $xp[2]));
 
             // Step 14: Convert CARTESIAN → POLAR (lon, lat, r) with speeds
             // C code line 5620: swi_cartpol_sp(xp, xp)

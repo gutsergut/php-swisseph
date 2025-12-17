@@ -86,20 +86,39 @@ class NutationMatrix
      *
      * Transforms from mean equator/equinox of date to true equator/equinox of date.
      *
+     * NOTE: C code swi_nutate has two modes:
+     *   backward=TRUE:  x[i] = xx[0] * matrix[i][0] + xx[1] * matrix[i][1] + xx[2] * matrix[i][2]  (M * x)
+     *   backward=FALSE: x[i] = xx[0] * matrix[0][i] + xx[1] * matrix[1][i] + xx[2] * matrix[2][i]  (M^T * x)
+     *
      * @param array $matrix 3x3 nutation matrix (flat array of 9 elements)
      * @param array $pos Position vector [x, y, z] in mean equator coordinates
+     * @param bool $backward If true, use M*x (backward); if false, use M^T*x (forward)
      * @return array Position vector [x, y, z] in true equator coordinates
      */
-    public static function apply(array $matrix, array $pos): array
+    public static function apply(array $matrix, array $pos, bool $backward = false): array
     {
         $x = $pos[0] ?? 0.0;
         $y = $pos[1] ?? 0.0;
         $z = $pos[2] ?? 0.0;
 
-        return [
-            $matrix[0] * $x + $matrix[1] * $y + $matrix[2] * $z,
-            $matrix[3] * $x + $matrix[4] * $y + $matrix[5] * $z,
-            $matrix[6] * $x + $matrix[7] * $y + $matrix[8] * $z,
-        ];
+        if ($backward) {
+            // C code backward=TRUE: x[i] = xx[0] * M[i][0] + xx[1] * M[i][1] + xx[2] * M[i][2]
+            // Matrix is stored row-major: M[row][col] = matrix[row*3 + col]
+            // So M[i][0] = matrix[i*3], M[i][1] = matrix[i*3+1], M[i][2] = matrix[i*3+2]
+            return [
+                $x * $matrix[0] + $y * $matrix[1] + $z * $matrix[2],  // row 0
+                $x * $matrix[3] + $y * $matrix[4] + $z * $matrix[5],  // row 1
+                $x * $matrix[6] + $y * $matrix[7] + $z * $matrix[8],  // row 2
+            ];
+        } else {
+            // C code backward=FALSE: x[i] = xx[0] * M[0][i] + xx[1] * M[1][i] + xx[2] * M[2][i]
+            // Matrix is stored row-major: M[row][col] = matrix[row*3 + col]
+            // So M[0][i] = matrix[i], M[1][i] = matrix[3+i], M[2][i] = matrix[6+i]
+            return [
+                $x * $matrix[0] + $y * $matrix[3] + $z * $matrix[6],  // column 0
+                $x * $matrix[1] + $y * $matrix[4] + $z * $matrix[7],  // column 1
+                $x * $matrix[2] + $y * $matrix[5] + $z * $matrix[8],  // column 2
+            ];
+        }
     }
 }

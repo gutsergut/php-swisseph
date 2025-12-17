@@ -31,13 +31,15 @@ final class BarycentricPositions
 
         // Call sweph() to compute barycentric Sun
         // Port of: sweph(tjd, SEI_SUNBARY, SEI_FILE_PLANET, iflag, NULL, do_save, xps, serr)
-        $xps = null;
+        // CRITICAL: Initialize as array, not null, so reference assignment works in SwephCalculator
+        $xps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
         $serr = '';
 
         $retc = \Swisseph\SwephFile\SwephCalculator::calculate(
             $tjdEt,
-            \Swisseph\SwephFile\SwephConstants::SEI_SUNBARY,
-            \Swisseph\SwephFile\SwephConstants::SEI_FILE_PLANET,
+            \Swisseph\SwephFile\SwephConstants::SEI_SUNBARY,  // $ipli
+            \Swisseph\SwephFile\SwephConstants::SEI_SUNBARY,  // $iplAst (same as ipli for planets)
+            \Swisseph\SwephFile\SwephConstants::SEI_FILE_PLANET, // $ifno
             $iflag,
             null,  // xsunb - not needed for Sun itself
             true,  // do_save - cache the result
@@ -132,8 +134,9 @@ final class BarycentricPositions
         $serr = '';
         $retc = \Swisseph\SwephFile\SwephCalculator::calculate(
             $tjdEt,
-            \Swisseph\SwephFile\SwephConstants::SEI_EMB,
-            \Swisseph\SwephFile\SwephConstants::SEI_FILE_PLANET,
+            \Swisseph\SwephFile\SwephConstants::SEI_EMB,       // $ipli
+            \Swisseph\SwephFile\SwephConstants::SEI_EMB,       // $iplAst (same as ipli for planets)
+            \Swisseph\SwephFile\SwephConstants::SEI_FILE_PLANET, // $ifno
             $iflag | Constants::SEFLG_SPEED,
             null,
             true,
