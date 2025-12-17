@@ -16,7 +16,7 @@ A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculati
 **C API Coverage**: 106/106 functions (**100%**) 🎉🎊✨
 **PHP Functions**: 107 unique exports (+1 helper: swe_jd_to_utc) 🎁
 **Categories Complete**: 13/13 (**100%**) 🎉🎊✨
-**Test Files**: 142+ tests covering all critical functions
+**Test Files**: 199 tests covering all critical functions
 
 **Detailed audit**: See [FUNCTION_AUDIT.md](FUNCTION_AUDIT.md)
 
