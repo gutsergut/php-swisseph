@@ -14,7 +14,11 @@ use Swisseph\Obliquity;
 /**
  * Fictitious Planets Calculator
  *
- * Port of swemplan.c:swi_osc_el_plan() and related functions
+ * Complete port of swemplan.c functions:
+ * - swi_osc_el_plan()
+ * - read_elements_file()
+ * - check_t_terms()
+ * - swi_get_fict_name()
  *
  * Computes positions of fictitious bodies (Uranian planets, Isis-Transpluto, etc.)
  * from osculating orbital elements.
@@ -36,12 +40,16 @@ use Swisseph\Obliquity;
 class FictitiousPlanets
 {
     // Constants from swemplan.c
-    private const FICT_GEO = 1;  // Flag for geocentric fictitious body
+    public const FICT_GEO = 1;  // Flag for geocentric fictitious body
     private const KGAUSS = 0.01720209895;  // Gaussian gravitational constant (heliocentric)
     private const KGAUSS_GEO = 0.0000298122353216;  // Gaussian constant for Earth-centered bodies
 
     // J1900 epoch
     private const J1900 = 2415020.0;
+    // B1950 epoch
+    private const B1950 = 2433282.42345905;
+    // File name for orbital elements
+    private const SE_FICTFILE = 'seorbel.txt';
 
     /**
      * Names of fictitious planets (from swemplan.c:plan_fict_nam)
@@ -131,7 +139,7 @@ class FictitiousPlanets
         $dmot = 0.9856076686 * Constants::DEGTORAD / $sema / sqrt($sema);
         if ($fictIfl & self::FICT_GEO) {
             // For geocentric bodies, adjust by sqrt(SUN_EARTH_MRAT)
-            $dmot /= sqrt(Constants::EARTH_MOON_MRAT);
+            $dmot /= sqrt(Constants::SUN_EARTH_MRAT);
         }
 
         // Gaussian vector (PQR matrix)
@@ -154,7 +162,7 @@ class FictitiousPlanets
         $pqr[8] = $cosincl;
 
         // Kepler problem: solve for eccentric anomaly E
-        $M = Math::mod2pi($mano + ($tjd - $tjd0) * $dmot);
+        $M = Math::mod2PI($mano + ($tjd - $tjd0) * $dmot);
         $E = self::solveKepler($M, $ecce);
 
         // Position and velocity in orbital plane
@@ -232,6 +240,12 @@ class FictitiousPlanets
      */
     public static function getName(int $ipl): string
     {
+        // Port of swi_get_fict_name() - first try seorbel.txt, then built-in names
+        $name = null;
+        $result = self::readElementsFile($ipl - Constants::SE_FICT_OFFSET, 0.0, $name);
+        if ($result !== null && $name !== null) {
+            return $name;
+        }
         $fictIndex = $ipl - Constants::SE_FICT_OFFSET;
         if ($fictIndex >= 0 && $fictIndex < count(self::PLAN_FICT_NAM)) {
             return self::PLAN_FICT_NAM[$fictIndex];
@@ -251,7 +265,231 @@ class FictitiousPlanets
     }
 
     /**
-     * Get orbital elements for a fictitious planet
+     * Read orbital elements from seorbel.txt or use built-in values
+     *
+     * Port of swemplan.c:read_elements_file()
+     *
+     * @param int $fictIndex Index in fictitious planet table (0 = Cupido, etc.)
+     * @param float $tjd Julian day (for T terms in elements)
+     * @param string|null &$pname Returns planet name
+     * @param string|null &$serr Error message
+     * @return array|null [tjd0, tequ, mano, sema, ecce, parg, node, incl, fict_ifl] or null on error
+     */
+    public static function readElementsFile(int $fictIndex, float $tjd, ?string &$pname = null, ?string &$serr = null): ?array
+    {
+        // Try to open seorbel.txt
+        $ephepath = SwedState::getInstance()->ephepath ?? '';
+        $filepath = null;
+
+        // Search in ephepath directories
+        $paths = explode(PATH_SEPARATOR, $ephepath);
+        foreach ($paths as $path) {
+            $candidate = rtrim($path, '/\\') . DIRECTORY_SEPARATOR . self::SE_FICTFILE;
+            if (is_file($candidate) && is_readable($candidate)) {
+                $filepath = $candidate;
+                break;
+            }
+        }
+
+        // If file not found, use built-in elements
+        if ($filepath === null) {
+            if ($fictIndex < 0 || $fictIndex >= Constants::SE_NFICT_ELEM) {
+                $serr = sprintf("error no elements for fictitious body no %d", $fictIndex + Constants::SE_FICT_OFFSET);
+                return null;
+            }
+
+            $elem = self::PLAN_OSCU_ELEM[$fictIndex];
+            if ($pname !== null) {
+                $pname = self::PLAN_FICT_NAM[$fictIndex] ?? "Unknown";
+            }
+
+            return [
+                $elem[0],                           // tjd0 (epoch)
+                $elem[1],                           // tequ (equinox)
+                $elem[2] * Constants::DEGTORAD,     // mano (mean anomaly) -> radians
+                $elem[3],                           // sema (semi-major axis) in AU
+                $elem[4],                           // ecce (eccentricity)
+                $elem[5] * Constants::DEGTORAD,     // parg (argument of perihelion) -> radians
+                $elem[6] * Constants::DEGTORAD,     // node (ascending node) -> radians
+                $elem[7] * Constants::DEGTORAD,     // incl (inclination) -> radians
+                0,                                  // fict_ifl (flags, 0 = heliocentric)
+            ];
+        }
+
+        // Read file and parse elements
+        $lines = file($filepath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($lines === false) {
+            $serr = "Cannot read file " . self::SE_FICTFILE;
+            return null;
+        }
+
+        $iplan = -1;
+        $elemFound = false;
+
+        foreach ($lines as $lineNum => $line) {
+            // Skip leading whitespace
+            $line = ltrim($line);
+
+            // Skip comments and empty lines
+            if ($line === '' || $line[0] === '#' || $line[0] === "\r" || $line[0] === "\n") {
+                continue;
+            }
+
+            // Remove inline comments
+            $hashPos = strpos($line, '#');
+            if ($hashPos !== false) {
+                $line = substr($line, 0, $hashPos);
+            }
+
+            // Split by comma
+            $parts = explode(',', $line);
+            $ncpos = count($parts);
+
+            if ($ncpos < 9) {
+                // Not enough elements - skip line
+                continue;
+            }
+
+            $iplan++;
+            if ($iplan !== $fictIndex) {
+                continue;
+            }
+
+            $elemFound = true;
+            $serri = sprintf("error in file %s, line %d:", self::SE_FICTFILE, $lineNum + 1);
+
+            // epoch of elements (column 0)
+            $sp = strtolower(trim($parts[0]));
+            if (strncmp($sp, 'j2000', 5) === 0) {
+                $tjd0 = Constants::J2000;
+            } elseif (strncmp($sp, 'b1950', 5) === 0) {
+                $tjd0 = self::B1950;
+            } elseif (strncmp($sp, 'j1900', 5) === 0) {
+                $tjd0 = self::J1900;
+            } elseif ($sp[0] === 'j' || $sp[0] === 'b') {
+                $serr = "$serri invalid epoch";
+                return null;
+            } else {
+                $tjd0 = (float)$sp;
+            }
+
+            $tt = $tjd - $tjd0;  // time since epoch (for T terms)
+
+            // equinox (column 1)
+            $sp = strtolower(trim($parts[1]));
+            if (strncmp($sp, 'j2000', 5) === 0) {
+                $tequ = Constants::J2000;
+            } elseif (strncmp($sp, 'b1950', 5) === 0) {
+                $tequ = self::B1950;
+            } elseif (strncmp($sp, 'j1900', 5) === 0) {
+                $tequ = self::J1900;
+            } elseif (strncmp($sp, 'jdate', 5) === 0) {
+                $tequ = $tjd;
+            } elseif ($sp[0] === 'j' || $sp[0] === 'b') {
+                $serr = "$serri invalid equinox";
+                return null;
+            } else {
+                $tequ = (float)$sp;
+            }
+
+            // mean anomaly (column 2) - may have T terms
+            [$retc, $mano] = self::checkTTerms($tt, trim($parts[2]));
+            if ($retc === -1) {
+                $serr = "$serri mean anomaly value invalid";
+                return null;
+            }
+            $mano = Math::degnorm($mano);
+            // If mean anomaly has T terms, set epoch = tjd
+            if ($retc === 1) {
+                $tjd0 = $tjd;
+            }
+            $mano *= Constants::DEGTORAD;
+
+            // semi-axis (column 3)
+            [$retc, $sema] = self::checkTTerms($tt, trim($parts[3]));
+            if ($sema <= 0 || $retc === -1) {
+                $serr = "$serri semi-axis value invalid";
+                return null;
+            }
+
+            // eccentricity (column 4)
+            [$retc, $ecce] = self::checkTTerms($tt, trim($parts[4]));
+            if ($ecce >= 1 || $ecce < 0 || $retc === -1) {
+                $serr = "$serri eccentricity invalid (no parabolic or hyperbolic orbits allowed)";
+                return null;
+            }
+
+            // perihelion argument (column 5)
+            [$retc, $parg] = self::checkTTerms($tt, trim($parts[5]));
+            if ($retc === -1) {
+                $serr = "$serri perihelion argument value invalid";
+                return null;
+            }
+            $parg = Math::degnorm($parg) * Constants::DEGTORAD;
+
+            // node (column 6)
+            [$retc, $node] = self::checkTTerms($tt, trim($parts[6]));
+            if ($retc === -1) {
+                $serr = "$serri node value invalid";
+                return null;
+            }
+            $node = Math::degnorm($node) * Constants::DEGTORAD;
+
+            // inclination (column 7)
+            [$retc, $incl] = self::checkTTerms($tt, trim($parts[7]));
+            if ($retc === -1) {
+                $serr = "$serri inclination value invalid";
+                return null;
+            }
+            $incl = Math::degnorm($incl) * Constants::DEGTORAD;
+
+            // planet name (column 8)
+            if ($pname !== null) {
+                $pname = trim($parts[8]);
+            }
+
+            // geocentric flag (column 9)
+            $fictIfl = 0;
+            if ($ncpos > 9) {
+                $flagStr = strtolower(trim($parts[9]));
+                if (strpos($flagStr, 'geo') !== false) {
+                    $fictIfl |= self::FICT_GEO;
+                }
+            }
+
+            return [$tjd0, $tequ, $mano, $sema, $ecce, $parg, $node, $incl, $fictIfl];
+        }
+
+        // Element not found in file - fall back to built-in
+        if (!$elemFound) {
+            if ($fictIndex < 0 || $fictIndex >= Constants::SE_NFICT_ELEM) {
+                $serr = sprintf("elements for planet %d not found", $fictIndex + Constants::SE_FICT_OFFSET);
+                return null;
+            }
+
+            $elem = self::PLAN_OSCU_ELEM[$fictIndex];
+            if ($pname !== null) {
+                $pname = self::PLAN_FICT_NAM[$fictIndex] ?? "Unknown";
+            }
+
+            return [
+                $elem[0],                           // tjd0 (epoch)
+                $elem[1],                           // tequ (equinox)
+                $elem[2] * Constants::DEGTORAD,     // mano (mean anomaly) -> radians
+                $elem[3],                           // sema (semi-major axis) in AU
+                $elem[4],                           // ecce (eccentricity)
+                $elem[5] * Constants::DEGTORAD,     // parg (argument of perihelion) -> radians
+                $elem[6] * Constants::DEGTORAD,     // node (ascending node) -> radians
+                $elem[7] * Constants::DEGTORAD,     // incl (inclination) -> radians
+                0,                                  // fict_ifl (flags, 0 = heliocentric)
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Get orbital elements for a fictitious planet (wrapper for readElementsFile)
      *
      * @param int $fictIndex Index in fictitious planet table (0 = Cupido, etc.)
      * @param float $tjd Julian day
@@ -260,27 +498,125 @@ class FictitiousPlanets
      */
     private static function getElements(int $fictIndex, float $tjd, ?string &$serr = null): ?array
     {
-        // First try to read from seorbel.txt file (not implemented yet)
-        // Fall back to built-in elements
+        $pname = null;
+        return self::readElementsFile($fictIndex, $tjd, $pname, $serr);
+    }
 
-        if ($fictIndex < 0 || $fictIndex >= Constants::SE_NFICT_ELEM) {
-            $serr = "No elements for fictitious body no " . ($fictIndex + Constants::SE_FICT_OFFSET);
-            return null;
+    /**
+     * Parse T-term expressions like "242.2205555 + 5143.5418158 * T"
+     *
+     * Port of swemplan.c:check_t_terms()
+     *
+     * @param float $t Time since epoch in Julian days
+     * @param string $sinp Input string with potential T terms
+     * @return array [retc, value] where retc = 0 (no T terms), 1 (with T terms), -1 (error)
+     */
+    public static function checkTTerms(float $t, string $sinp): array
+    {
+        // tt[0] = T (Julian centuries from epoch)
+        // tt[1] = T^1, tt[2] = T^2, etc.
+        $tt = [];
+        $tt[0] = $t / 36525.0;
+        $tt[1] = $tt[0];
+        $tt[2] = $tt[1] * $tt[1];
+        $tt[3] = $tt[2] * $tt[1];
+        $tt[4] = $tt[3] * $tt[1];
+
+        // Check if there are additional terms (+ or - after start)
+        $retc = 0;
+        $sinp = trim($sinp);
+
+        // Check if there's a + or - sign (indicating T terms)
+        if (preg_match('/[+\-]/', substr($sinp, 1)) !== 0) {
+            $retc = 1;  // with additional terms
         }
 
-        $elem = self::PLAN_OSCU_ELEM[$fictIndex];
+        $doutp = 0.0;
+        $fac = 1.0;
+        $isgn = 1;
+        $z = 0;
+        $pos = 0;
+        $len = strlen($sinp);
 
-        return [
-            $elem[0],                           // tjd0 (epoch)
-            $elem[1],                           // tequ (equinox)
-            $elem[2] * Constants::DEGTORAD,     // mano (mean anomaly) -> radians
-            $elem[3],                           // sema (semi-major axis) in AU
-            $elem[4],                           // ecce (eccentricity)
-            $elem[5] * Constants::DEGTORAD,     // parg (argument of perihelion) -> radians
-            $elem[6] * Constants::DEGTORAD,     // node (ascending node) -> radians
-            $elem[7] * Constants::DEGTORAD,     // incl (inclination) -> radians
-            0,                                  // fict_ifl (flags, 0 = heliocentric)
-        ];
+        while ($pos < $len) {
+            // Skip whitespace
+            while ($pos < $len && ($sinp[$pos] === ' ' || $sinp[$pos] === "\t")) {
+                $pos++;
+            }
+
+            if ($pos >= $len) {
+                break;
+            }
+
+            $ch = $sinp[$pos];
+
+            if ($ch === '+' || $ch === '-') {
+                // End of previous term
+                if ($z > 0) {
+                    $doutp += $fac;
+                }
+                $isgn = ($ch === '-') ? -1 : 1;
+                $fac = 1.0 * $isgn;
+                $pos++;
+            } else {
+                // Skip * and whitespace
+                while ($pos < $len && ($sinp[$pos] === '*' || $sinp[$pos] === ' ' || $sinp[$pos] === "\t")) {
+                    $pos++;
+                }
+
+                if ($pos >= $len) {
+                    break;
+                }
+
+                $ch = $sinp[$pos];
+
+                if ($ch === 't' || $ch === 'T') {
+                    // A T term
+                    $pos++;
+                    if ($pos < $len && ($sinp[$pos] === '+' || $sinp[$pos] === '-')) {
+                        // Just T (T^1)
+                        $fac *= $tt[0];
+                    } else {
+                        // T with power (T2, T3, etc.)
+                        $power = 0;
+                        while ($pos < $len && ctype_digit($sinp[$pos])) {
+                            $power = $power * 10 + (int)$sinp[$pos];
+                            $pos++;
+                        }
+                        if ($power <= 4 && $power >= 0) {
+                            $fac *= $tt[$power];
+                        } else {
+                            $fac *= $tt[0];  // default to T^1
+                        }
+                    }
+                } else {
+                    // A number
+                    $numStr = '';
+                    while ($pos < $len && (ctype_digit($sinp[$pos]) || $sinp[$pos] === '.' || $sinp[$pos] === '-')) {
+                        // Only include leading minus if we're starting
+                        if ($sinp[$pos] === '-' && $numStr !== '') {
+                            break;
+                        }
+                        $numStr .= $sinp[$pos];
+                        $pos++;
+                    }
+                    if ($numStr !== '' && ($numStr !== '0' || $numStr === '0')) {
+                        $num = (float)$numStr;
+                        if ($num != 0.0 || $numStr[0] === '0') {
+                            $fac *= $num;
+                        }
+                    }
+                }
+            }
+            $z++;
+        }
+
+        // Final term
+        if ($z > 0) {
+            $doutp += $fac;
+        }
+
+        return [$retc, $doutp];
     }
 
     /**

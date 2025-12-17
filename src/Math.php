@@ -36,6 +36,14 @@ final class Math
     }
 
     /**
+     * Alias for normAngleDeg() - matches C function swe_degnorm().
+     */
+    public static function degnorm(float $deg): float
+    {
+        return self::normAngleDeg($deg);
+    }
+
+    /**
      * Normalize any angle in radians to [0, 2π).
      */
     public static function normAngleRad(float $rad): float
