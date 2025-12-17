@@ -27,13 +27,13 @@ class AsteroidNodesTest extends TestCase
     {
         $jd = 2451545.0; // J2000.0
         $ceres = Constants::SE_AST_OFFSET + 1; // 10001
-        
+
         $xnasc = [];
         $xndsc = [];
         $xperi = [];
         $xaphe = [];
         $serr = null;
-        
+
         $ret = \swe_nod_aps_ut(
             $jd,
             $ceres,
@@ -45,18 +45,18 @@ class AsteroidNodesTest extends TestCase
             $xaphe,
             $serr
         );
-        
+
         $this->assertGreaterThanOrEqual(0, $ret, "swe_nod_aps_ut error: $serr");
-        
+
         // Reference values from swetest64
         $refAscNode = 69.7739889;
         $refDescNode = 265.6015206;
         $refPeri = 176.5097370;
         $refAphe = 321.4372328;
-        
+
         // Tolerance: ~30 arcsec (consistent with other osculating node tests)
         $toleranceDeg = 30.0 / 3600.0;
-        
+
         $this->assertEqualsWithDelta($refAscNode, $xnasc[0], $toleranceDeg,
             sprintf("Asc Node: expected %.6f, got %.6f", $refAscNode, $xnasc[0]));
         $this->assertEqualsWithDelta($refDescNode, $xndsc[0], $toleranceDeg,
@@ -74,13 +74,13 @@ class AsteroidNodesTest extends TestCase
     {
         $jd = 2451545.0; // J2000.0
         $vesta = Constants::SE_AST_OFFSET + 4; // 10004
-        
+
         $xnasc = [];
         $xndsc = [];
         $xperi = [];
         $xaphe = [];
         $serr = null;
-        
+
         $ret = \swe_nod_aps_ut(
             $jd,
             $vesta,
@@ -92,9 +92,9 @@ class AsteroidNodesTest extends TestCase
             $xaphe,
             $serr
         );
-        
+
         $this->assertGreaterThanOrEqual(0, $ret, "swe_nod_aps_ut error: $serr");
-        
+
         // Just verify we get valid coordinates
         $this->assertGreaterThanOrEqual(0, $xnasc[0], "Asc Node longitude should be >= 0");
         $this->assertLessThan(360, $xnasc[0], "Asc Node longitude should be < 360");
@@ -108,13 +108,13 @@ class AsteroidNodesTest extends TestCase
     {
         $jd = 2451545.0; // J2000.0
         $eros = Constants::SE_AST_OFFSET + 433; // 10433
-        
+
         $xnasc = [];
         $xndsc = [];
         $xperi = [];
         $xaphe = [];
         $serr = null;
-        
+
         $ret = \swe_nod_aps_ut(
             $jd,
             $eros,
@@ -126,9 +126,9 @@ class AsteroidNodesTest extends TestCase
             $xaphe,
             $serr
         );
-        
+
         $this->assertGreaterThanOrEqual(0, $ret, "swe_nod_aps_ut error: $serr");
-        
+
         // Just verify we get valid coordinates
         $this->assertGreaterThanOrEqual(0, $xnasc[0], "Asc Node longitude should be >= 0");
         $this->assertLessThan(360, $xnasc[0], "Asc Node longitude should be < 360");
