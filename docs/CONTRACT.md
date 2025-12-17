@@ -9,7 +9,7 @@
 
 **C API Coverage**: 107/107 публичных функций `swe_*` (**100%** + 1 helper)
 **Категории**: 13/13 базовых категорий полностью реализованы
-**Тесты**: 140 PHPUnit + 8 скриптовых = 100% PASS (0 warnings, 0 errors)
+**Тесты**: 199 PHPUnit + 8 скриптовых = 100% PASS (0 warnings, 0 errors)
 
 **Детали**: См. [FUNCTION_AUDIT.md](../FUNCTION_AUDIT.md) и [README.md](../README.md)
 
@@ -196,7 +196,7 @@
 - ✅ SEFLG_HELCTR — гелиоцентрические координаты
 
 **Тестирование:**
-- 140 PHPUnit тестов (1134 assertions) — 100% PASS
+- 199 PHPUnit тестов (1498 assertions) — 100% PASS
 - Все планеты Mercury-Neptune протестированы
 - Smoke tests, accuracy tests, parity tests с C reference
 - Edge cases: extreme coordinates, high speeds, polar latitudes
