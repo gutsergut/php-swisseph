@@ -200,4 +200,78 @@ class JplEphemerisTest extends TestCase
 
         $this->assertEquals(JplConstants::BEYOND_EPH_LIMITS, $ret);
     }
-}
+
+    /**
+     * Test opening DE406e ephemeris (big-endian)
+     */
+    public function testOpenDE406e(): void
+    {
+        // Close DE200 first
+        $jpl = JplEphemeris::getInstance();
+        $jpl->close();
+        JplEphemeris::resetInstance();
+
+        $jpl = JplEphemeris::getInstance();
+        $ss = [];
+        $serr = '';
+
+        $ret = $jpl->open($ss, 'de406e.eph', self::EPH_DIR, $serr);
+
+        $this->assertEquals(JplConstants::OK, $ret, "Failed to open de406e.eph: $serr");
+        $this->assertEqualsWithDelta(-254895.5, $ss[0], 0.1, 'Start epoch');
+        $this->assertEqualsWithDelta(3696976.5, $ss[1], 0.1, 'End epoch');
+        $this->assertEqualsWithDelta(64.0, $ss[2], 0.1, 'Segment size');
+        $this->assertEquals(406, $jpl->getDenum(), 'DE number');
+    }
+
+    /**
+     * Test Mercury coordinates from DE406e (big-endian)
+     * Reference: swetest -ejplde406e.eph -p2 -bj2451545.0 -fPx -bary -j2000
+     */
+    public function testMercuryDE406e(): void
+    {
+        $jpl = JplEphemeris::getInstance();
+        $pv = [];
+        $serr = '';
+
+        $ret = $jpl->pleph(
+            2451545.0,  // J2000
+            JplConstants::J_MERCURY,
+            JplConstants::J_SBARY,
+            $pv,
+            $serr
+        );
+
+        $this->assertEquals(JplConstants::OK, $ret, "pleph failed: $serr");
+
+        // swetest reference: -0.137288206   -0.403227332   -0.201399029
+        $this->assertEqualsWithDelta(-0.137288206, $pv[0], self::TOLERANCE_AU, 'X coordinate');
+        $this->assertEqualsWithDelta(-0.403227332, $pv[1], self::TOLERANCE_AU, 'Y coordinate');
+        $this->assertEqualsWithDelta(-0.201399029, $pv[2], self::TOLERANCE_AU, 'Z coordinate');
+    }
+
+    /**
+     * Test early date in DE406e (big-endian)
+     * Reference: swetest -ejplde406e.eph -p2 -bj-254863.5 -fPx -bary -j2000
+     */
+    public function testMercuryDE406eEarlyDate(): void
+    {
+        $jpl = JplEphemeris::getInstance();
+        $pv = [];
+        $serr = '';
+
+        $ret = $jpl->pleph(
+            -254863.5,  // Near start of DE406e
+            JplConstants::J_MERCURY,
+            JplConstants::J_SBARY,
+            $pv,
+            $serr
+        );
+
+        $this->assertEquals(JplConstants::OK, $ret, "pleph failed: $serr");
+
+        // swetest reference: -0.219466143    0.217997287    0.140809041
+        $this->assertEqualsWithDelta(-0.219466143, $pv[0], self::TOLERANCE_AU, 'X coordinate');
+        $this->assertEqualsWithDelta(0.217997287, $pv[1], self::TOLERANCE_AU, 'Y coordinate');
+        $this->assertEqualsWithDelta(0.140809041, $pv[2], self::TOLERANCE_AU, 'Z coordinate');
+    }}
