@@ -11,6 +11,7 @@ use Swisseph\Nutation;
 use Swisseph\NutationMatrix;
 use Swisseph\Obliquity;
 use Swisseph\Precession;
+use Swisseph\Swe\LightTime;
 
 /**
  * Swiss Ephemeris API for Nodes and Apsides
@@ -533,17 +534,17 @@ class NodesApsidesFunctions
             $dt = sqrt(\Swisseph\VectorMath::squareSum($xp)) * Constants::AUNIT / Constants::CLIGHT / 86400.0;
             $doDefl = !($iflag & Constants::SEFLG_TRUEPOS) && !($iflag & Constants::SEFLG_NOGDEFL);
             if ($doDefl) {
-                // swi_deflect_light not yet implemented, skip for now
-                // \Swisseph\Deflection::deflectLight($xp, $dt, $iflag);
+                LightTime::deflectLight($xp, $dt, $iflag);
             }
+            if ($doDebug && $ij === 0) error_log(sprintf("  STEP 8 (deflect): xp=[%.15f, %.15f, %.15f]", $xp[0], $xp[1], $xp[2]));
 
             // Step 9: Aberration
             // C code lines 5526+
             $doAberr = !($iflag & Constants::SEFLG_TRUEPOS) && !($iflag & Constants::SEFLG_NOABERR);
             if ($doAberr) {
-                // swi_aberr_light not yet implemented, skip for now
-                // \Swisseph\Aberration::aberrLight($xp, $xobs, $iflag);
+                LightTime::aberrLight($xp, $xobs, $iflag);
             }
+            if ($doDebug && $ij === 0) error_log(sprintf("  STEP 9 (aberr): xp=[%.15f, %.15f, %.15f]", $xp[0], $xp[1], $xp[2]));
 
             // Step 10: If not J2000, precess back from J2000 to date
             // C code lines 5568-5572
