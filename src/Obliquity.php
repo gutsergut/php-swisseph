@@ -71,8 +71,21 @@ final class Obliquity
     private const PREC_IAU_2000_CTIES = 2.0;
     private const PREC_IAU_2006_CTIES = 2.0;
 
+    // Date range for IAU 1976 in JPLHOR mode
+    private const JPLHOR_DATE_MIN = 2378131.5;  // 1799-01-01
+    private const JPLHOR_DATE_MAX = 2525323.5;  // 2202-01-01
+
+    // TJD limit for JPLHOR_APPROX mode 3
+    private const HORIZONS_TJD0_DPSI_DEPS_IAU1980 = 2437684.5;  // 1962-01-01
+
+    // JPLHORA modes
+    private const SEMOD_JPLHORA_2 = 2;
+    private const SEMOD_JPLHORA_3 = 3;
+    private const SEMOD_JPLHORA_DEFAULT = self::SEMOD_JPLHORA_3;
+
     /**
      * Calculate mean obliquity of the ecliptic
+     * Port of swi_epsiln() from swephlib.c:888-965
      *
      * @param float $jd Julian day (TT)
      * @param int $iflag Calculation flags (SEFLG_*)
@@ -91,6 +104,38 @@ final class Obliquity
         // Default models
         $precModel = $precModel ?? self::SEMOD_PREC_DEFAULT;
         $precModelShort = $precModelShort ?? self::SEMOD_PREC_DEFAULT_SHORT;
+        $jplhoraModel = self::SEMOD_JPLHORA_DEFAULT;
+
+        // Check for JPL Horizons mode
+        // Port of swephlib.c:898-905
+        $isJplhor = false;
+        if ($iflag & Constants::SEFLG_JPLHOR) {
+            $isJplhor = true;
+        }
+        if (($iflag & Constants::SEFLG_JPLHOR_APPROX)
+            && $jplhoraModel === self::SEMOD_JPLHORA_3
+            && $jd <= self::HORIZONS_TJD0_DPSI_DEPS_IAU1980) {
+            $isJplhor = true;
+        }
+
+        // JPL Horizons uses IAU 1976 obliquity
+        // Port of swephlib.c:906-911
+        if ($isJplhor) {
+            if ($jd > self::JPLHOR_DATE_MIN && $jd < self::JPLHOR_DATE_MAX) {
+                // Between 1.1.1799 and 1.1.2202: use IAU 1976
+                return self::iau1976($T);
+            } else {
+                // Outside range: use Owen 1990
+                // TODO: Implement Owen 1990 properly
+                // For now, fallback to IAU 1976
+                return self::iau1976($T);
+            }
+        }
+
+        // JPLHOR_APPROX with mode 2: also uses IAU 1976
+        if (($iflag & Constants::SEFLG_JPLHOR_APPROX) && $jplhoraModel === self::SEMOD_JPLHORA_2) {
+            return self::iau1976($T);
+        }
 
         // Select model based on time range and settings
         // Short-term models have priority within their valid range

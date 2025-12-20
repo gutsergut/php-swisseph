@@ -191,9 +191,16 @@ final class SwedState
         if ($this->tnut === $tjd && !empty($this->nutMatrix)) {
             return;
         }
-        // Select model from flags and compute nutation
-        $model = \Swisseph\Nutation::selectModelFromFlags($iflag);
-        [$dpsi, $deps] = \Swisseph\Nutation::calc($tjd, $model, true);
+
+        // Use calcWithFlags for JPLHOR mode (applies EOP corrections)
+        // Otherwise use standard calc with model selection
+        if (\Swisseph\Nutation::isJplhorMode($iflag)) {
+            [$dpsi, $deps] = \Swisseph\Nutation::calcWithFlags($tjd, $iflag);
+        } else {
+            $model = \Swisseph\Nutation::selectModelFromFlags($iflag);
+            [$dpsi, $deps] = \Swisseph\Nutation::calc($tjd, $model, true);
+        }
+
         $this->dpsi = $dpsi;
         $this->deps = $deps;
         $this->tnut = $tjd;
@@ -211,8 +218,15 @@ final class SwedState
         // at current date), NOT obliquity at t-dt! Only nutation angles change.
         $dt = \Swisseph\Constants::NUT_SPEED_INTV;
         $tPrev = $tjd - $dt;
-        // Nutation at previous time
-        [$dpsiPrev, $depsPrev] = \Swisseph\Nutation::calc($tPrev, $model, true);
+
+        // Nutation at previous time (same mode as main)
+        if (\Swisseph\Nutation::isJplhorMode($iflag)) {
+            [$dpsiPrev, $depsPrev] = \Swisseph\Nutation::calcWithFlags($tPrev, $iflag);
+        } else {
+            $model = \Swisseph\Nutation::selectModelFromFlags($iflag);
+            [$dpsiPrev, $depsPrev] = \Swisseph\Nutation::calc($tPrev, $model, true);
+        }
+
         // Use SAME mean obliquity as main matrix (swed.oec), not obliquity at tPrev
         $this->nutMatrixVelocity = \Swisseph\NutationMatrix::build(
             $dpsiPrev,

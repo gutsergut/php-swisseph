@@ -38,9 +38,20 @@ class Precession
 
     private const DEGTORAD = M_PI / 180.0;
 
+    // Date range for IAU 1976 precession in JPLHOR mode (1.1.1799 to 1.1.2202)
+    private const JPLHOR_DATE_MIN = 2378131.5;  // 1799-01-01
+    private const JPLHOR_DATE_MAX = 2525323.5;  // 2202-01-01
+
+    // TJD limit for JPLHOR_APPROX mode 3
+    private const HORIZONS_TJD0_DPSI_DEPS_IAU1980 = 2437684.5;  // 1962-01-01
+
+    // JPLHORA modes
+    private const SEMOD_JPLHORA_3 = 3;
+    private const SEMOD_JPLHORA_DEFAULT = self::SEMOD_JPLHORA_3;
+
     /**
      * Main precession function
-     * Port of swi_precess() from swephlib.c
+     * Port of swi_precess() from swephlib.c:1373-1428
      *
      * @param array $R Rectangular equatorial coordinates [x, y, z] (modified in place)
      * @param float $J Julian date (TT)
@@ -60,6 +71,33 @@ class Precession
         // If model specified, use it
         if ($precModel !== null) {
             return self::precess1($R, $J, $direction, $precModel);
+        }
+
+        // Check for JPL Horizons mode
+        $isJplhor = false;
+        $jplhoraModel = self::SEMOD_JPLHORA_DEFAULT;
+
+        if ($iflag & Constants::SEFLG_JPLHOR) {
+            $isJplhor = true;
+        }
+        if (($iflag & Constants::SEFLG_JPLHOR_APPROX)
+            && $jplhoraModel === self::SEMOD_JPLHORA_3
+            && $J <= self::HORIZONS_TJD0_DPSI_DEPS_IAU1980) {
+            $isJplhor = true;
+        }
+
+        // JPL Horizons uses precession IAU 1976
+        // Port of swephlib.c:1391-1395
+        if ($isJplhor) {
+            if ($J > self::JPLHOR_DATE_MIN && $J < self::JPLHOR_DATE_MAX) {
+                // Between 1.1.1799 and 1.1.2202: use IAU 1976
+                return self::precess1($R, $J, $direction, self::SEMOD_PREC_IAU_1976);
+            } else {
+                // Outside range: use Owen 1990 (long-term precession)
+                // TODO: Implement precess_3 for Owen 1990
+                // For now, fallback to IAU 1976
+                return self::precess1($R, $J, $direction, self::SEMOD_PREC_IAU_1976);
+            }
         }
 
         // Auto-select model: use IAU 2006 for short-term (<5 centuries from J2000)

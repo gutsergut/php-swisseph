@@ -165,6 +165,12 @@ final class PlanetsFunctions
             $iflag |= Constants::SEFLG_SWIEPH;
         }
 
+        // SEFLG_JPLHOR only works with JPL ephemeris (C sweph.c:6171-6172)
+        // If not using JPL ephemeris, strip JPLHOR and JPLHOR_APPROX flags
+        if (!($iflag & Constants::SEFLG_JPLEPH)) {
+            $iflag = $iflag & ~(Constants::SEFLG_JPLHOR | Constants::SEFLG_JPLHOR_APPROX);
+        }
+
         $strategy = EphemerisStrategyFactory::forFlags($iflag, $ipl);
         if ($strategy === null) {
             // Источник не реализован (например JPLEPH/MOSEPH в текущем порте)
