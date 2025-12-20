@@ -54,6 +54,10 @@ final class Constants
     public const SE_AST_OFFSET = 10000;      // Numbered asteroids start here
     public const SE_PLMOON_OFFSET = 9000;    // Planetary moons start here
     public const SE_COMET_OFFSET = 1000;     // Comets start here
+    public const SE_VARUNA = self::SE_AST_OFFSET + 20000;  // Varuna asteroid (from swephexp.h:127)
+
+    // Total number of natural points (planets + fictitious elements)
+    public const SE_NALL_NAT_POINTS = self::SE_NPLANETS + self::SE_NFICT_ELEM;
 
     // Fictitious planets offset and limits (swephexp.h:131-136)
     public const SE_FICT_OFFSET = 40;        // Fictitious bodies start here
@@ -106,6 +110,7 @@ final class Constants
     public const SEFLG_RADIANS = (8*1024);     // coordinates in radians, not degrees
     public const SEFLG_BARYCTR = (16*1024);    // barycentric position
     public const SEFLG_TOPOCTR = (32*1024);    // topocentric position
+    public const SEFLG_ORBEL_AA = self::SEFLG_TOPOCTR; // used for Astronomical Almanac mode in Kepler ellipses
     public const SEFLG_TROPICAL = 0;           // tropical position (default)
     public const SEFLG_SIDEREAL = (64*1024);   // sidereal position
     public const SEFLG_ICRS = (128*1024);      // ICRS (DE406 reference frame)
@@ -113,6 +118,7 @@ final class Constants
     public const SEFLG_JPLHOR = self::SEFLG_DPSIDEPS_1980;
     public const SEFLG_JPLHOR_APPROX = (512*1024);  // approximate JPL Horizons 1962-today
     public const SEFLG_CENTER_BODY = (1024*1024);   // calculate position of center of body
+    public const SEFLG_TEST_PLMOON = (2*1024*1024 | self::SEFLG_J2000 | self::SEFLG_ICRS | self::SEFLG_HELCTR | self::SEFLG_TRUEPOS);  // test raw data in files sepm9*
     public const SEFLG_DEFAULTEPH = self::SEFLG_SWIEPH;
     // Custom extension: use VSOP87 analytical series as source (exclusive with SWIEPH/JPLEPH/MOSEPH)
     // Bit chosen outside original Swiss Ephemeris range to avoid collision
@@ -369,8 +375,52 @@ final class Constants
     public const SEMOD_JPLHORA_DEFAULT = self::SEMOD_JPLHORA_3;
 
     // Swiss Ephemeris version constants for model presets
-    public const SE_TIDAL_DE406 = -25.8;  // tidal acceleration for DE406
-    public const SE_TIDAL_DEFAULT = self::SE_TIDAL_DE406;
+    // Tidal acceleration values for different ephemerides (from swephexp.h:475-493)
+    public const SE_TIDAL_DE200 = -23.8946;
+    public const SE_TIDAL_DE403 = -25.580;    // was (-25.8) until V. 1.76.2
+    public const SE_TIDAL_DE404 = -25.580;    // was (-25.8) until V. 1.76.2
+    public const SE_TIDAL_DE405 = -25.826;    // was (-25.7376) until V. 1.76.2
+    public const SE_TIDAL_DE406 = -25.826;    // was (-25.7376) until V. 1.76.2
+    public const SE_TIDAL_DE421 = -25.85;     // JPL Interoffice Memorandum 14-mar-2008 on DE421 Lunar Orbit
+    public const SE_TIDAL_DE422 = -25.85;     // JPL Interoffice Memorandum 14-mar-2008 on DE421 (sic!) Lunar Orbit
+    public const SE_TIDAL_DE430 = -25.82;     // JPL Interoffice Memorandum 9-jul-2013 on DE430 Lunar Orbit
+    public const SE_TIDAL_DE431 = -25.80;     // IPN Progress Report 42-196, February 15, 2014, p. 15
+    public const SE_TIDAL_DE441 = -25.936;    // unpublished value, from email by Jon Giorgini to DK on 11 Apr 2021
+    public const SE_TIDAL_26 = -26.0;
+    public const SE_TIDAL_STEPHENSON_2016 = -25.85;
+    public const SE_TIDAL_DEFAULT = self::SE_TIDAL_DE431;
+    public const SE_TIDAL_AUTOMATIC = 999999;
+    public const SE_TIDAL_MOSEPH = self::SE_TIDAL_DE404;
+    public const SE_TIDAL_SWIEPH = self::SE_TIDAL_DEFAULT;
+    public const SE_TIDAL_JPLEPH = self::SE_TIDAL_DEFAULT;
+
+    // Delta T automatic mode (for swe_set_delta_t_userdef)
+    public const SE_DELTAT_AUTOMATIC = -1E-10;
+
+    // Invalid Julian day constant (from swephexp.h:450)
+    public const TJD_INVALID = 99999999.0;
+
+    // Photopic/Scotopic vision flags (from swephexp.h:470-472)
+    public const SE_PHOTOPIC_FLAG = 0;
+
+    // Unit conversion constants (from swephexp.h:82-84)
+    public const SE_AUNIT_TO_KM = 149597870.700;
+    public const SE_AUNIT_TO_LIGHTYEAR = 1.0 / 63241.07708427;
+    public const SE_AUNIT_TO_PARSEC = 1.0 / 206264.8062471;
+
+    // Ephemeris file names (from swephexp.h:378-389)
+    public const SE_FNAME_DE200 = 'de200.eph';
+    public const SE_FNAME_DE403 = 'de403.eph';
+    public const SE_FNAME_DE404 = 'de404.eph';
+    public const SE_FNAME_DE405 = 'de405.eph';
+    public const SE_FNAME_DE406 = 'de406.eph';
+    public const SE_FNAME_DE431 = 'de431.eph';
+    public const SE_FNAME_DFT = self::SE_FNAME_DE431;
+    public const SE_FNAME_DFT2 = self::SE_FNAME_DE406;
+
+    // Additional catalog files (from swephexp.h:390-391)
+    public const SE_ASTNAMFILE = 'seasnam.txt';       // Asteroid names file
+    public const SE_FICTFILE = 'seorbel.txt';         // Fictitious planets orbital elements
 
     // Fixed star catalog filenames (swephexp.h:386-387)
     public const SE_STARFILE_OLD = 'fixstars.cat';  // Old binary format
@@ -440,13 +490,17 @@ final class Constants
     public const SE_ACRONYCHAL_RISING = 5;              // Acronychal rising (object rises as sun sets)
     public const SE_ACRONYCHAL_SETTING = 6;             // Acronychal setting (object sets as sun rises)
 
-    // Aliases (from swephexp.h:426-427)
+    // Aliases (from swephexp.h:426-427, 432)
     public const SE_MORNING_FIRST = self::SE_HELIACAL_RISING;   // Alias for heliacal rising
     public const SE_EVENING_LAST = self::SE_HELIACAL_SETTING;   // Alias for heliacal setting
+    public const SE_COSMICAL_SETTING = self::SE_ACRONYCHAL_SETTING; // Alias for acronychal setting
 
     // Heliacal vision flags (from swephexp.h:470-471)
     public const SE_SCOTOPIC_FLAG = 1;                  // Scotopic (dark-adapted) vision flag
     public const SE_MIXEDOPIC_FLAG = 2;                 // Mixed scotopic/photopic vision flag
+
+    // Simulation flag for testing (from swephexp.h:451)
+    public const SIMULATE_VICTORVB = 1;
 
     // Fixed stars constants (from swephexp.h)
     public const SE_MAX_STNAME = 256;                   // Maximum size of fixstar name

@@ -53,16 +53,24 @@ final class DeltaT
     /**
      * Estimate Delta T (seconds) from JD (UT), using full Bessel interpolation.
      *
-     * This method now uses the complete C algorithm port (DeltaTFull) which includes:
-     * - Bessel 4th-order interpolation from table (1620-2028)
-     * - Tidal acceleration correction
-     * - Exact matching with Swiss Ephemeris C implementation
+     * This method now uses the complete C algorithm port:
+     * - For dates before 1 Jan 1955: Stephenson/Morrison/Hohenkerk 2016 spline
+     * - For dates 1955+: Table + Bessel interpolation (DeltaTFull)
      *
      * Previous polynomial approximation is kept in estimateSecondsByYear() for reference only.
      */
     public static function deltaTSecondsFromJd(float $jd): float
     {
-        // Use full Bessel interpolation implementation (exact C port)
+        // Use Stephenson 2016 spline for dates before 1955
+        // This is the default model in Swiss Ephemeris 2.06+
+        if (\Swisseph\Time\DeltaTStephenson2016::shouldUse($jd)) {
+            $dt_sec = \Swisseph\Time\DeltaTStephenson2016::deltaTSeconds($jd);
+            // Add transition factor for smooth transition to table data
+            $dt_sec += \Swisseph\Time\DeltaTStephenson2016::getTransitionFactor($jd);
+            return $dt_sec;
+        }
+
+        // For 1955+: Use table + Bessel interpolation
         $dt_days = \Swisseph\Time\DeltaTFull::deltaTAA($jd, -1);
         return $dt_days * 86400.0; // Convert days to seconds
     }

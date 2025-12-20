@@ -74,6 +74,11 @@ final class SeriesRotation
             ];
         }
 
+        if (getenv('DEBUG_MOON_ROTBACK') && $ipli == SwephConstants::SEI_MOON) {
+            error_log(sprintf("DEBUG rotateBack MOON: raw x[0]=[%.15e, %.15e, %.15e]", $x[0][0], $x[0][1], $x[0][2]));
+            error_log(sprintf("  iflg=0x%X, SEI_FLG_ELLIPSE=%d", $pdp->iflg, ($pdp->iflg & SwephConstants::SEI_FLG_ELLIPSE) ? 1 : 0));
+        }
+
         if (getenv('DEBUG_OSCU') && $ipli == SwephConstants::SEI_JUPITER) {
             error_log(sprintf("  AFTER copy from segp: x[0]=[%.10f, %.10f, %.10f]", $x[0][0], $x[0][1], $x[0][2]));
             error_log(sprintf("  iflg=0x%X, SEI_FLG_ELLIPSE=0x%X, check=%d", $pdp->iflg, SwephConstants::SEI_FLG_ELLIPSE, $pdp->iflg & SwephConstants::SEI_FLG_ELLIPSE));
@@ -89,11 +94,20 @@ final class SeriesRotation
             $com = cos($omtild);
             $som = sin($omtild);
 
+            if (getenv('DEBUG_MOON_ROTBACK') && $ipli == SwephConstants::SEI_MOON) {
+                error_log(sprintf("DEBUG ELLIPSE: omtild=%.15f, com=%.15f, som=%.15f", $omtild, $com, $som));
+                error_log(sprintf("  refepx[0]=%.15e, refepy[0]=%.15e", $refepx[0], $refepx[$nco]));
+            }
+
             // Add reference orbit
             for ($i = 0; $i < $nco; $i++) {
                 $refepy_i = $refepx[$i + $nco]; // refepy starts at offset nco
                 $x[$i][0] = $pdp->segp[$i] + $com * $refepx[$i] - $som * $refepy_i;
                 $x[$i][1] = $pdp->segp[$i + $chcfy_offset] + $com * $refepy_i + $som * $refepx[$i];
+            }
+
+            if (getenv('DEBUG_MOON_ROTBACK') && $ipli == SwephConstants::SEI_MOON) {
+                error_log(sprintf("DEBUG ELLIPSE: AFTER x[0]=[%.15e, %.15e, %.15e]", $x[0][0], $x[0][1], $x[0][2]));
             }
         }
 
@@ -157,6 +171,11 @@ final class SeriesRotation
             if ($ipli == SwephConstants::SEI_MOON) {
                 $x[$i][1] = self::CEPS2000 * $yrot - self::SEPS2000 * $zrot;
                 $x[$i][2] = self::SEPS2000 * $yrot + self::CEPS2000 * $zrot;
+
+                if (getenv('DEBUG_MOON_ROTBACK') && $i == 0) {
+                    error_log(sprintf("DEBUG MOON i=0: after ecliptic rot xrot=[%.15e, %.15e, %.15e]", $xrot, $yrot, $zrot));
+                    error_log(sprintf("DEBUG MOON i=0: after J2000 eq rot x[0]=[%.15e, %.15e, %.15e]", $x[$i][0], $x[$i][1], $x[$i][2]));
+                }
             }
         }
 
@@ -165,6 +184,11 @@ final class SeriesRotation
             $pdp->segp[$i] = $x[$i][0];
             $pdp->segp[$i + $chcfy_offset] = $x[$i][1];
             $pdp->segp[$i + $chcfz_offset] = $x[$i][2];
+        }
+
+        if (getenv('DEBUG_MOON_ROTBACK') && $ipli == SwephConstants::SEI_MOON) {
+            error_log(sprintf("DEBUG MOON FINAL segp[0]=[%.15e, %.15e, %.15e]",
+                $pdp->segp[0], $pdp->segp[$nco], $pdp->segp[2*$nco]));
         }
 
         // DEBUG: Output ALL coefficients for Jupiter
