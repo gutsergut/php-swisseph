@@ -16,6 +16,9 @@ final class SwedState
     /** Ephemeris path */
     public string $ephepath = '';
 
+    /** JPL ephemeris file name (e.g., 'de441.eph') */
+    public ?string $jplFile = null;
+
     /** JPL ephemeris DE number (e.g., 431, 406) */
     public int $jpldenum = 0;
 
@@ -137,6 +140,30 @@ final class SwedState
     public function setEphePath(string $path): void
     {
         $this->ephepath = $path;
+    }
+
+    /**
+     * Get ephemeris path
+     */
+    public function getEphePath(): string
+    {
+        return $this->ephepath;
+    }
+
+    /**
+     * Set JPL ephemeris file name
+     */
+    public function setJplFile(?string $fname): void
+    {
+        $this->jplFile = $fname;
+    }
+
+    /**
+     * Get JPL ephemeris file name
+     */
+    public function getJplFile(): ?string
+    {
+        return $this->jplFile;
     }
 
     /**

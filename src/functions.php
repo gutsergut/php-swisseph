@@ -86,6 +86,8 @@ if (!function_exists('swe_set_jpl_file')) {
     function swe_set_jpl_file(string $fname): void
     {
         State::setJplFile($fname);
+        // Also set in SwedState for JPL ephemeris reader
+        \Swisseph\SwephFile\SwedState::getInstance()->setJplFile($fname);
     }
 }
 if (!function_exists('swe_set_topo')) {
