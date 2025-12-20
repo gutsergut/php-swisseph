@@ -381,6 +381,10 @@ Full JPL Development Ephemeris reader implemented for maximum precision calculat
 - **Supported files**: DE200, DE405, DE406, DE406e, DE421, DE430, DE431, DE440, DE441
 - **Endianness support**: Little-endian (DE200) and big-endian (DE406e) formats auto-detected
 - **Accuracy**: **0.000 km difference** with C `swi_pleph()` reference
+- **JPLHOR mode**: `SEFLG_JPLHOR` flag for JPL Horizons compatibility (requires `SEFLG_JPLEPH`)
+  - Uses IAU 1976 precession model (within 1799-2202)
+  - Uses IAU 1980 nutation model
+  - EOP (Earth Orientation Parameters) data support via `EopData.php`
 - **API functions**:
   - `JplEphemeris::open()` - Open and parse JPL ephemeris header
   - `JplEphemeris::pleph()` - Compute planet/Moon barycentric position (Chebyshev interpolation)
