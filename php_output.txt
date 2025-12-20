@@ -1,18 +1,90 @@
-========================================
-PHP Fatal error:  Uncaught DivisionByZeroError: Division by zero in C:\Users\serge\OneDrive\Documents\Fractal\Projects\Component\Swisseph\php-swisseph\debug_step_by_step.php:71
-Stack trace:
-#0 C:\Users\serge\OneDrive\Documents\Fractal\Projects\Component\Swisseph\php-swisseph\debug_step_by_step.php(185): find_conjunct_sun_debug()
-#1 {main}
-  thrown in C:\Users\serge\OneDrive\Documents\Fractal\Projects\Component\Swisseph\php-swisseph\debug_step_by_step.php on line 71
-  PHP Step-by-Step Heliacal Debug
-========================================
+=== TRANSFORMATION CHAIN DEBUG ===
 
-Venus Heliacal Rising (TypeEvent=1)
-Start date: JD 2451697.5 (2000-06-01)
-Location: 13.4E, 52.5N, 100m
-Expected result: JD 2452004.66233
+Input (ecliptic cartesian, mean ecliptic of date):
+  xn = [-2.150182790315939, 11.615777917322994, 0.000000000000000]
+  Initial lon = 100.4872458934°
 
-=== FIND_CONJUNCT_SUN Debug (PHP) ===
-Input: tjd_start=2451697.5, ipl=2 (Venus), TypeEvent=1
-Aspect: 0 degrees (0=conjunction)
-Reference epoch (TCON[4]): 2451310
+Obliquity: oe=0.409092600595735 rad, seps=0.3977769691, ceps=0.9174821431
+Nutation: dpsi=-0.000067545162374, deps=-0.000027958843155 rad
+          snut=-0.0000279588, cnut=0.9999999996
+
+=== STEP 1: Apply nutation rotation (if is_true_nodaps && !NONUT) ===
+C code: swi_coortrf2(xp, xp, -swed.nut.snut, swed.nut.cnut)
+After nutation rotation:
+  xn = [-2.150182790315939, 11.615777912782985, -0.000324763712873]
+
+=== STEP 2: Ecliptic → Equator ===
+C code: swi_coortrf2(xp, xp, -oe->seps, oe->ceps)
+After ecliptic→equator:
+  xn = [-2.150182790315939, 10.657397996337819, 4.620190967073023]
+
+=== STEP 3: Remove nutation (swi_nutate backward) ===
+C code: swi_nutate(xp, iflag, TRUE)
+Nutation matrix (flat): [0.9999999977, -0.0000619722, -0.0000268662, 0.0000619715, 0.9999999977, -0.0000279597, 0.0000268679, 0.0000279580, 0.9999999992]
+After nutate backward:
+  xn = [-2.150967375015928, 10.657135542656333, 4.620431152328490]
+
+=== STEP 4: Precess J_TO_J2000 ===
+C code: swi_precess(xp, tjd_et, iflag, J_TO_J2000)
+After precession to J2000:
+  xn = [-2.150967375015928, 10.657135542656333, 4.620431152328490]
+
+=== STEP 5: Add barycentric Sun position ===
+C code: xp[j] += xsun[j]
+DEBUG SwephCalculator: SEI_SUNBARY requested, tjd=2451545.0000000000, sunPdp->teval=0.0000000000, cached=0, speedf1=0, speedf2=256
+DEBUG openAndReadHeader: ipli=5, iflg=0xA, ncoe=26
+DEBUG SwephCalculator: loading segment for ipli=10 (ipl=10), tjd=2451545.00
+DEBUG SwephCalculator: SUNBARY file has EMBHEL flag (0xF), will compute Sun = EMB - helio_earth
+DEBUG Chebyshev: tjd=2451545.0000000000000000, tseg0=2451182.2470546220429242, dseg=365.2596311524379757, t_normalized=0.9862744986815433
+DEBUG SwephCalculator AFTER Chebyshev interpolation: ipli=10, xp=[-0.177158787015786, 0.887406857868971, 0.384736716842505], velocity=[-0.017203111090541, -0.002902842117099, -0.001258509585217]
+DEBUG SwephCalculator: EMBHEL flag present (0xF), will compute Sun = EMB - helio_earth
+DEBUG SwephCalculator check EMBHEL: ipli=10, ipl=10, readEarthForSun=1, pdp->iflg=0xF, SEI_FLG_EMBHEL=0x8, has_EMBHEL=1
+DEBUG SwephCalculator: loading segment for ipli=0 (ipl=0), tjd=2451545.00
+Direct SwephCalculator retc=0, xps=[-0.007136451926756, -0.002647022228874, -0.000922948543383]
+DEBUG SwephCalculator SUNBARY via Earth: tjd=2451545.0000000000, xemb=[-0.184295238942542,0.884759835640097,0.383813768299122], helio_earth=[-0.177158787015786,0.887406857868971,0.384736716842505]
+DEBUG SwephCalculator SUNBARY result: EMB - helio_earth = [-0.007136451926756,-0.002647022228874,-0.000922948543383]
+DEBUG SwephCalculator: saved SEI_SUNBARY tjd=2451545.0000000000, xp=[-0.007136451926756,-0.002647022228874,-0.000922948543383], pdp->x=[-0.007136451926756,-0.002647022228874,-0.000922948543383]
+DEBUG SwephCalculator EXIT: ipli=10, tjd=2451545.0000000000, xp=[-0.007136451926756,-0.002647022228874,-0.000922948543383], xpret=[-0.007136451926756,-0.002647022228874,-0.000922948543383]
+SwedState SEI_SUNBARY: x=[-0.007136451926756, -0.002647022228874, -0.000922948543383], teval=2451545.0000000000
+Barycentric Sun: [-0.007136451926756, -0.002647022228874, -0.000922948543383]
+After adding Sun:
+  xn = [-2.158103826942684, 10.654488520427458, 4.619508203785108]
+
+=== STEP 6: Subtract observer (geocentric Earth) ===
+C code: xp[j] -= xobs[j]
+Barycentric Earth: [0.000023668209900, 0.000021647919690, 0.000006183692261]
+After subtracting observer:
+  xn = [-2.158127495152584, 10.654466872507768, 4.619502020092846]
+
+=== STEP 7-8: Light deflection & Aberration (SKIPPED) ===
+
+=== STEP 9: Precess J2000_TO_J ===
+C code: swi_precess(xp, tjd_et, iflag, J2000_TO_J)
+After precession to date:
+  xn = [-2.158127495152584, 10.654466872507768, 4.619502020092846]
+
+=== STEP 10: Apply nutation (forward) ===
+C code: swi_nutate(xp, iflag, FALSE)
+After nutate forward:
+  xn = [-2.157343100781542, 10.654729743947357, 4.619262101818286]
+
+=== STEP 11: Equator → Ecliptic ===
+C code: swi_coortrf2(xp, xp, oe->seps, oe->ceps)
+After equator→ecliptic:
+  xn = [-2.157343100781542, 11.612960357655801, -0.000115611648717]
+
+=== STEP 12: Apply nutation rotation to ecliptic ===
+C code: swi_coortrf2(xp, xp, swed.nut.snut, swed.nut.cnut)
+After final nutation:
+  xn = [-2.157343100781542, 11.612960356349260, 0.000209073288493]
+
+=== STEP 13: Convert to polar (spherical) ===
+Final result:
+  lon = 100.5238865284°
+  lat = 0.0010141700°
+  r   = 11.8116458437 AU
+
+=== COMPARISON ===
+C reference:    100.5196455351°
+PHP calculated: 100.5238865284°
+Difference:     0.0042409933° (15.2676 arcsec)

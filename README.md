@@ -373,7 +373,21 @@ Full VSOP87 integration for major planets achieved with **sub-arcsecond to few-a
 - **Documentation**: See [docs/VSOP87-COORDINATE-FIX.md](docs/VSOP87-COORDINATE-FIX.md) for complete technical analysis
 - **Tests**: All 35 VSOP87 unit tests passing; comprehensive validation scripts in `scripts/test_vsop87_*.php`
 
-Next steps: Extend precision with JPL DE ephemerides while preserving transformation architecture.
+## 🔭 JPL DE Ephemeris Support (December 2025)
+
+Full JPL Development Ephemeris reader implemented for maximum precision calculations:
+
+- **Complete port of swejpl.c** (~949 lines PHP): Binary format reader with Chebyshev interpolation
+- **Supported files**: DE200, DE405, DE406, DE406e, DE421, DE430, DE431, DE440, DE441
+- **Endianness support**: Little-endian (DE200) and big-endian (DE406e) formats auto-detected
+- **Accuracy**: **0.000 km difference** with C `swi_pleph()` reference
+- **API functions**:
+  - `JplEphemeris::open()` - Open and parse JPL ephemeris header
+  - `JplEphemeris::pleph()` - Compute planet/Moon barycentric position (Chebyshev interpolation)
+  - `JplEphemeris::close()` - Close ephemeris file
+- **Key insight**: `swetest -bary` applies light-time correction; `pleph()` returns true geometric position (like `swe_calc` with `SEFLG_TRUEPOS`)
+- **Tests**: 10 PHPUnit tests covering DE200 and DE406e ephemerides
+- **Usage**: Set ephemeris path with `swe_set_jpl_file()` and use `SEFLG_JPLEPH` flag
 
 ## 🛰 Recent Updates
 
