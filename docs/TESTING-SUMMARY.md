@@ -1,8 +1,47 @@
 # Swiss Ephemeris PHP Port - Testing Summary
 
-**Date**: 12 января 2025
-**Total Progress**: 95/200+ functions (48%)
-**PHPUnit Tests**: 140 tests, 1042 assertions, 93% pass rate
+**Date**: 20 декабря 2025
+**C API Coverage**: 106/106 functions (**100%**)
+**PHPUnit Tests**: 209 tests, 1559 assertions (**100% pass**)
+**Comprehensive Tests**: 327 tests across 20 categories (**100% pass**)
+**Total Test Coverage**: 536 tests verified against swetest64.exe
+
+---
+
+## 🎯 Comprehensive Test Coverage (test_all_parameters.php)
+
+All 327 tests pass with 100% accuracy against `swetest64.exe` reference:
+
+| # | Section | Tests | Status | Max Error |
+|---|---------|-------|--------|-----------|
+| 1 | Ecliptic Geocentric | 80 | ✓ 100% | — |
+| 2 | Equatorial (RA/Dec) | 33 | ✓ 100% | 0.006 arcsec |
+| 3 | Heliocentric | 20 | ✓ 100% | 0.551 arcsec |
+| 4 | Barycentric | 4 | ✓ 100% | 0.005 arcsec |
+| 5 | True Position | 40 | ✓ 100% | 0.005 arcsec |
+| 6 | No Nutation | 40 | ✓ 100% | 0.000 arcsec |
+| 7 | Speed Calculations | 20 | ✓ 100% | 0.000098 deg/day |
+| 8 | Lunar Nodes | 6 | ✓ 100% | — |
+| 9 | Asteroids | 12 | ✓ 100% | 0.005 arcsec |
+| 10 | House Systems | 24 | ✓ 100% | — |
+| 11 | Delta T | 5 | ✓ 100% | — |
+| 12 | Sidereal Time | 2 | ✓ 100% | — |
+| 13 | Calendar Conversions | 3 | ✓ 100% | — |
+| 14 | Combined Flags | 3 | ✓ 100% | — |
+| 15 | Edge Cases | 7 | ✓ 100% | — |
+| 16 | Radians Output | 2 | ✓ 100% | — |
+| 17 | XYZ Coordinates | 3 | ✓ 100% | — |
+| 18 | Extended Date Range | 10 | ✓ 100% | 0.009 arcsec |
+| 19 | Reverse Calendar | 3 | ✓ 100% | — |
+| 20 | Planet Names | 10 | ✓ 100% | — |
+
+**Tested Parameters:**
+- All 10 planets (Sun-Pluto) + Moon
+- 6 asteroids (Chiron, Pholus, Ceres, Pallas, Juno, Vesta)
+- Lunar nodes (mean/true)
+- 8 house systems (Placidus, Koch, Equal, Whole Sign, etc.)
+- All major flags: SEFLG_EQUATORIAL, SEFLG_HELCTR, SEFLG_BARYCTR, SEFLG_TRUEPOS, SEFLG_NONUT, SEFLG_SPEED, SEFLG_RADIANS, SEFLG_XYZ
+- Date range: 1900-2100
 
 ---
 
