@@ -10,19 +10,22 @@ use Swisseph\Swe\Jpl\JplConstants;
 
 /**
  * Test JplEphemeris reading and interpolation
- * Reference values from swetest64.exe with -j2000 -bary flags
- * (raw ICRF coordinates without precession)
+ * Reference values from swe_calc() with SEFLG_TRUEPOS flag
+ * (geometric true position without light-time correction)
+ *
+ * Note: swetest -bary applies light-time correction by default,
+ * but our pleph() returns raw geometric position like swe_calc with SEFLG_TRUEPOS.
  */
 class JplEphemerisTest extends TestCase
 {
     private const EPH_DIR = __DIR__ . '/../../eph/data/ephemerides/jpl';
 
     /**
-     * Tolerance in AU (~10,000 km)
-     * JPL ephemeris has intrinsic accuracy of ~few km, but our interpolation
-     * has small numerical differences
+     * Tolerance in AU
+     * Our pleph() should match swe_calc(SEFLG_TRUEPOS) exactly,
+     * allowing only for floating point rounding errors (~1e-12 AU = 0.15 km)
      */
-    private const TOLERANCE_AU = 0.0001;
+    private const TOLERANCE_AU = 0.000001;
 
     public static function setUpBeforeClass(): void
     {
@@ -55,7 +58,7 @@ class JplEphemerisTest extends TestCase
 
     /**
      * Test Mercury barycentric coordinates at J2000
-     * Reference: swetest -ejplde200.eph -p2 -bj2451545.0 -fPx -bary -j2000
+     * Reference: swe_calc with SEFLG_JPLEPH | SEFLG_BARYCTR | SEFLG_TRUEPOS
      */
     public function testMercuryJ2000(): void
     {
@@ -73,15 +76,16 @@ class JplEphemerisTest extends TestCase
 
         $this->assertEquals(JplConstants::OK, $ret, "pleph failed: $serr");
 
-        // swetest reference: -0.137290981   -0.403222600   -0.201397090
-        $this->assertEqualsWithDelta(-0.137290981, $pv[0], self::TOLERANCE_AU, 'X coordinate');
-        $this->assertEqualsWithDelta(-0.403222600, $pv[1], self::TOLERANCE_AU, 'Y coordinate');
-        $this->assertEqualsWithDelta(-0.201397090, $pv[2], self::TOLERANCE_AU, 'Z coordinate');
+        // swe_calc(SEFLG_TRUEPOS) reference from test_icrs.c:
+        // X = -0.137232824939499, Y = -0.403236028136555, Z = -0.201410291050597
+        $this->assertEqualsWithDelta(-0.137232824939499, $pv[0], self::TOLERANCE_AU, 'X coordinate');
+        $this->assertEqualsWithDelta(-0.403236028136555, $pv[1], self::TOLERANCE_AU, 'Y coordinate');
+        $this->assertEqualsWithDelta(-0.201410291050597, $pv[2], self::TOLERANCE_AU, 'Z coordinate');
     }
 
     /**
      * Test Mercury at early date in DE200
-     * Reference: swetest -ejplde200.eph -p2 -bj2305500.0 -fPx -bary -j2000
+     * Reference: swi_pleph direct call
      */
     public function testMercuryEarlyDate(): void
     {
@@ -99,10 +103,10 @@ class JplEphemerisTest extends TestCase
 
         $this->assertEquals(JplConstants::OK, $ret, "pleph failed: $serr");
 
-        // swetest reference: -0.373557180   -0.186509746   -0.059546932
-        $this->assertEqualsWithDelta(-0.373557180, $pv[0], self::TOLERANCE_AU, 'X coordinate');
-        $this->assertEqualsWithDelta(-0.186509746, $pv[1], self::TOLERANCE_AU, 'Y coordinate');
-        $this->assertEqualsWithDelta(-0.059546932, $pv[2], self::TOLERANCE_AU, 'Z coordinate');
+        // swi_pleph reference: -0.373540420754073, -0.186560502305015, -0.059575768073929
+        $this->assertEqualsWithDelta(-0.373540420754073, $pv[0], self::TOLERANCE_AU, 'X coordinate');
+        $this->assertEqualsWithDelta(-0.186560502305015, $pv[1], self::TOLERANCE_AU, 'Y coordinate');
+        $this->assertEqualsWithDelta(-0.059575768073929, $pv[2], self::TOLERANCE_AU, 'Z coordinate');
     }
 
     /**
@@ -244,10 +248,10 @@ class JplEphemerisTest extends TestCase
 
         $this->assertEquals(JplConstants::OK, $ret, "pleph failed: $serr");
 
-        // swetest reference: -0.137288206   -0.403227332   -0.201399029
-        $this->assertEqualsWithDelta(-0.137288206, $pv[0], self::TOLERANCE_AU, 'X coordinate');
-        $this->assertEqualsWithDelta(-0.403227332, $pv[1], self::TOLERANCE_AU, 'Y coordinate');
-        $this->assertEqualsWithDelta(-0.201399029, $pv[2], self::TOLERANCE_AU, 'Z coordinate');
+        // pleph direct reference: -0.137230061954675, -0.403240744081480, -0.201412255061903
+        $this->assertEqualsWithDelta(-0.137230061954675, $pv[0], self::TOLERANCE_AU, 'X coordinate');
+        $this->assertEqualsWithDelta(-0.403240744081480, $pv[1], self::TOLERANCE_AU, 'Y coordinate');
+        $this->assertEqualsWithDelta(-0.201412255061903, $pv[2], self::TOLERANCE_AU, 'Z coordinate');
     }
 
     /**
@@ -270,8 +274,8 @@ class JplEphemerisTest extends TestCase
 
         $this->assertEquals(JplConstants::OK, $ret, "pleph failed: $serr");
 
-        // swetest reference: -0.219466143    0.217997287    0.140809041
-        $this->assertEqualsWithDelta(-0.219466143, $pv[0], self::TOLERANCE_AU, 'X coordinate');
-        $this->assertEqualsWithDelta(0.217997287, $pv[1], self::TOLERANCE_AU, 'Y coordinate');
-        $this->assertEqualsWithDelta(0.140809041, $pv[2], self::TOLERANCE_AU, 'Z coordinate');
+        // pleph direct reference: -0.219517638315141, 0.217966303804833, 0.140799261744676
+        $this->assertEqualsWithDelta(-0.219517638315141, $pv[0], self::TOLERANCE_AU, 'X coordinate');
+        $this->assertEqualsWithDelta(0.217966303804833, $pv[1], self::TOLERANCE_AU, 'Y coordinate');
+        $this->assertEqualsWithDelta(0.140799261744676, $pv[2], self::TOLERANCE_AU, 'Z coordinate');
     }}
