@@ -27,6 +27,9 @@ $planets = [
     Constants::SE_MARS => 'Mars',
     Constants::SE_JUPITER => 'Jupiter',
     Constants::SE_SATURN => 'Saturn',
+    Constants::SE_URANUS => 'Uranus',
+    Constants::SE_NEPTUNE => 'Neptune',
+    Constants::SE_PLUTO => 'Pluto',
 ];
 
 echo "=== Planet positions at J2000.0 (JD=2451545.0) ===\n";
