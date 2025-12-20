@@ -14,8 +14,14 @@ use Swisseph\Swe\Jpl\JplEphemeris;
  * JPL Ephemeris strategy for planet calculations
  * Uses DE405, DE431, DE440, DE441, etc.
  *
- * This strategy fetches raw barycentric J2000 coordinates from JPL ephemeris
+ * This strategy fetches barycentric equatorial J2000 coordinates from JPL ephemeris
  * and passes them through the same apparent position pipeline as SwephStrategy.
+ *
+ * Port of jplplan() from sweph.c:1987-2103
+ *
+ * Key insight: JPL returns coordinates in ICRS (equatorial), same as Swiss Ephemeris
+ * files store coordinates in equatorial J2000. The pipeline (app_pos_etc_plan +
+ * app_pos_rest) handles all transformations including equatorial→ecliptic conversion.
  */
 class JplStrategy implements EphemerisStrategy
 {
@@ -40,200 +46,223 @@ class JplStrategy implements EphemerisStrategy
 
     public function compute(float $jdTt, int $ipl, int $iflag): StrategyResult
     {
+        $swed = SwedState::getInstance();
+        $serr = null;
+
         // Initialize JPL ephemeris if needed
         if (!$this->initialized) {
-            $this->jpl = JplEphemeris::getInstance();
-            $swed = SwedState::getInstance();
-
-            // Try to open JPL ephemeris file
-            $jplFile = $swed->getJplFile();
-            if (empty($jplFile)) {
-                $jplFile = 'de441.eph';  // Default
+            $initResult = $this->initializeJpl($swed);
+            if ($initResult !== null) {
+                return $initResult;
             }
-
-            $ss = [];
-            $serr = null;
-            $ret = $this->jpl->open($ss, $jplFile, $swed->getEphePath(), $serr);
-
-            if ($ret !== JplConstants::OK) {
-                return StrategyResult::err(
-                    $serr ?? 'Could not open JPL ephemeris file',
-                    Constants::SE_ERR
-                );
-            }
-
-            $this->initialized = true;
         }
 
-        // Map SE planet to JPL body index
+        // Map SE planet to internal index and JPL body index
+        $ipli = $this->seToIpli($ipl);
         $jplTarget = $this->seToJpl($ipl);
-        if ($jplTarget < 0) {
+        if ($jplTarget < 0 || $ipli < 0) {
             return StrategyResult::err(
                 sprintf('Planet %d not supported by JPL ephemeris', $ipl),
                 Constants::SE_ERR
             );
         }
 
-        $swed = SwedState::getInstance();
-        $serr = null;
+        // Get references to plan_data structures
+        $pdp = &$swed->pldat[$ipli];
+        $pedp = &$swed->pldat[SwephConstants::SEI_EARTH];
+        $psdp = &$swed->pldat[SwephConstants::SEI_SUNBARY];
 
-        // Always get planet barycentric (relative to SSB) for pipeline
-        $planetBary = [];
-        $ret = $this->jpl->pleph($jdTt, $jplTarget, JplConstants::J_SBARY, $planetBary, $serr);
-        if ($ret !== JplConstants::OK) {
-            return StrategyResult::err($serr ?? 'JPL ephemeris error for planet', Constants::SE_ERR);
-        }
-
-        // Get Earth barycentric (EMB relative to SSB) - needed for geocentric calcs
-        $earthBary = [];
-        $ret = $this->jpl->pleph($jdTt, JplConstants::J_EARTH, JplConstants::J_SBARY, $earthBary, $serr);
-        if ($ret !== JplConstants::OK) {
-            return StrategyResult::err($serr ?? 'JPL ephemeris error for Earth', Constants::SE_ERR);
-        }
-
-        // Get Sun barycentric (relative to SSB) - needed for heliocentric calcs
-        $sunBary = [];
-        $ret = $this->jpl->pleph($jdTt, JplConstants::J_SUN, JplConstants::J_SBARY, $sunBary, $serr);
-        if ($ret !== JplConstants::OK) {
-            return StrategyResult::err($serr ?? 'JPL ephemeris error for Sun', Constants::SE_ERR);
-        }
-
-        // Convert from equatorial J2000 to ecliptic J2000
-        $planetEcl = $this->equatorialToEcliptic($planetBary);
-        $earthEcl = $this->equatorialToEcliptic($earthBary);
-        $sunEcl = $this->equatorialToEcliptic($sunBary);
-
-        // NOTE: Do NOT store in SwedState pldat - this would corrupt cache for other ephemerides
-        // JplStrategy handles its own geocentric transformations without relying on global state
-
-        // Moon special case: pipeline expects geocentric directly
-        if ($ipl === Constants::SE_MOON) {
-            $moonGeo = [];
-            $ret = $this->jpl->pleph($jdTt, JplConstants::J_MOON, JplConstants::J_EARTH, $moonGeo, $serr);
-            if ($ret !== JplConstants::OK) {
-                return StrategyResult::err($serr ?? 'JPL ephemeris error for Moon', Constants::SE_ERR);
-            }
-            $moonEcl = $this->equatorialToEcliptic($moonGeo);
-            // Use MoonTransform for full apparent position
-            $swed->pldat[SwephConstants::SEI_MOON]->x = $moonEcl;
-            $retc = \Swisseph\Swe\Moon\MoonTransform::appPosEtc($iflag, $serr);
+        // Check if already computed for this date with JPL
+        if ($pdp->teval === $jdTt && $pdp->iephe === Constants::SEFLG_JPLEPH) {
+            // Already computed, use cached data
+            // But we still need to run through the pipeline for output format
+        } else {
+            // Fetch coordinates from JPL ephemeris
+            $retc = $this->fetchJplCoordinates($jdTt, $ipl, $ipli, $jplTarget, $iflag, $serr);
             if ($retc !== Constants::SE_OK) {
-                return StrategyResult::err($serr ?? 'Moon transform error', $retc);
-            }
-            $pdp = &$swed->pldat[SwephConstants::SEI_MOON];
-            $offset = 0;
-            if ($iflag & Constants::SEFLG_EQUATORIAL) {
-                $offset = ($iflag & Constants::SEFLG_XYZ) ? 18 : 12;
-            } else {
-                $offset = ($iflag & Constants::SEFLG_XYZ) ? 6 : 0;
-            }
-            $out = [0,0,0,0,0,0];
-            for ($i=0; $i<6; $i++) { $out[$i] = $pdp->xreturn[$offset+$i]; }
-            return StrategyResult::okFinal($out);
-        }
-
-        // For geocentric calculations, compute planet - Earth
-        $isHeliocentric = (bool)($iflag & Constants::SEFLG_HELCTR);
-        $isBarycentric = (bool)($iflag & Constants::SEFLG_BARYCTR);
-
-        $xx = $planetEcl;
-        if (!$isHeliocentric && !$isBarycentric) {
-            // Geocentric: subtract Earth position
-            for ($i = 0; $i < 6; $i++) {
-                $xx[$i] = $planetEcl[$i] - $earthEcl[$i];
-            }
-        } elseif ($isHeliocentric) {
-            // Heliocentric: subtract Sun position
-            for ($i = 0; $i < 6; $i++) {
-                $xx[$i] = $planetEcl[$i] - $sunEcl[$i];
-            }
-        }
-        // For barycentric, xx = planetEcl (already relative to SSB)
-
-        // Apply light-time correction if needed
-        if (!($iflag & Constants::SEFLG_TRUEPOS) && $ipl !== Constants::SE_EARTH) {
-            $c_au_per_day = 173.144632674240;
-            $r = sqrt($xx[0]*$xx[0] + $xx[1]*$xx[1] + $xx[2]*$xx[2]);
-            $dt_light = $r / $c_au_per_day;
-
-            // Rough apparent position (one iteration)
-            for ($i = 0; $i < 3; $i++) {
-                $xx[$i] = $xx[$i] - $xx[$i + 3] * $dt_light;
+                return StrategyResult::err($serr ?? 'JPL fetch error', $retc);
             }
         }
 
-        // Ensure obliquity is calculated
-        if ($swed->oec->needsUpdate($jdTt)) {
-            $swed->oec->calculate($jdTt, $iflag);
-        }
-        if ($swed->oec2000->needsUpdate(Constants::J2000)) {
-            $swed->oec2000->calculate(Constants::J2000, $iflag);
+        // Special handling for Moon
+        if ($ipl === Constants::SE_MOON) {
+            return $this->computeMoon($jdTt, $iflag, $serr);
         }
 
-        // Apply precession from J2000 to date (unless SEFLG_J2000 set)
-        if (!($iflag & Constants::SEFLG_J2000)) {
-            \Swisseph\Precession::precess($xx, $jdTt, $iflag, Constants::J2000_TO_J);
-            if ($iflag & Constants::SEFLG_SPEED) {
-                \Swisseph\Precession::precessSpeed($xx, $jdTt, $iflag, Constants::J2000_TO_J);
-            }
+        // Special handling for Sun
+        // Geocentric Sun = -geocentric Earth (Earth relative to Sun)
+        // In C: app_pos_etc_sun() handles this
+        if ($ipl === Constants::SE_SUN) {
+            return $this->computeSun($jdTt, $iflag, $serr);
         }
 
-        // Convert cartesian to polar (ecliptic longitude, latitude, distance)
-        $r = sqrt($xx[0]*$xx[0] + $xx[1]*$xx[1] + $xx[2]*$xx[2]);
-        $lon = rad2deg(atan2($xx[1], $xx[0]));
-        if ($lon < 0) $lon += 360.0;
-        $lat = rad2deg(asin($xx[2] / $r));
-
-        // Speed in polar coordinates (simple approximation)
-        $lonSpeed = 0.0;
-        $latSpeed = 0.0;
-        $distSpeed = 0.0;
-        if ($iflag & Constants::SEFLG_SPEED) {
-            // Numerical differentiation would be more accurate, but for now use chain rule
-            $rxy = sqrt($xx[0]*$xx[0] + $xx[1]*$xx[1]);
-            if ($rxy > 0 && $r > 0) {
-                $lonSpeed = rad2deg(($xx[0]*$xx[4] - $xx[1]*$xx[3]) / ($rxy*$rxy));
-                $latSpeed = rad2deg(($xx[5]*$rxy - $xx[2]*($xx[0]*$xx[3]+$xx[1]*$xx[4])/$rxy) / ($r*$r));
-                $distSpeed = ($xx[0]*$xx[3] + $xx[1]*$xx[4] + $xx[2]*$xx[5]) / $r;
-            }
+        // SE_SUN + BARYCTR: special path like SwephStrategy
+        if ($ipl === Constants::SE_SUN && ($iflag & Constants::SEFLG_BARYCTR)) {
+            $final = PlanetApparentPipeline::appPosEtcSbar($jdTt, $iflag);
+            return StrategyResult::okFinal($final);
         }
 
-        return StrategyResult::okFinal([$lon, $lat, $r, $lonSpeed, $latSpeed, $distSpeed]);
+        // Use the same pipeline as SwephStrategy
+        // pdp->x now contains barycentric equatorial J2000 coordinates
+        $xpret = $pdp->x;
+
+        $final = PlanetApparentPipeline::computeFinal($jdTt, $ipl, $iflag, $xpret);
+        return StrategyResult::okFinal($final);
     }
 
     /**
-     * Convert equatorial J2000 coordinates to ecliptic J2000
-     * Uses obliquity at J2000.0 epoch
-     *
-     * Ecliptic→Equatorial: y_eq = y_ecl*cos(eps) - z_ecl*sin(eps), z_eq = y_ecl*sin(eps) + z_ecl*cos(eps)
-     * Equatorial→Ecliptic (inverse): y_ecl = y_eq*cos(eps) + z_eq*sin(eps), z_ecl = -y_eq*sin(eps) + z_eq*cos(eps)
+     * Initialize JPL ephemeris file
      */
-    private function equatorialToEcliptic(array $equatorial): array
+    private function initializeJpl(SwedState $swed): ?StrategyResult
     {
-        // Mean obliquity at J2000.0 in radians
-        $eps = deg2rad(23.4392911);
-        $cosEps = cos($eps);
-        $sinEps = sin($eps);
+        $this->jpl = JplEphemeris::getInstance();
 
-        // Position (inverse rotation by eps around X-axis)
-        $x = $equatorial[0];
-        $y = $equatorial[1];
-        $z = $equatorial[2];
+        $jplFile = $swed->getJplFile();
+        if (empty($jplFile)) {
+            $jplFile = 'de441.eph';  // Default
+        }
 
-        $xEcl = $x;
-        $yEcl = $y * $cosEps + $z * $sinEps;
-        $zEcl = -$y * $sinEps + $z * $cosEps;
+        $ss = [];
+        $serr = null;
+        $ret = $this->jpl->open($ss, $jplFile, $swed->getEphePath(), $serr);
 
-        // Velocity
-        $vx = $equatorial[3];
-        $vy = $equatorial[4];
-        $vz = $equatorial[5];
+        if ($ret !== JplConstants::OK) {
+            return StrategyResult::err(
+                $serr ?? 'Could not open JPL ephemeris file',
+                Constants::SE_ERR
+            );
+        }
 
-        $vxEcl = $vx;
-        $vyEcl = $vy * $cosEps + $vz * $sinEps;
-        $vzEcl = -$vy * $sinEps + $vz * $cosEps;
+        $this->initialized = true;
+        return null;  // Success
+    }
 
-        return [$xEcl, $yEcl, $zEcl, $vxEcl, $vyEcl, $vzEcl];
+    /**
+     * Fetch coordinates from JPL and store in pldat
+     * Port of jplplan() from sweph.c:1987-2103
+     *
+     * JPL returns coordinates in ICRS (equatorial J2000 frame).
+     * We store them directly without conversion - the pipeline handles
+     * all transformations including equatorial→ecliptic.
+     */
+    private function fetchJplCoordinates(
+        float $jdTt,
+        int $ipl,
+        int $ipli,
+        int $jplTarget,
+        int $iflag,
+        ?string &$serr
+    ): int {
+        $swed = SwedState::getInstance();
+        $pdp = &$swed->pldat[$ipli];
+        $pedp = &$swed->pldat[SwephConstants::SEI_EARTH];
+        $psdp = &$swed->pldat[SwephConstants::SEI_SUNBARY];
+
+        // Determine what needs to be computed (C sweph.c:2017-2023)
+        $doEarth = true;  // Almost always need Earth for geocentric
+        $doSunbary = true;  // Need for heliocentric conversion
+
+        // Moon uses Earth as center in JPL
+        $ictr = ($ipl === Constants::SE_MOON) ? JplConstants::J_EARTH : JplConstants::J_SBARY;
+
+        // 1. Get Earth barycentric if needed
+        if ($doEarth && ($pedp->teval !== $jdTt || $pedp->iephe !== Constants::SEFLG_JPLEPH)) {
+            $xpe = [];
+            $ret = $this->jpl->pleph($jdTt, JplConstants::J_EARTH, JplConstants::J_SBARY, $xpe, $serr);
+            if ($ret !== JplConstants::OK) {
+                return Constants::SE_ERR;
+            }
+            // Store in pldat (equatorial J2000, no conversion!)
+            $pedp->x = $xpe;
+            $pedp->teval = $jdTt;
+            $pedp->xflgs = -1;  // New light-time etc. required
+            $pedp->iephe = Constants::SEFLG_JPLEPH;
+        }
+
+        // 2. Get Sun barycentric if needed
+        if ($doSunbary && ($psdp->teval !== $jdTt || $psdp->iephe !== Constants::SEFLG_JPLEPH)) {
+            $xps = [];
+            $ret = $this->jpl->pleph($jdTt, JplConstants::J_SUN, JplConstants::J_SBARY, $xps, $serr);
+            if ($ret !== JplConstants::OK) {
+                return Constants::SE_ERR;
+            }
+            // Store in pldat (equatorial J2000, no conversion!)
+            $psdp->x = $xps;
+            $psdp->teval = $jdTt;
+            $psdp->xflgs = -1;
+            $psdp->iephe = Constants::SEFLG_JPLEPH;
+        }
+
+        // 3. Get planet position
+        if ($ipli !== SwephConstants::SEI_EARTH && $ipli !== SwephConstants::SEI_SUNBARY) {
+            $xp = [];
+            $ret = $this->jpl->pleph($jdTt, $jplTarget, $ictr, $xp, $serr);
+            if ($ret !== JplConstants::OK) {
+                return Constants::SE_ERR;
+            }
+            // Store in pldat (equatorial J2000, no conversion!)
+            $pdp->x = $xp;
+            $pdp->teval = $jdTt;
+            $pdp->xflgs = -1;
+            $pdp->iephe = Constants::SEFLG_JPLEPH;
+        }
+
+        return Constants::SE_OK;
+    }
+
+    /**
+     * Special handling for Moon
+     */
+    private function computeMoon(float $jdTt, int $iflag, ?string &$serr): StrategyResult
+    {
+        $swed = SwedState::getInstance();
+
+        // Moon data is already stored in pldat by fetchJplCoordinates
+        // Use MoonTransform for full apparent position
+        $retc = \Swisseph\Swe\Moon\MoonTransform::appPosEtc($iflag, $serr);
+        if ($retc !== Constants::SE_OK) {
+            return StrategyResult::err($serr ?? 'Moon transform error', $retc);
+        }
+
+        $pdp = &$swed->pldat[SwephConstants::SEI_MOON];
+        $offset = 0;
+        if ($iflag & Constants::SEFLG_EQUATORIAL) {
+            $offset = ($iflag & Constants::SEFLG_XYZ) ? 18 : 12;
+        } else {
+            $offset = ($iflag & Constants::SEFLG_XYZ) ? 6 : 0;
+        }
+        $out = [0, 0, 0, 0, 0, 0];
+        for ($i = 0; $i < 6; $i++) {
+            $out[$i] = $pdp->xreturn[$offset + $i];
+        }
+        return StrategyResult::okFinal($out);
+    }
+
+    /**
+     * Special handling for Sun
+     * Port of app_pos_etc_sun() from sweph.c
+     *
+     * For geocentric Sun we pass the Sun's barycentric position to the pipeline.
+     * The pipeline will subtract Earth's position to get geocentric.
+     */
+    private function computeSun(float $jdTt, int $iflag, ?string &$serr): StrategyResult
+    {
+        $swed = SwedState::getInstance();
+        $psdp = &$swed->pldat[SwephConstants::SEI_SUNBARY];
+
+        // Pass Sun barycentric position to pipeline
+        // The pipeline handles geocentric subtraction internally
+        $xpret = $psdp->x;
+        $final = PlanetApparentPipeline::computeFinal($jdTt, Constants::SE_SUN, $iflag, $xpret);
+        return StrategyResult::okFinal($final);
+    }
+
+    /**
+     * Map Swiss Ephemeris external planet ID to internal index (SEI_*)
+     */
+    private function seToIpli(int $ipl): int
+    {
+        return SwephConstants::PNOEXT2INT[$ipl] ?? -1;
     }
 
     /**

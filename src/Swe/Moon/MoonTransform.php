@@ -6,6 +6,8 @@ use Swisseph\Constants;
 use Swisseph\SwephFile\SwedState;
 use Swisseph\SwephFile\SwephConstants;
 use Swisseph\Swe\Observer\Observer;
+use Swisseph\Swe\Jpl\JplEphemeris;
+use Swisseph\Swe\Jpl\JplConstants;
 
 /**
  * Moon position transformations
@@ -214,9 +216,37 @@ class MoonTransform
                     }
                     break;
 
+                case Constants::SEFLG_JPLEPH:
+                    // JPL ephemeris
+                    // From sweph.c:4154-4165
+                    $jpl = JplEphemeris::getInstance();
+                    // Moon relative to Earth at light-time t
+                    $retc = $jpl->pleph($t, JplConstants::J_MOON, JplConstants::J_EARTH, $xx, $serr);
+                    if ($retc !== JplConstants::OK) {
+                        return Constants::SE_ERR;
+                    }
+                    // Earth relative to barycenter at light-time t
+                    $retc = $jpl->pleph($t, JplConstants::J_EARTH, JplConstants::J_SBARY, $xe, $serr);
+                    if ($retc !== JplConstants::OK) {
+                        return Constants::SE_ERR;
+                    }
+                    // Sun if heliocentric
+                    if ($iflag & Constants::SEFLG_HELCTR) {
+                        $retc = $jpl->pleph($t, JplConstants::J_SUN, JplConstants::J_SBARY, $xs, $serr);
+                        if ($retc !== JplConstants::OK) {
+                            return Constants::SE_ERR;
+                        }
+                    } else {
+                        $xs = array_fill(0, 6, 0.0);
+                    }
+                    // Add Earth position to get barycentric Moon
+                    for ($i = 0; $i <= 5; $i++) {
+                        $xx[$i] += $xe[$i];
+                    }
+                    break;
+
                 default:
-                    // JPL ephemeris would go here
-                    $serr = "JPL ephemeris not supported for Moon yet";
+                    $serr = "Unknown ephemeris type for Moon: " . $pdp->iephe;
                     return Constants::SE_ERR;
             }
 
