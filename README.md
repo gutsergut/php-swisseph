@@ -3,8 +3,46 @@
 A complete PHP port of the **Swiss Ephemeris** (v2.10.03) astronomical calculation library, maintaining full API compatibility with the original C implementation's `swe_*` functions.
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
-[![PHP Version](https://img.shields.io/badge/PHP-8.1%2B-777BB4.svg)](https://php.net)
+[![PHP Version](https://img.shields.io/badge/PHP-8.1%2B-777BB4.svg)](https://php.net)[![PHPStan Level](https://img.shields.io/badge/PHPStan-Level%209-brightgreen.svg)](phpstan.neon)
 
+## ✨ Modern PHP Features
+
+- **🎯 Object-Oriented API** - Fluent interface wrapper for easier usage
+- **🔍 PHPStan Level 9** - Maximum static analysis strictness
+- **💡 IDE Autocomplete** - Full PhpStorm/IntelliJ metadata support
+- **🚀 Laravel Integration** - ServiceProvider, Facade, Artisan commands
+- **⚡ Symfony Integration** - Bundle, DependencyInjection, Configuration
+- **📖 [Complete Modern API Guide](docs/MODERN_API.md)**
+
+<details>
+<summary><b>Quick Example: OO API</b></summary>
+
+```php
+use Sweph\OO\Swisseph;
+
+$sweph = new Swisseph(__DIR__ . '/eph');
+
+// Fluent planet calculation
+$result = $sweph->planet(0)  // Sun
+    ->atDate(2000, 1, 1, 12.0)
+    ->sidereal()
+    ->equatorial()
+    ->calc();
+
+echo "RA: {$result->longitude}°\n";
+echo "Dec: {$result->latitude}°\n";
+
+// Houses with Placidus system
+$houses = $sweph->houses('P')
+    ->atDate(2000, 1, 1, 12.0)
+    ->atLocation(52.5, 13.4)  // Berlin
+    ->calc();
+
+echo "Ascendant: {$houses->ascendant}°\n";
+```
+
+See [docs/MODERN_API.md](docs/MODERN_API.md) for complete documentation.
+</details>
 ## � Documentation
 
 *   **[API Reference (English / Русский)](docs/API_Reference.md)** - Complete guide to all 107 functions.
@@ -461,10 +499,11 @@ composer install  # Only needed for development/testing
 
 - **For script-based tests**: PHP CLI >=7.4 (Composer not required)
 - **For PHPUnit tests**: PHP >=8.1 + Composer
+- **For PHPStan analysis**: PHP >=8.1 + Composer
 
 ## 🏃 Usage
 
-### Quick Start
+### Traditional C-style API
 
 ```php
 <?php
@@ -489,6 +528,71 @@ if ($result >= 0) {
 }
 ```
 
+### Modern Object-Oriented API
+
+```php
+<?php
+require_once 'vendor/autoload.php';
+
+use Sweph\OO\Swisseph;
+
+$sweph = new Swisseph(__DIR__ . '/eph');
+
+// Simple planet calculation with fluent interface
+$sun = $sweph->sun()->atDate(2000, 1, 1, 12.0)->calc();
+echo "Sun: {$sun->longitude}° {$sun->zodiacSign()}\n";
+
+// Sidereal calculations
+$result = $sweph->moon()
+    ->atDate(2000, 1, 1, 12.0)
+    ->sidereal('LAHIRI')
+    ->calc();
+
+// Houses calculation
+$houses = $sweph->houses('P')  // Placidus
+    ->atDate(2000, 1, 1, 12.0)
+    ->atLocation(52.5, 13.4)  // Berlin
+    ->calc();
+    
+echo "ASC: {$houses->ascendant}°\n";
+```
+
+See [docs/MODERN_API.md](docs/MODERN_API.md) for complete OO API documentation.
+
+### Laravel Integration
+
+```bash
+# Publish config
+php artisan vendor:publish --tag=swisseph-config
+
+# Test command
+php artisan swisseph:test
+```
+
+```php
+// Using Facade
+use Sweph\Laravel\Swisseph;
+
+$sun = Swisseph::sun()->atDate(2000, 1, 1, 12.0)->calc();
+```
+
+### Symfony Integration
+
+```yaml
+# config/packages/swisseph.yaml
+swisseph:
+    ephe_path: '%kernel.project_dir%/var/eph'
+```
+
+```php
+// Controller injection
+public function index(Swisseph $swisseph): Response
+{
+    $sun = $swisseph->sun()->atDate(2000, 1, 1, 12.0)->calc();
+    return $this->json(['longitude' => $sun->longitude]);
+}
+```
+
 ### Running Tests
 
 #### Script-based Tests
@@ -503,6 +607,13 @@ php tests/CoordinatesRoundtripTest.php
 ```bash
 composer install
 vendor/bin/phpunit -c phpunit.xml.dist --colors=always
+```
+
+#### Static Analysis (PHPStan Level 9)
+```bash
+composer analyse          # Run PHPStan analysis
+composer analyse:baseline # Generate baseline
+composer check           # Lint + Analyse + Test
 ```
 
 #### Benchmarks
