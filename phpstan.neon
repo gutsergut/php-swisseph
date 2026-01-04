@@ -1,0 +1,59 @@
+parameters:
+    level: 9
+    paths:
+        - src
+    excludePaths:
+        - tests
+    treatPhpDocTypesAsCertain: false
+
+    # Ignore errors in third-party dependencies
+    bootstrapFiles:
+        - vendor/autoload.php
+
+    # Additional rules
+    checkMissingIterableValueType: true
+    checkGenericClassInNonGenericObjectType: true
+    checkMissingCallableSignature: true
+    checkUninitializedProperties: true
+    checkTooWideReturnTypesInProtectedAndPublicMethods: true
+    checkImplicitMixed: true
+    checkBenevolentUnionTypes: true
+
+    # Type coverage
+    reportMaybesInMethodSignatures: true
+    reportStaticMethodSignatures: true
+
+    # Exceptions
+    exceptionRules:
+        uncheckedExceptionClasses:
+            - 'LogicException'
+            - 'RuntimeException'
+
+    # Ignore specific errors (temporary, to be fixed)
+    ignoreErrors:
+        # Allow mixed types in legacy code (will be fixed gradually)
+        -
+            message: '#has no return type specified#'
+            paths:
+                - src/Moshier/*.php
+
+        # Allow array access on mixed (ephemeris data structures)
+        -
+            message: '#Cannot access offset .* on mixed#'
+            paths:
+                - src/SwephFile/*.php
+
+        # Reference parameters might report false positives
+        -
+            message: '#Parameter .* is passed by reference#'
+            count: 50
+
+        # Allow numeric operations that might produce float
+        -
+            message: '#only accepts float, float\|int given#'
+            count: 30
+
+includes:
+    # Use baseline to ignore existing issues
+    # Run: vendor/bin/phpstan analyse --generate-baseline
+    # - phpstan-baseline.neon
