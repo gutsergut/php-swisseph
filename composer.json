@@ -47,9 +47,9 @@
     ]
   },
   "autoload-dev": {
-    "psr-4": {
-      "Swisseph\\Tests\\": "tests/phpunit/"
-    }
+    "classmap": [
+      "tests/phpunit/"
+    ]
   },
   "config": {
     "allow-plugins": {},

@@ -4,6 +4,8 @@
 
 Do not create a tag while required CI is red. Before the first stable `0.1.0` release, complete the unchecked correctness gates in [ROADMAP.md](ROADMAP.md), record the full parity result in [COMPATIBILITY.md](COMPATIBILITY.md), and add the released version/date to `CITATION.cff`. A development prerelease may be published earlier with its limitations stated explicitly.
 
+A workflow that was not started (for example, because GitHub reports an account billing lock) is not a passing gate. Resolve the account issue, rerun CI, and check every job before tagging; do not bypass the checks to publish a release.
+
 ## Create a release
 
 1. Update `CHANGELOG.md`, compatibility evidence and version metadata.
@@ -21,3 +23,5 @@ Do not create a tag while required CI is red. Before the first stable `0.1.0` re
 4. Confirm Packagist shows AGPL-3.0-or-later, PHP requirements and the expected tag.
 
 Do not store a Packagist token in the repository. GitHub Releases and Packagist publication are separate: a successful release workflow does not prove Packagist updated.
+
+If submission reports that the `fractal` vendor is already claimed, Packagist has read the old package name. Verify that GitHub's default-branch `composer.json` contains `gutsergut/php-swisseph`, then submit the same repository URL again. This package does not need ownership of the unrelated `fractal` namespace.

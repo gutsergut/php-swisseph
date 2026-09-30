@@ -13,7 +13,14 @@ if (!is_file($autoload)) {
 require $autoload;
 
 use Swisseph\Constants;
+use Swisseph\ErrorCodes;
 use Swisseph\OO\Swisseph;
+
+if (ErrorCodes::name(ErrorCodes::NOT_FOUND) !== 'NOT_FOUND') {
+    throw new RuntimeException('Error code autoload smoke check failed.');
+}
+require $packageRoot . '/src/Error.php';
+require $packageRoot . '/src/Error.php';
 
 $swe = new Swisseph();
 $jd = $swe->julianDay(2000, 1, 1, 12.0);

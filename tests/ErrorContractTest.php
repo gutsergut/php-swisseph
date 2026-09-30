@@ -1,11 +1,7 @@
 <?php
 
-require __DIR__ . '/../src/Julian.php';
-require __DIR__ . '/../src/Constants.php';
-require __DIR__ . '/../src/DeltaT.php';
-require __DIR__ . '/../src/Utc.php';
+require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../src/Error.php';
-require __DIR__ . '/../src/functions.php';
 
 use Swisseph\ErrorCodes;
 

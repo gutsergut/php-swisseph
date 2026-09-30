@@ -41,6 +41,9 @@ jobs:
       - name: Install development dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Verify PSR-4 and unambiguous class loading
+        run: composer dump-autoload --optimize --strict-psr --strict-ambiguous
+
       - name: Run required quality gates
         run: composer check
 
@@ -65,4 +68,5 @@ jobs:
           test -f dist/package/LICENSE
           test -f dist/package/NOTICE
           composer install --working-dir=dist/package --no-dev --no-interaction --prefer-dist --no-progress
+          composer dump-autoload --working-dir=dist/package --no-dev --optimize --strict-psr --strict-ambiguous
           php scripts/ci/package-smoke.php dist/package

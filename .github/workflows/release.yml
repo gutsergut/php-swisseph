@@ -32,6 +32,7 @@ jobs:
         run: |
           composer validate --strict
           composer install --no-interaction --prefer-dist --no-progress
+          composer dump-autoload --optimize --strict-psr --strict-ambiguous
           composer check
 
       - name: Build release archive

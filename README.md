@@ -6,7 +6,7 @@
 
 An experimental, dependency-free-at-runtime PHP 8.1+ port of Swiss Ephemeris 2.10.03. It exposes both familiar `swe_*` functions and a typed object-oriented facade.
 
-> **Pre-1.0 status:** this repository is under active correctness work. The self-contained regression suite is enforced in CI, and the full local suite passes with the documented ephemeris fixture set. That still does not establish independent drop-in or bit-for-bit parity with the C library. See [Compatibility status](docs/COMPATIBILITY.md).
+> **Pre-1.0 status:** this repository is under active correctness work. CI is configured to check the self-contained regression suite, and the full local suite passes with the documented ephemeris fixture set. That still does not establish independent drop-in or bit-for-bit parity with the C library. See [Compatibility status](docs/COMPATIBILITY.md).
 
 ## Why this project exists
 

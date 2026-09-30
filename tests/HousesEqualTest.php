@@ -3,8 +3,6 @@
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
-use function swe_julday;
-use function swe_houses;
 
 final class HousesEqualTest extends TestCase
 {

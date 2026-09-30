@@ -1,6 +1,6 @@
 # Compatibility status
 
-Last verified locally: 2026-09-30 on PHP 8.5.
+Last verified locally: 2026-10-01 on PHP 8.5.
 
 This document distinguishes API presence from numerical compatibility. An exported `swe_*` symbol is not considered compatible until its outputs, flags, error behavior and backend selection are verified against the same Swiss Ephemeris C version and data set.
 
@@ -33,7 +33,9 @@ This document distinguishes API presence from numerical compatibility. An export
 
 `composer test` runs the self-contained regression suite. It is intentionally small enough to run on every PHP version without proprietary or large ephemeris files.
 
-`composer test:full` runs every PHPUnit test and is a diagnostic quality gate. Set `SWEPH_EPHE_DIR` to licensed `.se1`/catalogue fixtures. The 2026-09-30 local run completed **209 tests and 1559 assertions with no failures** on PHP 8.5. This proves reproducibility of the repository's current expectations, not independent C parity.
+The 2026-10-01 local run completed **66 tests and 472 assertions with no failures**. Strict Composer PSR-4/ambiguous-class checks also passed. GitHub's hosted matrix has not yet run successfully because the account is billing-locked; local results do not establish PHP 8.1–8.4 compatibility.
+
+`composer test:full` runs every PHPUnit test and is a diagnostic quality gate. Set `SWEPH_EPHE_DIR` to licensed `.se1`/catalogue fixtures. The 2026-10-01 local run completed **211 tests and 1565 assertions with no failures** on PHP 8.5. This proves reproducibility of the repository's current expectations, not independent C parity.
 
 The fixture files used for that run were not committed. Their SHA-256 values were:
 

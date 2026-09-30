@@ -6,10 +6,6 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Swisseph\Constants;
 
-use function swe_set_ephe_path;
-use function swe_lun_occult_when_loc;
-use function swe_close;
-
 /**
  * Test swe_lun_occult_when_loc() - local lunar occultation search
  *

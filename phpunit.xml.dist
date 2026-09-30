@@ -6,6 +6,7 @@
       <file>tests/phpunit/CalendarTest.php</file>
       <file>tests/phpunit/CotransAndUtilsTest.php</file>
       <file>tests/phpunit/DeltaTTest.php</file>
+      <file>tests/phpunit/ErrorCodesTest.php</file>
       <file>tests/phpunit/HousesAlcabitiusTest.php</file>
       <file>tests/phpunit/HousesApcHousePosTest.php</file>
       <file>tests/phpunit/HousesCampanusTest.php</file>
