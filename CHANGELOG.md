@@ -19,6 +19,7 @@ All notable changes are documented here. The project follows Semantic Versioning
 - Normalized the AGPL licence file and moved attribution to `NOTICE`.
 - Consolidated the duplicated `ErrorCodes` declaration while retaining the legacy `src/Error.php` entry point.
 - Used classmap loading for the mixed global/namespaced PHPUnit test classes.
+- Repaired malformed standalone diagnostics, corrected their autoload paths, and extended syntax checks to all PHP scripts.
 
 ### Removed
 

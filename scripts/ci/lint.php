@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
-$directories = ['src', 'tests', 'scripts/ci', 'config'];
+$directories = ['src', 'tests', 'scripts', 'config'];
 $files = [];
 
 foreach ($directories as $directory) {

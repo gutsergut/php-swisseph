@@ -3,12 +3,11 @@
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
-require __DIR__ . '/vendor/autoload.php';
-require __DIR__ . '/src/functions.php';
+require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use Swisseph\Constants;
 
-swe_set_ephe_path(__DIR__ . '/../eph/ephe');
+swe_set_ephe_path(getenv('SWEPH_EPHE_DIR') ?: dirname(__DIR__, 2) . '/tests/fixtures/ephe');
 
 $dgeo = [13.4, 52.5, 100.0];
 $datm = [1013.25, 15.0, 40.0, 0.0];
@@ -32,10 +31,6 @@ foreach ($test_times as $jd) {
     $darr = array_fill(0, 10, 0.0);
     $serr = '';
 
-foreach ($test_times as $jd) {
-    $darr = array_fill(0, 10, 0.0);
-    $serr = '';
-
     $result = swe_vis_limit_mag($jd, $dgeo, $datm, $dobs, 'Venus', Constants::SEFLG_SWIEPH, $darr, $serr);
 
     $offset_hrs = ($jd - $base_jd) * 24;
@@ -48,4 +43,3 @@ foreach ($test_times as $jd) {
     printf("  vdelta: %.6f %s\n\n", $darr[0] - $darr[7],
         ($darr[0] - $darr[7] > 0) ? '✓ VISIBLE' : '✗ NOT VISIBLE');
 }
-

@@ -1,7 +1,5 @@
 <?php
-require_once __DIR__ . '/../vendor/autoload.php';
-
-use function swe_deltat_ex;
+require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 $jd = 2460323.951034;
 
