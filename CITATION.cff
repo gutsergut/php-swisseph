@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software in research, cite this repository and the original Swiss Ephemeris project."
+title: "PHP Swiss Ephemeris"
+type: software
+authors:
+  - family-names: Gutnikov
+    given-names: Sergey
+repository-code: "https://github.com/gutsergut/php-swisseph"
+license: AGPL-3.0-or-later
+references:
+  - type: software
+    title: "Swiss Ephemeris"
+    authors:
+      - family-names: Koch
+        given-names: Dieter
+      - family-names: Treindl
+        given-names: Alois
+    url: "https://www.astro.com/swisseph/"

@@ -1,9 +1,42 @@
 {
-  "name": "fractal/swisseph-php",
-  "description": "Pure PHP 8.1+ port of Swiss Ephemeris (approximate)",
+  "name": "gutsergut/php-swisseph",
+  "description": "Experimental pure-PHP port of Swiss Ephemeris with C-style and object-oriented APIs",
   "type": "library",
+  "license": "AGPL-3.0-or-later",
+  "keywords": [
+    "astronomy",
+    "astrology",
+    "ephemeris",
+    "swisseph",
+    "vedic"
+  ],
+  "homepage": "https://github.com/gutsergut/php-swisseph",
+  "authors": [
+    {
+      "name": "Sergey Gutnikov",
+      "homepage": "https://github.com/gutsergut"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/gutsergut/php-swisseph/issues",
+    "source": "https://github.com/gutsergut/php-swisseph"
+  },
   "require": {
     "php": ">=8.1"
+  },
+  "require-dev": {
+    "illuminate/console": "^10.0 || ^11.0 || ^12.0 || ^13.0",
+    "illuminate/support": "^10.0 || ^11.0 || ^12.0 || ^13.0",
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "^10.5 || ^11.5",
+    "symfony/config": "^6.4 || ^7.0 || ^8.0",
+    "symfony/console": "^6.4 || ^7.0 || ^8.0",
+    "symfony/dependency-injection": "^6.4 || ^7.0 || ^8.0",
+    "symfony/http-kernel": "^6.4 || ^7.0 || ^8.0"
+  },
+  "suggest": {
+    "illuminate/support": "Required for the optional Laravel service provider and facade",
+    "symfony/dependency-injection": "Required for the optional Symfony bundle"
   },
   "autoload": {
     "psr-4": {
@@ -18,25 +51,49 @@
       "Swisseph\\Tests\\": "tests/phpunit/"
     }
   },
-  "minimum-stability": "stable",
-  "prefer-stable": true,
-  "require-dev": {
-    "phpunit/phpunit": "^10.5 || ^11.0",
-    "squizlabs/php_codesniffer": "^3.9",
-    "phpstan/phpstan": "^1.12",
-    "phpstan/phpstan-strict-rules": "^1.6"
+  "config": {
+    "allow-plugins": {},
+    "optimize-autoloader": true,
+    "sort-packages": true
+  },
+  "extra": {
+    "branch-alias": {
+      "dev-main": "0.1.x-dev"
+    }
+  },
+  "archive": {
+    "name": "php-swisseph",
+    "exclude": [
+      "/.git",
+      "/.github",
+      "/dist",
+      "/graphify-out",
+      "/scripts",
+      "/tests",
+      "/vendor",
+      "/data/vsop87/raw",
+      "/.editorconfig",
+      "/.gitattributes",
+      "/.gitignore",
+      "/phpstan-baseline.neon",
+      "/phpstan.neon",
+      "/phpunit.full.xml.dist",
+      "/phpunit.xml.dist"
+    ]
   },
   "scripts": {
-    "test": "vendor/bin/phpunit",
-    "test:coverage": "vendor/bin/phpunit --coverage-html coverage",
-    "lint": "vendor/bin/phpcs -q --report=full",
-    "lint:fix": "vendor/bin/phpcbf -q",
-    "analyse": "vendor/bin/phpstan analyse",
-    "analyse:baseline": "vendor/bin/phpstan analyse --generate-baseline",
+    "test": "@test:unit",
+    "test:unit": "phpunit --configuration phpunit.xml.dist",
+    "test:full": "phpunit --configuration phpunit.full.xml.dist",
+    "test:coverage": "phpunit --configuration phpunit.xml.dist --coverage-html coverage",
+    "lint": "@lint:syntax",
+    "lint:syntax": "@php scripts/ci/lint.php",
+    "analyse": "phpstan analyse --memory-limit=1G",
+    "analyse:baseline": "phpstan analyse --memory-limit=1G --generate-baseline=phpstan-baseline.neon",
     "check": [
-      "@lint",
+      "@lint:syntax",
       "@analyse",
-      "@test"
+      "@test:unit"
     ]
   }
 }

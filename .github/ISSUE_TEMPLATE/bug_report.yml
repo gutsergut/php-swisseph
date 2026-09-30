@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a reproducible API or calculation defect
+title: "bug: "
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include secrets, personal birth data or ephemeris files you cannot redistribute.
+  - type: input
+    id: revision
+    attributes:
+      label: Package version or commit
+      placeholder: v0.1.0 or full commit SHA
+    validations:
+      required: true
+  - type: input
+    id: php
+    attributes:
+      label: PHP and operating system
+      placeholder: PHP 8.3.12 on Ubuntu 24.04
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include date/time scale, body, complete flags, backend and relevant data-file hashes.
+      render: php
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result and reference provenance
+      description: Include upstream Swiss Ephemeris version/executable hash and tolerance.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: Include all returned values, flags and error text.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Data safety
+      options:
+        - label: I removed credentials and personal data and may share the supplied fixture.
+          required: true

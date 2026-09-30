@@ -1,369 +1,43 @@
-````markdown
-# Контракт: порт PHP Swisseph
+# Public API contract
 
-Обновлено: 2025‑12‑13
+Updated: 2026-09-30
 
-Этот документ фиксирует рабочий контракт (входы/выходы, инварианты, крайние случаи) для порта Swiss Ephemeris в PHP с тонкими глобальными фасадами `swe_*`.
+This is the intended pre-1.0 contract for the procedural `swe_*` functions and the `Swisseph\OO` facade. It describes behavior to preserve while numerical parity is completed.
 
-## 🎉 Статус реализации (декабрь 2025)
+## Inputs
 
-**C API Coverage**: 107/107 публичных функций `swe_*` (**100%** + 1 helper)
-**Категории**: 13/13 базовых категорий полностью реализованы
-**Тесты**: 199 PHPUnit + 8 скриптовых = 100% PASS (0 warnings, 0 errors)
+- Dates and Julian days are explicit about UT/UTC/TT in the method name or documentation.
+- Geographic longitude is degrees east; latitude is degrees north; altitude is metres unless a function documents otherwise.
+- A flag mask is preserved as a bit mask. Unknown or contradictory flags return a structured failure instead of being silently discarded.
+- Body identifiers follow the constants in `Swisseph\Constants`.
+- File paths must point to a caller-controlled directory; the package does not download ephemeris data implicitly.
 
-**Детали**: См. [FUNCTION_AUDIT.md](../FUNCTION_AUDIT.md) и [README.md](../README.md)
+## Calculation results
 
-## Область охвата
+- Procedural functions retain their documented C-like output arrays and by-reference error parameter.
+- A negative return code represents failure.
+- OO results expose `isSuccess()` / `isError()`, the raw returned flag mask, six raw values and an optional error string.
+- Callers must not infer the backend only from the requested flags. Applications should record returned flags and their own backend/data provenance.
+- Arrays are populated deterministically on success; failure behavior is covered by regression tests before it is considered stable.
 
-- Системы домов реализованы как стратегии в `src/Domain/Houses/Systems/*`.
-- Тонкие фасады, совместимые со Swiss Ephemeris:
-  - Дома: `swe_houses`, `swe_houses_ex2`, `swe_house_pos`, `swe_house_name` в `src/Swe/Functions/HousesFunctions.php`
-  - Планеты: `swe_calc`, `swe_calc_ut` в `src/Swe/Functions/CalcFunctions.php`
-  - Rise/Set/Transit: `swe_rise_trans`, `swe_rise_trans_true_hor` в `src/Swe/Functions/RiseSetFunctions.php`
-  - Сидерика: `swe_set_sid_mode`, `swe_get_ayanamsa*`, `swe_time_equ` в `src/Swe/Functions/SiderealFunctions.php`
-  - Утилиты: `swe_azalt*`, `swe_refrac`, `swe_cotrans*`, `swe_get_planet_name`, `swe_version` и др.
-- По возможности — алгоритмический паритет со SWE.
+## State
 
----
+Functions such as `swe_set_ephe_path`, `swe_set_sid_mode` and `swe_set_topo` mutate process-global state for compatibility with the upstream API. Consumers must serialize conflicting contexts or isolate them in separate processes.
 
-## Шаги портирования C API (SWE) — Статус завершения
-Все 13 базовых категорий полностью реализованы (✓ = завершено):
+## Errors and fallback
 
-### 1) ✓ База времени/сидерики (11/11 функций)
-- ✓ `swe_sidtime` / `swe_sidtime0` — звёздное время (GMST) с поддержкой 4 моделей (IAU 1976/2006, IERS 2010, LONGTERM)
-- ✓ `swe_time_equ` — equation of time (Солнечное уравнение времени)
-- ✓ `swe_set_sid_mode`, `swe_get_ayanamsa_ex(_ut)`, `swe_get_ayanamsa(_ut)`, `swe_get_ayanamsa_name` — **полная реализация** аянамши для 47 режимов `SE_SIDM_*` (0-46) + USER (255). Поддержка SE_SIDBIT_* опций (ECL_T0, SSY_PLANE, NO_PREC_OFFSET, ECL_DATE). Точность: <1" для современных эпох, 2-4" для исторических дат.
-- ✓ `swe_lmt_to_lat` / `swe_lat_to_lmt` — конверсия Local Mean Time ↔ Local Apparent Time
+- Missing or unreadable required data is reported; tests may skip only when the test itself declares the data optional.
+- A requested SWIEPH or JPL calculation must not be reported as verified parity when the engine fell back to another backend.
+- PHP warnings/notices and debug output are not part of the API.
+- Invalid dates, coordinates, identifiers and flags must fail consistently and without leaving partial global state.
 
-### 2) ✓ Горизонтальные преобразования и рефракция (7/7 функций)
-- ✓ `swe_azalt` / `swe_azalt_rev` — преобразования экваториальные/эклиптические ↔ горизонтальные (азимут/высота)
-- ✓ `swe_refrac` — атмосферная рефракция (модели Bennett, Sæmundsson; TRUE_TO_APP/APP_TO_TRUE)
-- ✓ `swe_refrac_extended` — расширенная рефракция с учётом геометрического dip angle
-- ✓ `swe_set_lapse_rate` — настройка temperature lapse rate для рефракции
+## Compatibility policy before 1.0
 
-### 3) ✓ Общие преобразования и утилиты (31/31 функция)
-- ✓ `swe_cotrans` / `swe_cotrans_sp` — ортогональные ротации координат (с позициями и скоростями)
-- ✓ `swe_get_planet_name` — имена планет по индексу
-- ✓ `swe_version`, `swe_close` — версия библиотеки и no-op завершение
-- ✓ Нормализация углов: `swe_degnorm`, `swe_radnorm`, `swe_deg_midp`, `swe_rad_midp`
-- ✓ Центисекунды: `swe_csnorm`, `swe_difcsn`, `swe_cs2timestr`, `swe_cs2lonlatstr`, `swe_cs2degstr`
-- ✓ Delta T: `swe_deltat`, `swe_deltat_ex`, `swe_set_delta_t_userdef`
-- ✓ И другие (см. FUNCTION_AUDIT.md)
+API presence and numerical compatibility are tracked separately in [COMPATIBILITY.md](COMPATIBILITY.md). Breaking changes may occur before 1.0 but require a changelog entry and migration note. Once 1.0 is reached, Semantic Versioning applies to the documented public surface.
 
-### 4) ✓ Узлы и апсиды (2/2 функции)
-- ✓ `swe_nod_aps(_ut)` — **полная реализация** mean и osculating nodes/apsides
-  - Поддержка SE_NODBIT_MEAN, SE_NODBIT_OSCU, SE_NODBIT_OSCU_BAR, SE_NODBIT_FOPOINT
-  - Полная поддержка SEFLG_SPEED с numerical differentiation (центральная разность)
-  - Все планеты: Mercury-Neptune, Moon, Earth
-  - Точность: 20-30" для nodes, соответствует C implementation
+## Out of contract
 
-### 5) ✓ Фазовые явления и видимые параметры (2/2 функции)
-- ✓ `swe_pheno(_ut)` — фаза, блеск, угловой диаметр, элонгация планет
-  - Полная реализация для всех планет Mercury-Neptune
-  - Атрибуты: phase angle, phase, elongation, apparent diameter, apparent magnitude
-
-### 6) ✓ Rise/Set/Transit (7/7 функций)
-- ✓ `swe_rise_trans` / `swe_rise_trans_true_hor` — восход/заход/транзит (с рефракцией и истинным горизонтом)
-  - Автоматический выбор fast/slow алгоритмов для разных широт
-  - Поддержка circumpolar cases (midnight sun, polar night)
-  - Точность: ±0.05-2 секунды для Sun/Moon/planets
-  - Meridian transits (верхняя/нижняя кульминация): точность <0.02 секунды
-
-### 7) ✓ Затмения и покрытия (15/15 функций)
-- ✓ Солнечные затмения: `swe_sol_eclipse_when_loc`, `swe_sol_eclipse_when_glob`, `swe_sol_eclipse_where`, `swe_sol_eclipse_how`
-- ✓ Лунные затмения: `swe_lun_eclipse_when`, `swe_lun_eclipse_when_loc`, `swe_lun_eclipse_how`
-- ✓ Покрытия: `swe_lun_occult_when_glob`, `swe_lun_occult_when_loc`, `swe_lun_occult_where`
-- ✓ Gauquelin sectors: `swe_gauquelin_sector`
-  - Точность: magnitude ±0.002, даты точные до минуты
-  - Все типы: Total, Partial, Annular, Penumbral
-
-### 8) ✓ Орбитальные элементы (2/2 функции)
-- ✓ `swe_get_orbital_elements` — 17 элементов Кеплера (a, e, i, Ω, ω, M, ν, E, L, периоды, апсиды)
-- ✓ `swe_orbit_max_min_true_distance` — орбитальные расстояния (max, min, текущее)
-
-### 9) ✓ Crossings & Transits (8/8 функций)
-- ✓ `swe_solcross(_ut)` — момент когда Солнце пересекает заданную долготу
-- ✓ `swe_mooncross(_ut)` — момент когда Луна пересекает заданную долготу
-- ✓ `swe_mooncross_node(_ut)` — момент когда Луна пересекает орбитальный узел
-- ✓ `swe_helio_cross(_ut)` — гелиоцентрические пересечения долготы планет
-  - Алгоритм: Newton's method с точностью 1 milliarcsecond
-
-### 10) ✓ Звёзды/каталоги (6/6 функций)
-- ✓ `swe_fixstar(_ut/_mag)` — legacy API для фиксированных звёзд
-- ✓ `swe_fixstar2(_ut/_mag)` — новый API с улучшенным форматом
-  - Каталог sefstars.txt: 2935 звёзд
-  - Поддержка: имена, обозначения Байера, порядковые номера
-  - Прецессия, собственное движение, параллакс, radial velocity
-  - Сидерические трансформации: ECL_T0, SSY_PLANE, traditional modes
-
-### 11) ✓ Heliacal Phenomena (5/5 функций)
-- ✓ `swe_heliacal_ut` — гелиакальные восходы/заходы звёзд и планет
-- ✓ `swe_heliacal_pheno_ut` — гелиакальные феномены с деталями
-- ✓ `swe_vis_limit_mag` — предельная видимая величина
-- ✓ `swe_heliacal_angle` — гелиакальный угол
-- ✓ `swe_topo_arcus_visionis` — топоцентрический arcus visionis
-  - 81 вложенная функция полностью портирована из C
-
-### 12) ✓ Planets & Calculation (28/28 функций)
-- ✓ `swe_calc(_ut)` — расчёт позиций планет (все 9 планет + Луна)
-- ✓ `swe_calc_pctr` — планетоцентрические позиции (вид с другой планеты)
-- ✓ Управление эфемеридами: `swe_set_ephe_path`, `swe_set_jpl_file`, `swe_set_topo`
-- ✓ Астрономические модели: `swe_set/get_astro_models` — Delta T, прецессия, нутация
-- ✓ Интерполяция нутации: `swe_set_interpolate_nut`
-- ✓ Метаданные файлов: `swe_get_current_file_data`
-  - Точность Луны: субарксекундная (RA ≈ 0.000", Dec ≈ 0.001")
-  - Точность планет: <50 км геоцентрически, <100 км гелиоцентрически
-
-### 13) ✓ Houses & Angles (7/7 функций)
-- ✓ `swe_houses(_ex/_ex2)` — расчёт куспов домов (все системы)
-- ✓ `swe_houses_armc(_ex2)` — расчёт от ARMC без даты/времени
-- ✓ `swe_house_pos` — позиция планеты в домах
-- ✓ `swe_house_name` — имя системы домов
-  - Системы: Placidus, Koch, Regiomontanus, Campanus, Equal, Whole Sign, Porphyry, Alcabitius, Meridian, Vehlow, Horizontal, Polich-Page, Krusinski, Morinus, Gauquelin, Sunshine, APC, Savard-A
-  - Полная поддержка экстремальных широт (Arctic, Antarctic, Polar)
-# Контракт API: swe_calc / swe_calc_ut
-
-Цель: зафиксировать формат выходных данных, флаги, единицы и поведение ошибок.
-
-## Вызовы
-- `swe_calc(float $jd_tt, int $ipl, int $iflag, array &$xx, ?string &$serr = null): int`
-- `swe_calc_ut(float $jd_ut, int $ipl, int $iflag, array &$xx, ?string &$serr = null): int`
-
-Параметры:
-- `jd_tt` / `jd_ut`: Юлианский день в TT/UT.
-- `ipl`: идентификатор небесного тела (см. Constants::SE_*).
-- `iflag`: битовые флаги (см. ниже).
-- `xx`: выходной массив, заполняется функцией, длина = 6.
-- `serr`: текст ошибки (по ссылке), может быть null при отсутствии ошибок.
-
-Коды возврата:
-- `>= 0` — успех (в дальнейшем различия для предупреждений/качества данных).
-- `< 0` — ошибка. В текущей версии используется `Constants::SE_ERR = -1`.
-
-## Формат массива xx
-Базовая форма (сферические координаты + скорости):
-- `xx = [a, b, r, da, db, dr]`
-  - `a, b` — углы (по умолчанию эклиптическая долгота/широта; с `SEFLG_EQUATORIAL` — `RA/Dec`).
-  - `r` — расстояние (единицы уточняются для каждого `ipl`, обычно AU).
-  - `da, db` — угловые скорости (по умолчанию градусы/день, с `SEFLG_RADIANS` — рад/день; для `EQUATORIAL` — dRA/dDec).
-  - `dr` — скорость по радиусу (единицы зависят от выбранной единицы `r`).
-
-Векторная форма (`SEFLG_XYZ`):
-- `xx = [x, y, z, vx, vy, vz]` — прямоугольные координаты и скорости в выбранной системе (по умолчанию эклиптическая, в дальнейшем управляется флагами).
-
-Единицы по флагам:
-- По умолчанию: углы в градусах, скорости угловые — градусы/день.
-- `SEFLG_RADIANS`: углы в радианах, угловые скорости — радианы/день.
-- `SEFLG_EQUATORIAL`: `a,b` трактуются как `RA, Dec` (в тех же угловых единицах, что заданы `SEFLG_RADIANS`), `da,db` — dRA/dDec.
-- `SEFLG_XYZ`: компоненты в прямоугольной системе; единицы — AU и AU/день (реализовано для Солнца, Луны, Меркурия, Венеры, Марса, Юпитера, Сатурна, Урана).
-
-Конфликты флагов:
-- Источники эфемерид взаимоисключающие: одновременно `SEFLG_JPLEPH | SEFLG_SWIEPH | SEFLG_MOSEPH` недопустимо (>1 установлен) — `serr=INVALID_ARG`, возврат `SE_ERR`.
-- `SEFLG_EQUATORIAL` и `SEFLG_XYZ` взаимоисключимы — `serr=INVALID_ARG`, `SE_ERR`.
-
-## Ошибки
-- Неверный `ipl` — `serr=INVALID_ARG (ipl=...)`, `SE_ERR`.
-- Конфликт флагов — `serr=INVALID_ARG (...)`, `SE_ERR`.
-- Не реализовано — `serr=UNSUPPORTED (not implemented)`, `SE_ERR` (в текущей версии возвращается для валидных входов, кроме Солнца).
-
-## Статус реализации swe_calc / swe_calc_ut (декабрь 2025)
-
-**Полная реализация для всех планет:**
-- ✅ Все 10 небесных тел: Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto
-- ✅ Moshier планетарные алгоритмы (Sun, Moon, все планеты)
-- ✅ VSOP87 интеграция для основных планет (Mercury-Neptune) — точность от субарксекунд до нескольких угловых секунд
-- ✅ Полные координатные преобразования: эклиптика ↔ экватор с прецессией и нутацией
-- ✅ Light-time correction (итеративное уточнение для точности)
-- ✅ Топоцентрическая коррекция (SEFLG_TOPOCTR) с точностью ~450 м для Луны
-- ✅ Frame bias для J2000 экваториальных координат
-- ✅ Годичная аберрация (релятивистская формула)
-
-**Точность:**
-- Луна (геоцентрическая экваториальная): RA ≈ 0.000", Dec ≈ 0.001" (субарксекундная)
-- Луна (топоцентрическая): ~450 м в картезианских координатах, <0.3 arcsec в углах
-- Планеты (геоцентрические): <50 км (<0.3")
-- Планеты (гелиоцентрические): <100 км
-
-**Поддержка флагов:**
-- ✅ SEFLG_SWIEPH — Swiss Ephemeris файлы (основной режим)
-- ✅ SEFLG_MOSEPH — Moshier алгоритмы (встроенные)
-- ✅ SEFLG_VSOP87 — VSOP87 теория (высокая точность)
-- ✅ SEFLG_SPEED — скорости (все 3 компоненты)
-- ✅ SEFLG_EQUATORIAL — экваториальные координаты (RA/Dec)
-- ✅ SEFLG_XYZ — прямоугольные координаты
-- ✅ SEFLG_RADIANS — радианы вместо градусов
-- ✅ SEFLG_TOPOCTR — топоцентрические координаты (требует swe_set_topo)
-- ✅ SEFLG_HELCTR — гелиоцентрические координаты
-
-**Тестирование:**
-- 199 PHPUnit тестов (1498 assertions) — 100% PASS
-- Все планеты Mercury-Neptune протестированы
-- Smoke tests, accuracy tests, parity tests с C reference
-- Edge cases: extreme coordinates, high speeds, polar latitudes
-- Не поддержано: прочие тела Swiss Ephemeris вне перечисленных `SE_*` — возвращают `SE_ERR` и `serr=UNSUPPORTED`.
-
-Примечания:
-- При флаге `SEFLG_SPEED` скорости оцениваются центральной разностью (±0.5 суток). Для `SEFLG_XYZ` скорости реализованы (AU/день). Для `SEFLG_EQUATORIAL` dRA считается через преобразование эклиптик->экватор и угловую разность RA.
-
-## Примечания по совместимости
-- Где это возможно, значения флагов и формат следуют Swiss Ephemeris, но точное соответствие будет уточняться по мере реализации.
-- Единицы расстояний/скоростей будут документированы для каждого `ipl` на этапе подключения эфемерид.
-
----
-
-# Контракт API: swe_rise_trans / swe_rise_trans_true_hor
-
-Цель: вычисление времени события (в пределах суток [JD, JD+1)) для восхода/захода/меридианного транзита.
-
-## Вызовы
-- `swe_rise_trans(float $jd_ut, int $ipl, ?string $starname, int $epheflag, int $rsmi, array $geopos, float $atpress, float $attemp, ?float $horhgt, ?float &$tret = null, ?string &$serr = null): int`
-- `swe_rise_trans_true_hor(float $jd_ut, int $ipl, ?string $starname, int $epheflag, int $rsmi, array $geopos, float $atpress, float $attemp, ?float $horhgt, ?float &$tret = null, ?string &$serr = null): int`
-
-Параметры:
-- `jd_ut`: Юлианский день (UT) начала интервала.
-- `ipl`: идентификатор тела (поддержаны: `SE_SUN`, `SE_MOON`).
-- `starname`: имя звезды (пока не поддержано; использовать null).
-- `epheflag`: флаги эфемерид (зарезервировано).
-- `rsmi`: битовая маска события:
-  - `SE_CALC_RISE` — восход (пересечение снизу-вверх)
-  - `SE_CALC_SET` — заход (пересечение сверху-вниз)
-  - `SE_CALC_MTRANSIT` — верхняя кульминация (часовой угол 0)
-  - `SE_CALC_ITRANSIT` — нижняя кульминация (часовой угол π)
-  - Допускается ровно один бит за вызов; иначе `INVALID_ARG`.
-- `geopos`: `[lon_deg, lat_deg, alt_m]` — долгота (восточная +), широта, высота над уровнем моря.
-- `atpress`, `attemp`: атмосферное давление (мбар) и температура (°C). Пока не используются в модели рефракции.
-- `horhgt`: высота видимого горизонта в градусах; null — использовать дефолт для тела.
-
-Выходы:
-- `tret`: JD(UT) события в интервале `[jd_ut, jd_ut + 1)`, если найдено.
-- `serr`: строка ошибки/предупреждения; при успехе может быть null.
-
-Коды возврата:
-- `>= 0` — успех; `tret` установлен.
-- `< 0` — ошибка:
-  - `INVALID_ARG` — некорректные параметры (`rsmi`, `geopos`).
-  - `UNSUPPORTED` — тело/режим не поддержаны.
-  - `NOT_FOUND` — событие отсутствует в интервале (полярный день/ночь и т.п.).
-
-Единицы и дефолты:
-- Углы — радианы/градусы внутренних расчётов не влияют на API; `tret` всегда JD(UT).
-- Дефолт `horhgt`: Солнце ≈ `-0.833°`; Луна ≈ `-0.3°` (упрощённо).
-- В `swe_rise_trans_true_hor` при `horhgt = null` используется `0.0°` (без рефракции и полудиаметра).
-
-Примечания реализации:
-- Алгоритм поиска: грубый скан интервала часа с последующей бисекцией (30 итераций) до субсекундной точности JD.
-- Для транзитов решается RA = LST (верхний) или RA = LST − π (нижний).
-- Для восхода/захода решается `alt(t) = h0` с фильтром направления пересечения.
-- Полярные случаи: перед поиском оценивается `min/max` высоты за сутки часовым шагом; если весь день ниже/выше `h0`, возвращается `NOT_FOUND`.
-- Луна: RA/Dec топоцентрические — применяется горизонтальный параллакс (формулы через geodetic lat, высоту, LST); `h0` пока фиксированный, будет уточнён с учётом текущего полудиаметра.
-
-
----
-
-# Контракт API: дома (swe_houses, swe_houses_ex2, swe_house_pos)
-
-Цель: совместимые с Swiss Ephemeris фасады для систем домов с минимальной обвязкой и единицами/поведением SWE.
-
-## Вызовы
-- `swe_houses_ex2(float $jd_ut, int $iflag, float $geolat, float $geolon, string $hsys, array &$cusp, array &$ascmc, ?array &$cusp_speed = null, ?array &$ascmc_speed = null, ?string &$serr = null): int`
-- `swe_houses(float $jd_ut, float $geolat, float $geolon, string $hsys, array &$cusp, array &$ascmc): int`
-- `swe_house_pos(float $armc_deg, float $geolat_deg, float $eps_deg, string $hsys, array $xpin, ?string &$serr = null): float`
-
-Параметры и выходы:
-- `jd_ut`: Юлианский день (UT) для вычисления домов.
-- `iflag`: зарезервировано для будущих флагов (напр., RADIANS). Сейчас выдача всегда в градусах.
-- `geolat`, `geolon`: широта и долгота места, градусы (север/восток — положительные).
-- `hsys`: код системы домов. Поддержаны: `A,E,D,N,F,L,G,Q,I,i,P,K,O,C,R,W,B,V,M,H,T,S,X,U,Y,J`.
-- `cusp`: массив куспов; размер 13 (индексация 1..12). Для 'G' — 37 (1..36) — границы 36 секторов.
-- `ascmc`: массив размера 10: `[0]=Asc`, `[1]=MC`, `[2]=ARMC` (в градусах), `[9]=деклинация Солнца` для систем Sunshine ('I'/'i').
-- `cusp_speed`, `ascmc_speed`: при передаче не-null заполняются нулями (соответственно 13/10 или 37/10 для 'G').
-- Возврат: `0` — успех; `SE_ERR` — ошибка (например, Placidus/Koch для полярных широт).
-
-Особенности систем:
-- 'G' (Gauquelin):
-  - В `swe_houses_ex2` возвращаются 36 границ секторов (по часовой стрелке) в `cusp[1..36]` и обычные Asc/MC/ARMC в `ascmc`.
-  - В `swe_house_pos` позиция в секторах (1..36], движение по часовой стрелке.
-- 'I'/'i' (Sunshine):
-  - Вариант Treindl ('I') и Makransky ('i') задаётся буквой; в `ascmc[9]` помещается деклинация Солнца (оценка через средний наклон эклиптики).
-- 'Y' (APC):
-  - Куспы через порт `apc_sector` с принудительным выравниванием осей у полюсов (`cusp[10]=MC`, `cusp[4]=MC+180`).
-  - `swe_house_pos`: общий интерполятор по куспам с точным «снаппингом» к осям (Asc/MC/Desc/IC).
-- 'J' (Savard‑A):
-  - Куспы: точный порт из SWE (геометрия Asc1; заполнение противоположных домов и осей).
-  - `swe_house_pos`: алгоритм на «prime vertical» согласно SWE. При точном попадании на оси/куспы возвращается целый номер дома.
-
-Единицы и соглашения:
-- Все углы на выходе — в градусах (как в SWE); внутренние расчёты ведутся в радианах.
-- `ascmc[2]` всегда содержит ARMC в градусах.
-- Индексация куспов — 1..12 (или 1..36 для 'G').
-
-Ошибки и крайние случаи:
-- Placidus ('P') и Koch ('K') могут быть недопустимы на высоких широтах — функция возвращает `SE_ERR` и `serr=...`.
-- Для 'G' скорость массивов заполняется нулями корректной длины.
-
-Статус тестов:
-- Покрыты юнит‑тестами фасады и специальные ветки ('G', 'I'/'i', 'Y', 'J').
-- Последний прогон: OK (69 tests, 569 assertions).
-
-## Пути к swetest и эфемеридам (для паритета)
-
-Для стабильных паритет‑сравнений с оригинальным swetest (Swiss Ephemeris C) используются:
-
-- Переменные окружения (опционально):
-  - `SWETEST_PATH` — полный путь к исполняемому swetest (по умолчанию Windows‑сборка из репозитория).
-  - `SWEPH_EPHE_DIR` — директория с файлами эфемерид Swiss Ephemeris, передаётся в swetest параметром `-edir`.
-
-- Значения по умолчанию под Windows (включены в скрипт `scripts/parity_j_vs_swetest.php`):
-  - `SWETEST_PATH_DEFAULT` = `C:\Users\serge\OneDrive\Documents\Fractal\Projects\Component\Swisseph\с-swisseph\swisseph\windows\programs\swetest64.exe`
-  - `SWEPH_EPHE_DIR_DEFAULT` = `C:\Users\serge\OneDrive\Documents\Fractal\Projects\Component\Swisseph\с-swisseph\swisseph\ephe`
-
-При вызове swetest харнесс автоматически добавляет `-edir"<путь>"` (если директория существует).
-
-Примечание по выводу swetest: табличный режим (`-fPl -head`) для некоторых систем может маркировать строку `house 1` относительно противоположной полуокружности по сравнению с нашим соглашением `cusp1 = Asc`. Харнесс нормализует сравнение: поворачивает список по `Ascendant` и, если `ΔAsc ≈ 180°`, инвертирует (сдвиг на 6 домов) перед расчётом дельт, чтобы сравнивать геометрию, а не артефакт конвенции.
-
-
-## Паритет со swetest (all systems)
-
-Для массовой сверки геометрии домов с эталонным swetest доступны:
-
-- Скрипт для всех систем: `scripts/parity_all_houses.php`
-- Точечный скрипт для Savard‑A: `scripts/parity_j_vs_swetest.php`
-- Опциональный PHPUnit‑тест (guarded) `tests/HousesParityWithSwetestTest.php`
-
-Требования:
-- Установленный `swetest` (см. переменные окружения выше); каталоги эфемерид доступны.
-- Windows PowerShell (pwsh) — команды ниже даны для неё.
-
-Как запустить харнесс всех систем:
-
-```powershell
-# (опционально) указать пути, если отличны от дефолтных
-$env:SWETEST_PATH = 'C:\\path\\to\\swetest64.exe'
-$env:SWEPH_EPHE_DIR = 'C:\\path\\to\\ephe'
-
-# запустить сводный прогон
-php php-swisseph\scripts\parity_all_houses.php
-```
-
-Как запустить guarded PHPUnit‑паритет:
-
-```powershell
-$env:RUN_SWETEST_PARITY = '1'
-php php-swisseph\vendor\phpunit\phpunit\phpunit -c php-swisseph\phpunit.xml.dist
-```
-
-Методика нормализации (встроена в харнесс):
-- Ротация списка куспов swetest к `Asc` (там, где `cusp1≈Asc`).
-- Автоинверсия (смещение на 6 домов), если `ΔAsc` близко к 180°.
-- Перебор «forward/reversed» + циклический сдвиг с выбором по композитному score.
-- В score учитываются: средняя/максимальная дельта по куспам, умеренный вклад осевых дельт (Asc, для квадрантных систем — MC).
-
-Особые случаи и оговорки:
-- Sunshine 'I'/'i', APC 'Y', Savard‑A 'J': табличные конвенции swetest отличаются от соглашения `cusp1=Asc` и/или направления отсчёта. Геометрия в фасадах соответствует SWE, но табличное сопоставление требует системно‑специфичных «якорей»; харнесс уже применяет осевые подсказки, дальнейшая донастройка — в планах.
-- Gauquelin 'G': сравнение ведётся по 36 секторам с отдельным парсером swetest; направление — по часовой стрелке.
-- Placidus/Koch на высоких широтах: возможны ошибки у обеих реализаций; харнесс помечает кейс и идёт дальше.
-
-Выводы харнесса:
-- По каждой системе и набору локаций печатаются: выбранное соответствие (forward/reversed, сдвиг), средняя/максимальная Δ, контрольные Δ по домам 1 и 10, а также осевые ΔAsc/ΔMC для выбранного соответствия.
-- В конце формируется короткая сводка `avg(avgΔ)` и `max(maxΔ)`, плюс средние осевые Δ.
-
+- Bit-for-bit identity with every compiler/platform.
+- Redistribution rights for caller-supplied ephemeris or catalogue files.
+- Thread safety around mutable global settings.
+- Fitness for safety-critical navigation or other high-consequence use.

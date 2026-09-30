@@ -13,12 +13,8 @@ final class Vsop87PlanetSupportTest extends TestCase
 {
     private static function ensureEphe(): void
     {
-        if (!defined('SWISSEPH_EPHE_SET') || SWISSEPH_EPHE_SET === false) {
-            $cand = realpath(__DIR__ . '/../../../с-swisseph/swisseph/ephe');
-            if ($cand && is_dir($cand) && is_file($cand . DIRECTORY_SEPARATOR . 'sepl_18.se1')) {
-                swe_set_ephe_path($cand);
-                define('SWISSEPH_EPHE_SET', true);
-            }
+        if (SWISSEPH_TEST_EPHE_PATH !== '') {
+            swe_set_ephe_path(SWISSEPH_TEST_EPHE_PATH);
         }
     }
 

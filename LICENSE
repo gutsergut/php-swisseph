@@ -1,23 +1,3 @@
-PHP Swiss Ephemeris - High precision astronomical calculations
-================================================================
-
-This software is a PHP port of Swiss Ephemeris, which is licensed under
-AGPL-3.0 by Astrodienst AG, Switzerland.
-
-Original Swiss Ephemeris:
-  Copyright (C) 1997-2021 Astrodienst AG, Switzerland.
-  Authors: Dieter Koch and Alois Treindl
-  https://www.astro.com/swisseph
-
-PHP Port:
-  Copyright (C) 2025 Sergey Gutnikov
-  https://github.com/gutsergut/php-swisseph
-
-This PHP port is a derivative work based on Swiss Ephemeris and is
-distributed under the same license terms as the original.
-
-================================================================
-
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
 

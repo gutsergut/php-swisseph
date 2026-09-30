@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Swisseph\Tests;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Swisseph\Constants;
 
@@ -33,12 +34,14 @@ class AsteroidsTest extends TestCase
 
     protected function setUp(): void
     {
-        \swe_set_ephe_path(__DIR__ . '/../../../eph/ephe');
+        if (SWISSEPH_TEST_EPHE_PATH === '') {
+            $this->markTestSkipped('Set SWEPH_EPHE_DIR to run asteroid parity tests.');
+        }
+
+        \swe_set_ephe_path(SWISSEPH_TEST_EPHE_PATH);
     }
 
-    /**
-     * @dataProvider asteroidProvider
-     */
+    #[DataProvider('asteroidProvider')]
     public function testAsteroidEclipticCoordinates(int $ipl, string $name, float $expectedLon, float $expectedLat, float $expectedDist): void
     {
         $xx = [];

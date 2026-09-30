@@ -1,86 +1,63 @@
 <?php
-// PHPUnit bootstrap: устанавливаем ephemeris path, автозагрузку и глобальные функции.
 
-// 1. Composer autoload (если доступен)
-$vendorAutoload = __DIR__ . '/../vendor/autoload.php';
-if (is_file($vendorAutoload)) {
+declare(strict_types=1);
+
+// PHPUnit bootstrap shared by the self-contained and ephemeris-backed suites.
+
+$vendorAutoload = dirname(__DIR__) . '/vendor/autoload.php';
+$hasComposerAutoload = is_file($vendorAutoload);
+
+if ($hasComposerAutoload) {
     require $vendorAutoload;
-}
+} else {
+    spl_autoload_register(static function (string $class): void {
+        $prefix = 'Swisseph\\';
+        if (!str_starts_with($class, $prefix)) {
+            return;
+        }
 
-// 2. Подключаем глобальные функции (обёртки swe_*)
-require_once __DIR__ . '/../src/functions.php';
-
-// 3. Вспомогательный PSR-4 для Swisseph\ если Composer не собран
-if (!function_exists('str_starts_with')) {
-    function str_starts_with(string $haystack, string $needle): bool { return $needle === '' || strpos($haystack, $needle) === 0; }
-}
-spl_autoload_register(function ($class) {
-    if (str_starts_with($class, 'Swisseph\\')) {
-        $path = __DIR__ . '/../src/' . str_replace('Swisseph\\', '', $class) . '.php';
+        $relativeClass = substr($class, strlen($prefix));
+        $path = dirname(__DIR__) . '/src/' . str_replace('\\', '/', $relativeClass) . '.php';
         if (is_file($path)) {
             require $path;
         }
-    }
-});
-
-// 4. Поиск ephe директории со Swiss Ephemeris .se1 файлами.
-// Используем несколько кандидатов относительно phpunit запуска (текущий каталог = php-swisseph).
-$candidates = [
-    // Репозиторий корень -> eph/ephe
-    realpath(__DIR__ . '/../eph/ephe'),
-    // Альтернативное размещение исходников C порта (кириллическая 'с')
-    realpath(__DIR__ . '/../с-swisseph/swisseph/ephe'),
-    realpath(__DIR__ . '/../../с-swisseph/swisseph/ephe'),
-];
-
-foreach ($candidates as $cand) {
-    if ($cand && is_dir($cand) && is_file($cand . DIRECTORY_SEPARATOR . 'sepl_18.se1')) {
-        swe_set_ephe_path($cand);
-        define('SWISSEPH_EPHE_SET', true);
-        break;
-    }
-}
-if (!defined('SWISSEPH_EPHE_SET')) {
-    // Fallback: если файлов нет, все тесты, требующие SWIEPH, будут репортить отсутствие.
-    define('SWISSEPH_EPHE_SET', false);
-    fwrite(STDERR, "[bootstrap] Warning: Swiss Ephemeris planet file sepl_18.se1 not found; SWIEPH-dependent tests will fail.\n");
+    });
 }
 
-// Polyfill for PHP < 8 (useful if someone runs bootstrap outside CI)
-if (!function_exists('str_starts_with')) {
-    function str_starts_with(string $haystack, string $needle): bool {
-        return $needle === '' || strpos($haystack, $needle) === 0;
-    }
-}
-// Simple PSR-4 autoloader for tests without Composer dump-autoload
-spl_autoload_register(function ($class) {
-    if (str_starts_with($class, 'Swisseph\\')) {
-        $path = __DIR__ . '/../src/' . str_replace('Swisseph\\', '', $class) . '.php';
-        if (is_file($path)) {
-            require $path;
-        }
-    }
-});
-// Include functions file for global wrappers
-require __DIR__ . '/../src/functions.php';
+require_once dirname(__DIR__) . '/src/functions.php';
 
-// Auto-set ephemeris path once per test run (shared constant guard)
-if (!defined('SWISSEPH_EPHE_SET')) {
-    // Preferred relative locations to search (ordered)
+/**
+ * Resolve optional Swiss Ephemeris test data without machine-specific paths.
+ */
+function resolveTestEphemerisPath(): ?string
+{
+    $configuredPath = getenv('SWEPH_EPHE_DIR');
     $candidates = [
-        __DIR__ . '/../../eph/ephe',  // repo root eph/ephe
-        __DIR__ . '/../ephe',          // legacy copy inside tests
+        is_string($configuredPath) && $configuredPath !== '' ? $configuredPath : null,
+        __DIR__ . '/fixtures/ephe',
+        dirname(__DIR__) . '/eph/ephe',
     ];
-    foreach ($candidates as $cand) {
-        if (is_dir($cand) && is_file($cand . '/sepl_18.se1')) {
-            swe_set_ephe_path($cand);
-            define('SWISSEPH_EPHE_SET', true);
-            break;
+
+    foreach ($candidates as $candidate) {
+        if ($candidate === null) {
+            continue;
+        }
+
+        $resolved = realpath($candidate);
+        if ($resolved !== false && is_file($resolved . DIRECTORY_SEPARATOR . 'sepl_18.se1')) {
+            return $resolved;
         }
     }
-    if (!defined('SWISSEPH_EPHE_SET')) {
-        // Fallback: still define to avoid repeated scanning
-        define('SWISSEPH_EPHE_SET', false);
-        fwrite(STDERR, "[bootstrap] Warning: ephemeris path not set; sepl_18.se1 not found in candidates\n");
-    }
+
+    return null;
+}
+
+$ephemerisPath = resolveTestEphemerisPath();
+if ($ephemerisPath !== null) {
+    swe_set_ephe_path($ephemerisPath);
+    define('SWISSEPH_EPHE_SET', true);
+    define('SWISSEPH_TEST_EPHE_PATH', $ephemerisPath);
+} else {
+    define('SWISSEPH_EPHE_SET', false);
+    define('SWISSEPH_TEST_EPHE_PATH', '');
 }

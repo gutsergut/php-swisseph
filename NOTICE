@@ -1,0 +1,20 @@
+PHP Swiss Ephemeris
+===================
+
+This project is a derivative PHP port based on Swiss Ephemeris.
+
+Original Swiss Ephemeris:
+  Copyright (C) 1997-2021 Astrodienst AG, Switzerland
+  Authors: Dieter Koch and Alois Treindl
+  https://www.astro.com/swisseph/
+
+PHP port:
+  Copyright (C) 2025-2026 Sergey Gutnikov and contributors
+  https://github.com/gutsergut/php-swisseph
+
+The source is distributed under AGPL-3.0-or-later. Swiss Ephemeris is also
+available from Astrodienst under a professional licence. Data files may have
+their own terms and are not covered merely by this source-code notice.
+
+“Swiss Ephemeris” is used to identify compatibility with the upstream project.
+This community port is not endorsed by Astrodienst AG.

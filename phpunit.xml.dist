@@ -1,8 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.5/phpunit.xsd" bootstrap="tests/bootstrap.php" colors="true">
+<phpunit bootstrap="tests/bootstrap.php" colors="true" cacheDirectory=".phpunit.cache">
   <testsuites>
-    <testsuite name="Swisseph Test Suite">
-      <directory>tests/phpunit</directory>
+    <testsuite name="Self-contained regression suite">
+      <file>tests/phpunit/AzaltRefractionTest.php</file>
+      <file>tests/phpunit/CalendarTest.php</file>
+      <file>tests/phpunit/CotransAndUtilsTest.php</file>
+      <file>tests/phpunit/DeltaTTest.php</file>
+      <file>tests/phpunit/HousesAlcabitiusTest.php</file>
+      <file>tests/phpunit/HousesApcHousePosTest.php</file>
+      <file>tests/phpunit/HousesCampanusTest.php</file>
+      <file>tests/phpunit/HousesEqualTest.php</file>
+      <file>tests/phpunit/HousesKochTest.php</file>
+      <file>tests/phpunit/HousesPlacidusPolarGuardTest.php</file>
+      <file>tests/phpunit/HousesPlacidusTest.php</file>
+      <file>tests/phpunit/HousesPorphyryTest.php</file>
+      <file>tests/phpunit/HousesRegiomontanusTest.php</file>
+      <file>tests/phpunit/HousesSavardATest.php</file>
+      <file>tests/phpunit/HousesWholeSignTest.php</file>
+      <file>tests/phpunit/MathTest.php</file>
+      <file>tests/phpunit/MathUtilsTest.php</file>
+      <file>tests/phpunit/ObliquityTest.php</file>
+      <file>tests/phpunit/SiderealTest.php</file>
+      <file>tests/phpunit/SweCalcFlagsShapeTest.php</file>
+      <file>tests/phpunit/SweCalcInterfaceTest.php</file>
+      <file>tests/phpunit/SweCalcValidationTest.php</file>
+      <file>tests/phpunit/SweHousesEx2SpeedsTest.php</file>
+      <file>tests/phpunit/SweHouseWrappersTest.php</file>
+      <file>tests/phpunit/TimeConversionTest.php</file>
+      <file>tests/phpunit/UtcJdPhpUnitTest.php</file>
     </testsuite>
   </testsuites>
   <source>

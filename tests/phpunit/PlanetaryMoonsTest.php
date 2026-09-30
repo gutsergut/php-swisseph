@@ -25,7 +25,6 @@ use Swisseph\SwephFile\SwedState;
  */
 class PlanetaryMoonsTest extends TestCase
 {
-    private const EPHE_PATH = 'C:\\Users\\serge\\OneDrive\\Documents\\Fractal\\Projects\\Component\\Swisseph\\eph\\ephe';
     private const JD_UT_J2000 = 2451545.0;
 
     // Reference values from C swetest64.exe for J2000.0 (JD 2451545.0 UT)
@@ -57,8 +56,12 @@ class PlanetaryMoonsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        State::setEphePath(self::EPHE_PATH);
-        SwedState::getInstance()->setEphePath(self::EPHE_PATH);
+        if (SWISSEPH_TEST_EPHE_PATH === '') {
+            $this->markTestSkipped('Set SWEPH_EPHE_DIR to run planetary-moon parity tests.');
+        }
+
+        State::setEphePath(SWISSEPH_TEST_EPHE_PATH);
+        SwedState::getInstance()->setEphePath(SWISSEPH_TEST_EPHE_PATH);
     }
 
     public function testIoEclipticGeocentric(): void

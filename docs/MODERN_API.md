@@ -258,7 +258,7 @@ echo "Moon (Topocentric): {$moon->longitude}°\n";
 
 1. **Install package via Composer** (when published to Packagist)
 ```bash
-composer require fractal/swisseph-php
+composer require gutsergut/php-swisseph:dev-main
 ```
 
 2. **Publish configuration**
@@ -339,7 +339,7 @@ return [
 
 1. **Install bundle**
 ```bash
-composer require fractal/swisseph-php
+composer require gutsergut/php-swisseph:dev-main
 ```
 
 2. **Enable bundle** (`config/bundles.php`)
@@ -452,7 +452,7 @@ if ($jupiter->isSuccess()) {
 }
 ```
 
-**Both APIs are supported!** The C-style API remains for 100% compatibility with Swiss Ephemeris C library.
+Both APIs are available. The C-style surface is a compatibility target, but complete numerical and behavioral parity with the Swiss Ephemeris C library has not yet been established; see [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ---
 

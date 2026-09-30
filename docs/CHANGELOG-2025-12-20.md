@@ -1,5 +1,7 @@
 # Changelog — 20 декабря 2025
 
+> Historical development note. The pass counts below came from the test harness available on that date and are not a current compatibility guarantee. See [COMPATIBILITY.md](COMPATIBILITY.md) for the presently enforced status.
+
 ## 🎯 Comprehensive Testing & Delta T Fix
 
 ### Исправления

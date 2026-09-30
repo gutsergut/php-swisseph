@@ -24,18 +24,11 @@ class FictitiousPlanetsTest extends TestCase
     protected function setUp(): void
     {
         if (!self::$pathSet) {
-            $ephePath = realpath(__DIR__ . '/../../eph/ephe');
-            if ($ephePath !== false) {
-                swe_set_ephe_path($ephePath);
+            if (SWISSEPH_TEST_EPHE_PATH !== '') {
+                swe_set_ephe_path(SWISSEPH_TEST_EPHE_PATH);
                 self::$pathSet = true;
             }
         }
-
-        // Debug: check Venus speed
-        $xx = [];
-        $serr = '';
-        swe_calc(2451545.0, Constants::SE_VENUS, Constants::SEFLG_SPEED, $xx, $serr);
-        echo "\n[FictitiousTest setUp] Venus speed: {$xx[3]} deg/day\n";
     }
 
     /**

@@ -1,6 +1,7 @@
 # Dependencies
 /vendor/
 composer.lock
+/graphify-out/
 
 # IDE
 .idea/
@@ -23,6 +24,10 @@ desktop.ini
 .phpunit.result.cache
 tests/_output/
 build/
+/coverage/
+/.phpunit.cache/
+/.phpstan.cache/
+/dist/
 
 # Temporary test and debug files (exclude from git)
 /test_*.php

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Swisseph\Tests;
 
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Swisseph\Swe\Jpl\JplConstants;
 use Swisseph\Swe\Jpl\JplEphemeris;
@@ -18,12 +19,7 @@ class JplEphemerisTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        // Look for JPL ephemeris file in common locations
-        $possiblePaths = [
-            __DIR__ . '/../../eph/ephe',
-            __DIR__ . '/../../../eph/ephe',
-            'C:/sweph/ephe',
-        ];
+        $possiblePaths = SWISSEPH_TEST_EPHE_PATH !== '' ? [SWISSEPH_TEST_EPHE_PATH] : [];
 
         $jplFiles = ['de441.eph', 'de440.eph', 'de431.eph', 'de430.eph', 'de421.eph', 'de406.eph', 'de405.eph'];
 
@@ -92,9 +88,7 @@ class JplEphemerisTest extends TestCase
         $this->assertStringContainsString('not found', $serr);
     }
 
-    /**
-     * @group requires-jpl
-     */
+    #[Group('requires-jpl')]
     public function testOpenRealFile(): void
     {
         if (!self::$hasJplFile) {
@@ -129,9 +123,7 @@ class JplEphemerisTest extends TestCase
         $jpl->close();
     }
 
-    /**
-     * @group requires-jpl
-     */
+    #[Group('requires-jpl')]
     public function testPlephSunPosition(): void
     {
         if (!self::$hasJplFile) {
@@ -168,9 +160,7 @@ class JplEphemerisTest extends TestCase
         $jpl->close();
     }
 
-    /**
-     * @group requires-jpl
-     */
+    #[Group('requires-jpl')]
     public function testPlephMoonPosition(): void
     {
         if (!self::$hasJplFile) {
@@ -206,9 +196,7 @@ class JplEphemerisTest extends TestCase
         $jpl->close();
     }
 
-    /**
-     * @group requires-jpl
-     */
+    #[Group('requires-jpl')]
     public function testPlephPlanetPositions(): void
     {
         if (!self::$hasJplFile) {
@@ -257,9 +245,7 @@ class JplEphemerisTest extends TestCase
         $jpl->close();
     }
 
-    /**
-     * @group requires-jpl
-     */
+    #[Group('requires-jpl')]
     public function testPlephNutations(): void
     {
         if (!self::$hasJplFile) {

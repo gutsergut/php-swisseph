@@ -21,14 +21,13 @@ use Swisseph\Constants;
 final class CenterBodyTest extends TestCase
 {
     private const JD_J2000 = 2451545.0;
-    private const EPHE_PATH = __DIR__ . '/../../../eph/ephe';
-
     protected function setUp(): void
     {
-        if (!is_dir(self::EPHE_PATH)) {
-            $this->markTestSkipped('Ephemeris directory not found: ' . self::EPHE_PATH);
+        if (SWISSEPH_TEST_EPHE_PATH === '') {
+            $this->markTestSkipped('Set SWEPH_EPHE_DIR to run center-body parity tests.');
         }
-        \swe_set_ephe_path(self::EPHE_PATH);
+
+        \swe_set_ephe_path(SWISSEPH_TEST_EPHE_PATH);
     }
 
     /**
